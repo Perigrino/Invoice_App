@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String?
+  image     String?
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  accounts  Account[]
+  sessions  Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Company {
+  id      String   @id @default(cuid())
+  name    String?
+  logo    String?
+  address String?
+  email   String?
+  phone   String?
+  website String?
+  taxId   String?
+  users   User[]
+}
+
+model Client {
+  id        String    @id @default(cuid())
+  fullName  String
+  company   String?
+  email     String?
+  phone     String?
+  address   String?
+  taxId     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  invoices  Invoice[]
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String
+  clientId      String?
+  client        Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  status        String        @default("draft")
+  subtotal      Float         @default(0)
+  discount      Float         @default(0)
+  tax           Float         @default(0)
+  total         Float         @default(0)
+  balanceDue    Float         @default(0)
+  notes         String?       @db.Text
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  lineItems     InvoiceLineItem[]
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  price       Float   @default(0)
+  quantity    Float   @default(1)
+  discount    Float   @default(0)
+  tax         Float   @default(0)
+  total       Float   @default(0)
+  sortOrder   Int     @default(0)
+}
+
+model Tax {
+  id         String @id @default(cuid())
+  name       String
+  percentage Float  @default(0)
+  method     String @default("exclusive")
+}
+
+model Setting {
+  id             String  @id @default(cuid())
+  currency       String  @default("USD")
+  separator      String  @default("comma")
+  decimalPlaces  Int     @default(2)
+  signPlacement  String  @default("before")
+  dateFormat     String  @default("MM/DD/YYYY")
+  pdfDirectory   String  @default("/exports")
+  template       String  @default("modern")
+  paperSize      String  @default("A4")
+  showInvoiceId  Boolean @default(true)
+  showDueDate    Boolean @default(true)
+  showCurrency   Boolean @default(true)
+  showDiscount   Boolean @default(true)
+  showTax        Boolean @default(true)
+  showNote       Boolean @default(true)
+  language       String  @default("en")
+  sound          String  @default("default")
+  muteNotifications Boolean @default(false)
+  openPdfAfterExport Boolean @default(true)
+  autoSave       Boolean @default(true)
+  darkMode       Boolean @default(false)
+}
