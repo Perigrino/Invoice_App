@@ -13,15 +13,41 @@ InvoiceFlow is a full-featured invoice generation app built with Next.js. Create
 - **Dark Mode** — Full dark mode support. Toggle from the sidebar, topbar, or settings.
 - **Currency Support** — Multiple currencies (USD, EUR, GBP, GHS, CAD, NGN, ZAR) with configurable format (separator, decimal places, sign placement).
 - **Paper Size** — Choose A3, A4, Letter, or Legal for PDF exports.
-- **Per-Profile Settings** — Each profile has its own company logo, business details, and default invoice notes.
-- **Local-First Storage** — All data persists in your browser via localStorage. No account required.
+- **Per-Profile Settings** — Each profile has its own company logo, business details, default invoice notes, and PDF colors.
+- **Account-Based Storage** — Data is tied to your account, synced to the server, and backed by localStorage for offline-first behavior.
 - **Responsive UI** — Collapsible sidebar, data tables, gradient accents, and smooth transitions.
+
+## Updates
+
+### v1.1 — User Accounts & Authentication
+- Added custom authentication (JWT sessions via `jose`, bcrypt password hashing).
+- Added sign up / sign in pages with server-side validation.
+- All data (clients, invoices, settings) is now scoped to the signed-in user via protected API routes.
+- Route protection via proxy — unauthenticated users are redirected to sign in.
+- **Admin role** — the first user to sign up becomes an admin; additional admins can be promoted via the `ADMIN_EMAILS` environment variable.
+- **Admin panel** (`/admin/users`) — admins can view all users, reset passwords, and delete accounts (with data cascade).
+
+### v1.2 — Per-Profile PDF Colors
+- Each profile can define its own **Accent Color** (invoice title, table header, underline) and **Secondary Color** (totals section and highlight) used in exported PDFs.
+- Settings added under Settings → Profiles, with preset swatches, a color picker, and hex input.
+
+### v1.3 — Export Validation
+- An invoice can no longer be exported without a **client selected**, **at least one line item**, and a **note**.
+- A warning banner highlights which fields need attention, and the offending sections are outlined in red.
+- If no note is entered but the active profile has a saved **default note**, you'll be prompted to use it for the export.
+- If no default note exists, you're guided to add one or set a default note in Settings.
+
+### v1.4 — PDF Layout Polish
+- Row text in the item table (description, price, qty, total) is now vertically centered so the alternating row shade never overlaps the text.
+- Notes are centered on the PDF.
 
 ## Tech Stack
 
 - **Framework** — Next.js (App Router)
 - **Styling** — Tailwind CSS v4 + Shadcn/ui
-- **State** — Zustand with localStorage persistence
+- **State** — Zustand with localStorage persistence + server sync
+- **Database** — PostgreSQL + Prisma ORM
+- **Auth** — Custom JWT sessions (jose) + bcrypt password hashing
 - **PDF** — jsPDF
 - **Theming** — next-themes
 
@@ -29,6 +55,8 @@ InvoiceFlow is a full-featured invoice generation app built with Next.js. Create
 
 ```bash
 npm install
+# set up your .env with DATABASE_URL and SESSION_SECRET, then:
+npx prisma db push
 npm run dev
 ```
 

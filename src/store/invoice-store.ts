@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import type { InvoiceFormData, LineItem, InvoiceStatus, InvoiceType } from "@/types";
 import { loadFromStorage, saveToStorage } from "@/lib/storage";
+import {
+  fetchInvoices,
+  createInvoice as apiCreateInvoice,
+  updateInvoice as apiUpdateInvoice,
+  deleteInvoice as apiDeleteInvoice,
+} from "@/lib/api";
 
 export interface SavedInvoice {
   id: string;
@@ -25,7 +31,7 @@ interface InvoiceState {
   currentInvoice: InvoiceFormData | null;
   isDirty: boolean;
   _hydrated: boolean;
-  hydrate: () => void;
+  hydrate: () => Promise<void>;
   saveInvoice: (data: InvoiceFormData, clientName: string) => SavedInvoice;
   updateInvoice: (id: string, data: InvoiceFormData, clientName: string) => SavedInvoice | null;
   deleteInvoice: (id: string) => void;
@@ -54,8 +60,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   isDirty: false,
   _hydrated: false,
 
-  hydrate: () => {
-    const data = loadFromStorage<SavedInvoice[]>("invoices", []);
+  hydrate: async () => {
+    const local = loadFromStorage<SavedInvoice[]>("invoices", []);
+    const remote = await fetchInvoices();
+    const data = remote && remote.length > 0 ? remote : local;
     set({ invoices: data, _hydrated: true });
   },
 
@@ -80,6 +88,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     const updated = [saved, ...get().invoices];
     persist(updated);
     set({ invoices: updated, currentInvoice: null, isDirty: false });
+    apiCreateInvoice(saved);
     return saved;
   },
 
@@ -109,6 +118,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     );
     persist(updated);
     set({ invoices: updated, currentInvoice: null, isDirty: false });
+    apiUpdateInvoice(id, updatedInvoice);
     return updatedInvoice;
   },
 
@@ -116,6 +126,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     const updated = get().invoices.filter((inv) => inv.id !== id);
     persist(updated);
     set({ invoices: updated });
+    apiDeleteInvoice(id);
   },
 
   duplicateInvoice: (id) => {
@@ -130,6 +141,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     const updated = [dup, ...get().invoices];
     persist(updated);
     set({ invoices: updated });
+    apiCreateInvoice(dup);
   },
 
   setCurrentInvoice: (invoice) =>

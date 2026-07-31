@@ -35,7 +35,9 @@ export function exportInvoicePdf(
   logo?: string,
   settingsNotes?: string,
   paperSize?: string,
-  pdfDirectory?: string
+  pdfDirectory?: string,
+  accentColor?: string,
+  secondaryColor?: string
 ) {
   const combinedNotes = [invoice.notes, settingsNotes].filter(Boolean).join("\n\n");
   const document = generateInvoicePDF({
@@ -64,6 +66,8 @@ export function exportInvoicePdf(
     notes: combinedNotes,
     currency,
     logo,
+    accentColor,
+    secondaryColor,
   });
 
   const dir = (pdfDirectory || "").replace(/^\/+|\/+$/g, "").replace(/[/\\]/g, "_");

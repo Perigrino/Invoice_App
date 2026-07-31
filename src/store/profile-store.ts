@@ -35,10 +35,20 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   activeProfileId: "default",
 
   hydrate: () => {
-    const profiles = loadRaw<Profile[]>(PROFILES_KEY, [defaultProfile]);
+    const raw = loadRaw<Profile[]>(PROFILES_KEY, [defaultProfile]);
+    const profiles = (Array.isArray(raw) ? raw : [])
+      .filter((p) => p && typeof p.name === "string" && p.name.trim() !== "")
+      .map((p) => ({ ...p, name: p.name.trim() }));
+    const safeProfiles = profiles.length > 0 ? profiles : [defaultProfile];
     const activeProfileId = loadRaw<string>(ACTIVE_KEY, "default");
-    setProfileNamespace(activeProfileId);
-    set({ profiles, activeProfileId });
+    const safeActive =
+      safeProfiles.find((p) => p.id === activeProfileId)?.id ||
+      safeProfiles[0].id;
+    setProfileNamespace(safeActive);
+    if (profiles.length > 0 && safeActive !== activeProfileId) {
+      saveRaw(ACTIVE_KEY, safeActive);
+    }
+    set({ profiles: safeProfiles, activeProfileId: safeActive });
   },
 
   addProfile: (name) => {

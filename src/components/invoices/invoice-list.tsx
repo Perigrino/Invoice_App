@@ -150,7 +150,7 @@ export function InvoiceList() {
                       className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
                       onClick={async () => {
                         const { exportInvoicePdf } = await import("@/lib/pdf/export-invoice");
-                        exportInvoicePdf(item, settings.currency, company, settings.logo, settings.notes, settings.paperSize, settings.pdfDirectory);
+                        exportInvoicePdf(item, settings.currency, company, settings.logo, settings.notes, settings.paperSize, settings.pdfDirectory, settings.pdfAccentColor, settings.pdfSecondaryColor);
                         setMenuOpen(null);
                       }}
                     >

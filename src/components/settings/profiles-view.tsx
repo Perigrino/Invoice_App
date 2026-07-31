@@ -13,6 +13,72 @@ import { useSettingsStore } from "@/store/settings-store";
 import { useCompanyStore } from "@/store/company-store";
 import { cn } from "@/lib/utils";
 
+const PRESET_COLORS = [
+  "#00BCD4",
+  "#059669",
+  "#2563EB",
+  "#7C3AED",
+  "#DB2777",
+  "#EA580C",
+  "#EAB308",
+  "#DC2626",
+  "#0F172A",
+  "#64748B",
+];
+
+function ColorPicker({
+  label,
+  value,
+  onChange,
+  description,
+}: {
+  label: string;
+  value: string;
+  onChange: (color: string) => void;
+  description: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex items-center gap-3">
+        <label className="relative h-9 w-9 cursor-pointer overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600">
+          <span className="absolute inset-0" style={{ backgroundColor: value }} />
+          <input
+            type="color"
+            value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : "#00BCD4"}
+            onChange={(e) => onChange(e.target.value)}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            aria-label={label}
+          />
+        </label>
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 w-28 font-mono text-sm"
+        />
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {PRESET_COLORS.map((color) => (
+          <button
+            key={color}
+            type="button"
+            title={color}
+            onClick={() => onChange(color)}
+            className={cn(
+              "h-6 w-6 rounded-full border transition-transform hover:scale-110",
+              value.toLowerCase() === color.toLowerCase()
+                ? "border-gray-900 ring-2 ring-gray-400 dark:border-white dark:ring-gray-500"
+                : "border-gray-300 dark:border-gray-600"
+            )}
+            style={{ backgroundColor: color }}
+          />
+        ))}
+      </div>
+      <p className="text-xs text-gray-500">{description}</p>
+    </div>
+  );
+}
+
 export function ProfilesView() {
   const profiles = useProfileStore((s) => s.profiles);
   const activeProfileId = useProfileStore((s) => s.activeProfileId);
@@ -132,7 +198,7 @@ export function ProfilesView() {
                                 : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                             )}
                           >
-                            {p.name.charAt(0).toUpperCase()}
+                            {(p.name || "?").charAt(0).toUpperCase()}
                           </span>
                           <div>
                             <p className={cn("text-sm font-medium", isActive && "text-emerald-700 dark:text-emerald-400")}>
@@ -179,7 +245,7 @@ export function ProfilesView() {
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-sm font-bold text-white">
-                {activeProfile.name.charAt(0).toUpperCase()}
+                {(activeProfile.name || "?").charAt(0).toUpperCase()}
               </span>
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
@@ -274,6 +340,28 @@ export function ProfilesView() {
                     <Label>Website</Label>
                     <Input value={company.website} onChange={(e) => updateCompany({ website: e.target.value })} />
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">PDF Colors</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <ColorPicker
+                    label="Accent Color"
+                    value={settings.pdfAccentColor}
+                    onChange={(color) => updateSettings({ pdfAccentColor: color })}
+                    description="Used for the invoice title, table header, and underline."
+                  />
+                  <ColorPicker
+                    label="Secondary Color"
+                    value={settings.pdfSecondaryColor}
+                    onChange={(color) => updateSettings({ pdfSecondaryColor: color })}
+                    description="Used for the totals section and total highlight."
+                  />
                 </div>
               </CardContent>
             </Card>

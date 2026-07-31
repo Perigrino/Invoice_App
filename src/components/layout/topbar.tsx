@@ -7,8 +7,10 @@ import {
   Sun,
   Moon,
   Menu,
+  LogOut,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui-store";
+import { logout } from "@/app/actions/auth";
 
 export function Topbar() {
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -49,6 +51,17 @@ export function Topbar() {
             <Moon className="h-4 w-4" />
           )}
         </Button>
+        <form action={logout}>
+          <Button
+            type="submit"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            title="Log out"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </form>
       </div>
     </header>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,10 +12,10 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { FileText } from "lucide-react";
+import { login } from "@/app/actions/auth";
 
 export default function SignInPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [state, action, pending] = useActionState(login, undefined);
 
   return (
     <Card className="w-full max-w-md">
@@ -31,32 +31,38 @@ export default function SignInPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form
-          onSubmit={(e) => e.preventDefault()}
-          className="space-y-4"
-        >
+        <form action={action} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="john@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              required
             />
+            {state?.errors?.email && (
+              <p className="text-sm text-red-500">{state.errors.email[0]}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              required
             />
+            {state?.errors?.password && (
+              <p className="text-sm text-red-500">{state.errors.password[0]}</p>
+            )}
           </div>
-          <Button type="submit" className="w-full">
-            Sign In
+          {state?.message && (
+            <p className="text-sm text-red-500">{state.message}</p>
+          )}
+          <Button type="submit" className="w-full" disabled={pending}>
+            {pending ? "Signing in..." : "Sign In"}
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-gray-500">

@@ -87,6 +87,8 @@ export interface AppSettings {
   pdfDirectory: string;
   template: TemplateType;
   paperSize: PaperSize;
+  pdfAccentColor: string;
+  pdfSecondaryColor: string;
   showInvoiceId: boolean;
   showDueDate: boolean;
   showCurrency: boolean;

@@ -1,32 +1,42 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserId } from "@/lib/auth/dal";
 
-export async function GET() {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const userId = await getUserId();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const { id } = await params;
   try {
-    const invoices = await prisma.invoice.findMany({
-      where: { userId },
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, userId },
       include: { client: true, lineItems: true },
-      orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json(invoices);
+    if (!invoice) {
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+    }
+    return NextResponse.json(invoice);
   } catch {
     return NextResponse.json(
-      { error: "Failed to fetch invoices" },
+      { error: "Failed to fetch invoice" },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request: Request) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const userId = await getUserId();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const { id } = await params;
   try {
     const body = await request.json();
     let clientId: string | null = body.clientId || null;
@@ -37,9 +47,18 @@ export async function POST(request: Request) {
       });
       if (!client) clientId = null;
     }
-    const invoice = await prisma.invoice.create({
+    const existing = await prisma.invoice.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+    }
+
+    await prisma.invoiceLineItem.deleteMany({ where: { invoiceId: id } });
+
+    const invoice = await prisma.invoice.update({
+      where: { id },
       data: {
-        userId,
         invoiceNumber: body.invoiceNumber,
         invoiceType: body.invoiceType || "invoice",
         clientId,
@@ -71,7 +90,33 @@ export async function POST(request: Request) {
     return NextResponse.json(invoice);
   } catch {
     return NextResponse.json(
-      { error: "Failed to create invoice" },
+      { error: "Failed to update invoice" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const userId = await getUserId();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const { id } = await params;
+  try {
+    const existing = await prisma.invoice.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+    }
+    await prisma.invoice.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to delete invoice" },
       { status: 500 }
     );
   }

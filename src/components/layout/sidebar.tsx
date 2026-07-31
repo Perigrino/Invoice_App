@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,12 +12,12 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Sun,
-  Moon,
   Plus,
   Check,
+  Shield,
 } from "lucide-react";
 import { useProfileStore } from "@/store/profile-store";
+import { fetchCurrentUser } from "@/lib/api";
 
 const navItems = [
   { href: "/invoices", label: "Invoices", icon: FileText },
@@ -29,35 +28,6 @@ const navItems = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-}
-
-function ThemeToggle({ collapsed }: { collapsed: boolean }) {
-  const { theme, setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const currentTheme = resolvedTheme || theme;
-
-  return (
-    <button
-      type="button"
-      onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50",
-        collapsed && "justify-center px-2"
-      )}
-    >
-      {mounted && currentTheme === "dark" ? (
-        <Sun className="h-5 w-5 flex-shrink-0" />
-      ) : (
-        <Moon className="h-5 w-5 flex-shrink-0" />
-      )}
-      {!collapsed && <span>{mounted && currentTheme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
-    </button>
-  );
 }
 
 function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
@@ -71,6 +41,9 @@ function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
     <div className={cn("border-t border-gray-200 dark:border-gray-800", collapsed && "flex flex-col items-center")}>
       {!collapsed && (
         <div className="p-2">
+          <p className="px-1 pb-1.5 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+            Company
+          </p>
           <div className="relative">
             <select
               value={activeProfileId}
@@ -92,7 +65,7 @@ function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
             title={activeProfile.name}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-xs font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
           >
-            {activeProfile.name.charAt(0).toUpperCase()}
+            {(activeProfile.name || "?").charAt(0).toUpperCase()}
           </div>
         </div>
       )}
@@ -102,6 +75,13 @@ function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetchCurrentUser().then((user) => {
+      if (user?.role === "admin") setIsAdmin(true);
+    });
+  }, []);
 
   return (
     <aside
@@ -160,15 +140,28 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </Link>
             );
           })}
+
+          {isAdmin && (
+            <Link
+              href="/admin/users"
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                pathname?.startsWith("/admin")
+                  ? "bg-gradient-to-r from-emerald-50 to-violet-50 text-emerald-700 dark:from-emerald-950/60 dark:to-violet-950/60 dark:text-emerald-400 shadow-sm"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50",
+                collapsed && "justify-center px-2"
+              )}
+            >
+              <Shield className="h-5 w-5 flex-shrink-0" />
+              {!collapsed && <span>Admin</span>}
+            </Link>
+          )}
         </nav>
       </ScrollArea>
 
       <ProfileSwitcher collapsed={collapsed} />
 
       <div className="border-t border-gray-200 dark:border-gray-800">
-        <div className="p-2">
-          <ThemeToggle collapsed={collapsed} />
-        </div>
         <div className="border-t border-gray-200 p-4 dark:border-gray-800">
           {!collapsed && (
             <p className="text-xs text-gray-400">
