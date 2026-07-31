@@ -28,6 +28,24 @@ interface PDFData {
   notes?: string;
   currency?: string;
   logo?: string;
+  accentColor?: string;
+  secondaryColor?: string;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace("#", "");
+  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  const num = parseInt(full, 16);
+  if (Number.isNaN(num)) return [0, 188, 212];
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+function mixWithWhite(rgb: [number, number, number], ratio: number): [number, number, number] {
+  return [
+    Math.round(rgb[0] + (255 - rgb[0]) * ratio),
+    Math.round(rgb[1] + (255 - rgb[1]) * ratio),
+    Math.round(rgb[2] + (255 - rgb[2]) * ratio),
+  ];
 }
 
 function formatPdfCurrency(amount: number, currency = "GHS") {
@@ -56,8 +74,10 @@ export function generateInvoicePDF(data: PDFData): jsPDF {
 
   const PAGE_BOTTOM = opts.bottom;
 
-  const cyanColor: [number, number, number] = [0, 188, 212];
-  const greenColor: [number, number, number] = [5, 150, 105];
+  const cyanColor: [number, number, number] = hexToRgb(data.accentColor || "#00BCD4");
+  const greenColor: [number, number, number] = hexToRgb(data.secondaryColor || "#059669");
+  const accentLight = mixWithWhite(cyanColor, 0.9);
+  const secondaryLight = mixWithWhite(greenColor, 0.9);
   const grayColor: [number, number, number] = [107, 114, 128];
   const violetColor: [number, number, number] = [139, 92, 246];
   const amberColor: [number, number, number] = [245, 158, 11];
@@ -71,10 +91,12 @@ export function generateInvoicePDF(data: PDFData): jsPDF {
 
   doc.setFont("courier");
 
+  const FONT_SIZE = 9;
+  const LINE_HEIGHT = FONT_SIZE * 1.15;
   const ROW_HEIGHT = 7;
 
   function drawTableHeader(y: number) {
-    doc.setFillColor(240, 249, 255);
+    doc.setFillColor(...accentLight);
     doc.rect(margin, y - 1, rightX - margin, 8, "F");
     doc.setDrawColor(...cyanColor);
     doc.setLineWidth(0.6);
@@ -229,7 +251,7 @@ export function generateInvoicePDF(data: PDFData): jsPDF {
   data.lineItems.forEach((item, idx) => {
     const descLines = doc.splitTextToSize(item.description, descWidth);
     const lineCount = descLines.length;
-    const blockHeight = Math.max(lineCount * 5, ROW_HEIGHT);
+    const blockHeight = Math.max(lineCount * LINE_HEIGHT, ROW_HEIGHT);
 
     yPos = ensureSpace(yPos, blockHeight);
 
@@ -240,18 +262,11 @@ export function generateInvoicePDF(data: PDFData): jsPDF {
 
     doc.setTextColor(0, 0, 0);
 
-    doc.text(descLines, colDesc, yPos);
-
-    if (blockHeight > ROW_HEIGHT) {
-      const centerY = yPos + blockHeight / 2 + 1.5;
-      doc.text(formatPdfCurrency(item.price, data.currency), colPriceEnd, centerY, { align: "right" });
-      doc.text(String(item.quantity), colQtyCenter, centerY, { align: "center" });
-      doc.text(formatPdfCurrency(item.total, data.currency), rightX, centerY, { align: "right" });
-    } else {
-      doc.text(formatPdfCurrency(item.price, data.currency), colPriceEnd, yPos, { align: "right" });
-      doc.text(String(item.quantity), colQtyCenter, yPos, { align: "center" });
-      doc.text(formatPdfCurrency(item.total, data.currency), rightX, yPos, { align: "right" });
-    }
+    const firstBaseline = yPos + (blockHeight - (lineCount - 1) * LINE_HEIGHT) / 2;
+    doc.text(descLines, colDesc, firstBaseline);
+    doc.text(formatPdfCurrency(item.price, data.currency), colPriceEnd, firstBaseline, { align: "right" });
+    doc.text(String(item.quantity), colQtyCenter, firstBaseline, { align: "center" });
+    doc.text(formatPdfCurrency(item.total, data.currency), rightX, firstBaseline, { align: "right" });
 
     yPos += blockHeight;
   });
@@ -283,9 +298,8 @@ export function generateInvoicePDF(data: PDFData): jsPDF {
   doc.line(totalsLeft, yPos, rightX, yPos);
   yPos += 7;
 
-  doc.setFillColor(236, 253, 245);
+  doc.setFillColor(...secondaryLight);
   doc.rect(totalsLeft, yPos - 2, rightX - totalsLeft, 8, "F");
-
   doc.setFontSize(11);
   doc.setTextColor(...greenColor);
   doc.text("Total:", totalsLeft, yPos + 3);

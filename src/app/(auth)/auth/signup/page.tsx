@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +12,10 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { FileText } from "lucide-react";
+import { signup } from "@/app/actions/auth";
 
 export default function SignUpPage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [state, action, pending] = useActionState(signup, undefined);
 
   return (
     <Card className="w-full max-w-md">
@@ -32,41 +31,54 @@ export default function SignUpPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form
-          onSubmit={(e) => e.preventDefault()}
-          className="space-y-4"
-        >
+        <form action={action} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
             <Input
               id="name"
+              name="name"
               placeholder="John Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              required
             />
+            {state?.errors?.name && (
+              <p className="text-sm text-red-500">{state.errors.name[0]}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="john@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              required
             />
+            {state?.errors?.email && (
+              <p className="text-sm text-red-500">{state.errors.email[0]}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              required
             />
+            {state?.errors?.password && (
+              <ul className="text-sm text-red-500 space-y-0.5">
+                {state.errors.password.map((error) => (
+                  <li key={error}>- {error}</li>
+                ))}
+              </ul>
+            )}
           </div>
-          <Button type="submit" className="w-full">
-            Create Account
+          {state?.message && (
+            <p className="text-sm text-red-500">{state.message}</p>
+          )}
+          <Button type="submit" className="w-full" disabled={pending}>
+            {pending ? "Creating account..." : "Create Account"}
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-gray-500">
@@ -79,3 +91,4 @@ export default function SignUpPage() {
     </Card>
   );
 }
+

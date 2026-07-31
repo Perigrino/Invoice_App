@@ -13,12 +13,16 @@ model User {
   email     String   @unique
   password  String?
   image     String?
+  role      String   @default("user")
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   accounts  Account[]
   sessions  Session[]
+  clients   Client[]
+  invoices  Invoice[]
+  settings  Setting[]
 }
 
 model Account {
@@ -69,6 +73,8 @@ model Company {
 
 model Client {
   id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   fullName  String
   company   String?
   email     String?
@@ -82,7 +88,10 @@ model Client {
 
 model Invoice {
   id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   invoiceNumber String
+  invoiceType   String  @default("invoice")
   clientId      String?
   client        Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
   status        String        @default("draft")
@@ -121,6 +130,8 @@ model Tax {
 
 model Setting {
   id             String  @id @default(cuid())
+  userId         String  @unique
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   currency       String  @default("USD")
   separator      String  @default("comma")
   decimalPlaces  Int     @default(2)
@@ -129,6 +140,10 @@ model Setting {
   pdfDirectory   String  @default("/exports")
   template       String  @default("modern")
   paperSize      String  @default("A4")
+  pdfAccentColor     String  @default("#00BCD4")
+  pdfSecondaryColor  String  @default("#059669")
+  logo           String  @default("")
+  notes          String  @default("")
   showInvoiceId  Boolean @default(true)
   showDueDate    Boolean @default(true)
   showCurrency   Boolean @default(true)

@@ -15,14 +15,23 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { LineItemRow } from "./line-item-row";
-import { Plus, Save, ArrowLeft, FileDown } from "lucide-react";
+import { Plus, Save, ArrowLeft, FileDown, AlertTriangle, X, FileText } from "lucide-react";
 import type { LineItem, InvoiceType } from "@/types";
 import { useSettingsStore } from "@/store/settings-store";
 import { useInvoiceStore } from "@/store/invoice-store";
 import { useClientStore } from "@/store/client-store";
 import { useCompanyStore } from "@/store/company-store";
-import { formatCurrency } from "@/lib/utils";
+import { useProfileStore } from "@/store/profile-store";
+import { cn, formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 
 
@@ -62,12 +71,23 @@ interface InvoiceFormProps {
   invoiceId?: string;
 }
 
+interface FormErrors {
+  client: boolean;
+  items: boolean;
+  notes: boolean;
+}
+
+const NO_ERRORS: FormErrors = { client: false, items: false, notes: false };
+
 export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
   const router = useRouter();
   const { settings } = useSettingsStore();
   const { invoices, hydrate: hydrateInvoices, saveInvoice, updateInvoice } = useInvoiceStore();
   const { clients, hydrate: hydrateClients } = useClientStore();
   const { company } = useCompanyStore();
+  const profiles = useProfileStore((s) => s.profiles);
+  const activeProfileId = useProfileStore((s) => s.activeProfileId);
+  const activeProfileName = profiles.find((p) => p.id === activeProfileId)?.name || "profile";
   const [selectedClientId, setSelectedClientId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("INV-00001");
   const [issueDate, setIssueDate] = useState("");
@@ -77,6 +97,9 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
   const [invoiceType, setInvoiceType] = useState<InvoiceType>("invoice");
   const loadedInvoiceId = useRef<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>(NO_ERRORS);
+  const [defaultNotePromptOpen, setDefaultNotePromptOpen] = useState(false);
+  const [noNotePromptOpen, setNoNotePromptOpen] = useState(false);
 
   useEffect(() => {
     hydrateClients();
@@ -146,7 +169,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     router.push("/invoices");
   };
 
-  const handleExportPdf = async () => {
+  const doExportPdf = async (noteText: string) => {
     const { exportInvoicePdf } = await import("@/lib/pdf/export-invoice");
     const name = selectedClient?.fullName || selectedClient?.company || "Unknown Client";
     exportInvoicePdf(
@@ -163,15 +186,46 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
         subtotal,
         discount: 0,
         total: subtotal,
-        notes,
+        notes: noteText,
       },
       settings.currency,
       company,
       settings.logo,
-      settings.notes,
+      settings.notes === noteText ? "" : settings.notes,
       settings.paperSize,
-      settings.pdfDirectory
+      settings.pdfDirectory,
+      settings.pdfAccentColor,
+      settings.pdfSecondaryColor
     );
+  };
+
+  const handleExportPdf = async () => {
+    const nextErrors: FormErrors = {
+      client: !selectedClientId,
+      items: lineItems.length === 0,
+      notes: !notes.trim(),
+    };
+    setErrors(nextErrors);
+    if (nextErrors.client || nextErrors.items) {
+      return;
+    }
+    if (nextErrors.notes) {
+      if (settings.notes?.trim()) {
+        setDefaultNotePromptOpen(true);
+      } else {
+        setNoNotePromptOpen(true);
+      }
+      return;
+    }
+    await doExportPdf(notes);
+  };
+
+  const handleUseDefaultNote = async () => {
+    const noteText = settings.notes;
+    setNotes(noteText);
+    setErrors(NO_ERRORS);
+    setDefaultNotePromptOpen(false);
+    await doExportPdf(noteText);
   };
 
   if (!mounted) {
@@ -196,13 +250,32 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Button type="button" variant="outline" onClick={handleSave}>
-            <Save className="h-4 w-4" />
-            {invoiceId ? "Save Changes" : "Save Draft"}
+      </div>
+
+      {errors.client || errors.items || errors.notes ? (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/40">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+              Cannot export invoice yet
+            </p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-amber-700 dark:text-amber-400">
+              {errors.client && <li>Select a client</li>}
+              {errors.items && <li>Add at least one line item</li>}
+              {errors.notes && <li>Add a note</li>}
+            </ul>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-amber-600 hover:text-amber-800 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/50"
+            onClick={() => setErrors(NO_ERRORS)}
+          >
+            <X className="h-4 w-4" />
           </Button>
         </div>
-      </div>
+      ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -297,15 +370,21 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
           </Card>
           </div>
 
-          <Card>
+          <Card className={errors.client ? "border-red-300 dark:border-red-700 ring-1 ring-red-200 dark:ring-red-900/50" : undefined}>
             <CardHeader>
               <CardTitle className="text-base">Client</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <Label>Select Client</Label>
-                <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                  <SelectTrigger>
+                <Select
+                  value={selectedClientId}
+                  onValueChange={(id) => {
+                    setSelectedClientId(id);
+                    if (id && errors.client) setErrors((prev) => ({ ...prev, client: false }));
+                  }}
+                >
+                  <SelectTrigger className={errors.client ? "border-red-400 focus:ring-red-400 focus:border-red-400 dark:border-red-700" : undefined}>
                     <SelectValue placeholder="Search or select a client..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -316,6 +395,9 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.client && (
+                  <p className="text-xs font-medium text-red-500">Please select a client to continue.</p>
+                )}
               </div>
               {selectedClient && (
                 <div className="grid grid-cols-2 gap-4 mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-900">
@@ -329,10 +411,18 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className={errors.items ? "border-red-300 dark:border-red-700 ring-1 ring-red-200 dark:ring-red-900/50" : undefined}>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Products / Services</CardTitle>
-              <Button type="button" variant="outline" size="sm" onClick={() => dispatch({ type: "add" })}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  dispatch({ type: "add" });
+                  if (errors.items) setErrors((prev) => ({ ...prev, items: false }));
+                }}
+              >
                 <Plus className="h-4 w-4" />
                 Add Item
               </Button>
@@ -367,17 +457,23 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className={errors.notes ? "border-red-300 dark:border-red-700 ring-1 ring-red-200 dark:ring-red-900/50" : undefined}>
             <CardHeader>
               <CardTitle className="text-base">Notes</CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => {
+                  setNotes(e.target.value);
+                  if (e.target.value.trim() && errors.notes) setErrors((prev) => ({ ...prev, notes: false }));
+                }}
                 placeholder="Additional notes, payment terms, or instructions..."
-                className="min-h-[100px]"
+                className={cn("min-h-[100px]", errors.notes && "border-red-400 focus:ring-red-400 focus:border-red-400 dark:border-red-700")}
               />
+              {errors.notes && (
+                <p className="mt-1 text-xs font-medium text-red-500">Please add a note to continue.</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -419,6 +515,57 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
           </Card>
         </div>
       </div>
+
+      <Dialog open={defaultNotePromptOpen} onOpenChange={setDefaultNotePromptOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              Use default note?
+            </DialogTitle>
+            <DialogDescription>
+              You haven&apos;t added a note to this invoice. Your profile has a saved default note. Would you like to use it?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-400">
+              Default note from {activeProfileName}
+            </p>
+            <p className="whitespace-pre-line">{settings.notes}</p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDefaultNotePromptOpen(false)}>
+              Not now
+            </Button>
+            <Button type="button" onClick={handleUseDefaultNote}>
+              <FileDown className="h-4 w-4" />
+              Use note and export
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={noNotePromptOpen} onOpenChange={setNoNotePromptOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              Add a note to export
+            </DialogTitle>
+            <DialogDescription>
+              An invoice can&apos;t be exported without a note. Add a note to this invoice, or set a default note in your profile settings to use automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setNoNotePromptOpen(false)}>
+              Add a note
+            </Button>
+            <Button type="button" variant="outline" asChild>
+              <Link href="/settings">Set default note</Link>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -25,6 +25,5 @@ export function StorageHydrator() {
     hydrateSettings();
     hydrateCompany();
   }, [hydrateInvoices, hydrateClients, hydrateSettings, hydrateCompany, activeProfileId]);
-
   return null;
 }
