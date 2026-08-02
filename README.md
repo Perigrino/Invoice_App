@@ -2,6 +2,16 @@
 
 InvoiceFlow is a full-featured invoice generation app built with Next.js. Create, manage, and export professional invoices with ease.
 
+## Screenshots
+
+| Invoices | Clients |
+|---|---|
+| ![Invoices](screenshots/invoices.png) | ![Clients](screenshots/clients.png) |
+
+| Invoice Editor | Settings |
+|---|---|
+| ![Invoice Editor](screenshots/invoice-editor.png) | ![Settings](screenshots/settings.png) |
+
 ## Features
 
 - **Invoice Management** — Create, edit, duplicate, and delete invoices. Each invoice supports line items, custom notes, and discount.
