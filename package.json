@@ -2,11 +2,19 @@
   "name": "invoice-app",
   "version": "0.1.0",
   "private": true,
+  "description": "InvoiceFlow — a modern invoicing app for freelancers and small businesses.",
+  "author": {
+    "name": "InvoiceFlow"
+  },
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "electron:dev": "electron .",
+    "dist": "npm run build && node scripts/electron-stage.cjs && electron-builder --mac",
+    "dist:arm64": "npm run build && node scripts/electron-stage.cjs && electron-builder --mac --arm64"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
@@ -51,6 +59,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^37.2.3",
+    "electron-builder": "^26.0.12",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "playwright": "^1.62.1",
