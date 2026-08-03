@@ -1,5 +1,4 @@
 const { app, BrowserWindow, shell, dialog } = require("electron");
-const { spawn } = require("child_process");
 const net = require("net");
 const http = require("http");
 const path = require("path");
@@ -7,7 +6,6 @@ const path = require("path");
 const DEV_URL = process.env.INVOICEFLOW_DEV_URL || "http://localhost:3000";
 
 let mainWindow = null;
-let nextServer = null;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -49,16 +47,9 @@ async function waitForServer(url, timeoutMs = 60000) {
 
 async function startBundledServer() {
   const port = await getFreePort();
-  const serverFile = path.join(process.resourcesPath, "standalone", "server.js");
-  nextServer = spawn(process.execPath, [serverFile], {
-    env: {
-      ...process.env,
-      ELECTRON_RUN_AS_NODE: "1",
-      PORT: String(port),
-      HOSTNAME: "127.0.0.1",
-    },
-    stdio: "ignore",
-  });
+  process.env.PORT = String(port);
+  process.env.HOSTNAME = "127.0.0.1";
+  require(path.join(process.resourcesPath, "standalone", "server.js"));
   const url = `http://127.0.0.1:${port}`;
   if (await waitForServer(url)) return url;
   throw new Error(`Next.js server did not start at ${url}`);
@@ -117,8 +108,4 @@ app.on("second-instance", () => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
-});
-
-app.on("before-quit", () => {
-  if (nextServer && nextServer.exitCode === null) nextServer.kill();
 });
