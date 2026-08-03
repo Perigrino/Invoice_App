@@ -310,7 +310,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
                 <CardTitle className="text-base">Invoice Details</CardTitle>
               </CardHeader>
               <CardContent>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="invoiceNumber">Invoice Number</Label>
                   <Input
@@ -340,11 +340,11 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
                   </div>
                   <div className="space-y-2">
                     <Label>Invoice Type</Label>
-                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div className="flex flex-col sm:flex-row rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                       <button
                         type="button"
                         onClick={() => setInvoiceType("invoice")}
-                        className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                        className={`flex-1 whitespace-nowrap px-3 py-2 text-sm font-medium transition-colors ${
                           invoiceType === "invoice"
                             ? "bg-emerald-500 text-white"
                             : "bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-950 dark:text-gray-400 dark:hover:bg-gray-800"
@@ -355,13 +355,13 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
                       <button
                         type="button"
                         onClick={() => setInvoiceType("proforma")}
-                        className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                        className={`flex-1 whitespace-nowrap border-t sm:border-t-0 sm:border-l border-gray-200 dark:border-gray-700 px-3 py-2 text-sm font-medium transition-colors ${
                           invoiceType === "proforma"
                             ? "bg-emerald-500 text-white"
                             : "bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-950 dark:text-gray-400 dark:hover:bg-gray-800"
                         }`}
                       >
-                        Proforma
+                        Proforma Invoice
                       </button>
                     </div>
                   </div>
@@ -494,7 +494,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
                 <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(subtotal, settings.currency)}</span>
               </div>
               <Separator />
-              <div className="flex justify-between text-sm p-3 rounded-lg bg-gradient-to-r from-violet-50 to-pink-50 dark:from-violet-950/50 dark:to-pink-950/50">
+              <div className="flex justify-between text-sm p-3 rounded-lg bg-gradient-to-r from-violet-50 to-violet-100 dark:from-violet-950/50 dark:to-violet-900/50">
                 <span className="text-gray-500">Balance Due</span>
                 <span className="font-semibold text-violet-600 dark:text-violet-400">{formatCurrency(subtotal, settings.currency)}</span>
               </div>

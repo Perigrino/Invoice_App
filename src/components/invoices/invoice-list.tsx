@@ -85,7 +85,7 @@ export function InvoiceList() {
                 >
                   {item.invoiceNumber}
                 </Link>
-                <p className="text-xs text-gray-500">{item.clientName}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{item.clientName}</p>
               </div>
             ),
           },
@@ -104,7 +104,7 @@ export function InvoiceList() {
             header: "Issued",
             sortable: true,
             cell: (item) => (
-              <span className="text-gray-500">
+              <span className="text-gray-500 dark:text-gray-400">
                 {formatDate(item.issueDate)}
               </span>
             ),
@@ -114,7 +114,7 @@ export function InvoiceList() {
             header: "Due",
             sortable: true,
             cell: (item) => (
-              <span className="text-gray-500">
+              <span className="text-gray-500 dark:text-gray-400">
                 {item.dueDate ? formatDate(item.dueDate) : "-"}
               </span>
             ),

@@ -4,20 +4,20 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 gap-2",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 disabled:pointer-events-none disabled:opacity-50 gap-2",
   {
     variants: {
       variant: {
         default:
-          "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-md hover:from-emerald-700 hover:to-emerald-600 hover:shadow-lg active:scale-[0.97]",
+          "bg-gradient-to-br from-emerald-600 to-emerald-500 text-white shadow-[0_1px_2px_rgba(5,150,105,0.4)] hover:from-emerald-700 hover:to-emerald-600 hover:shadow-[0_4px_14px_rgba(5,150,105,0.35)] active:scale-[0.97]",
         destructive:
-          "bg-gradient-to-r from-red-600 to-rose-500 text-white shadow-md hover:from-red-700 hover:to-rose-600 hover:shadow-lg active:scale-[0.97]",
+          "bg-gradient-to-br from-red-600 to-rose-500 text-white shadow-[0_1px_2px_rgba(220,38,38,0.4)] hover:from-red-700 hover:to-rose-600 hover:shadow-[0_4px_14px_rgba(220,38,38,0.35)] active:scale-[0.97]",
         outline:
-          "border border-gray-200 bg-white shadow-sm hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800 dark:hover:text-gray-100",
+          "glass-surface border border-gray-200 bg-white shadow-sm hover:bg-gray-50 hover:text-gray-900 dark:border-gray-800 dark:hover:bg-gray-800/60 dark:hover:text-gray-100",
         secondary:
-          "bg-gradient-to-r from-violet-600 to-pink-500 text-white shadow-md hover:from-violet-700 hover:to-pink-600 hover:shadow-lg active:scale-[0.97]",
+          "bg-gradient-to-br from-violet-600 to-violet-500 text-white shadow-[0_1px_2px_rgba(109,40,217,0.4)] hover:from-violet-700 hover:to-violet-600 hover:shadow-[0_4px_14px_rgba(109,40,217,0.35)] active:scale-[0.97]",
         ghost:
-          "hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-gray-100",
+          "hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800/70 dark:hover:text-gray-100",
         link: "text-emerald-600 underline-offset-4 hover:underline hover:text-emerald-700",
       },
       size: {

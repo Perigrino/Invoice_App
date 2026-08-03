@@ -24,18 +24,16 @@ InvoiceFlow is a full-featured invoice generation app built with Next.js. Create
 - **Currency Support** — Multiple currencies (USD, EUR, GBP, GHS, CAD, NGN, ZAR) with configurable format (separator, decimal places, sign placement).
 - **Paper Size** — Choose A3, A4, Letter, or Legal for PDF exports.
 - **Per-Profile Settings** — Each profile has its own company logo, business details, default invoice notes, and PDF colors.
-- **Account-Based Storage** — Data is tied to your account, synced to the server, and backed by localStorage for offline-first behavior.
+- **No Login Required** — Open the app and start invoicing. No account or sign-in needed.
+- **Local-First Storage** — All data persists in your browser via localStorage. Optional server sync via Prisma/Postgres when a database is configured.
 - **Responsive UI** — Collapsible sidebar, data tables, gradient accents, and smooth transitions.
 
 ## Updates
 
-### v1.1 — User Accounts & Authentication
-- Added custom authentication (JWT sessions via `jose`, bcrypt password hashing).
-- Added sign up / sign in pages with server-side validation.
-- All data (clients, invoices, settings) is now scoped to the signed-in user via protected API routes.
-- Route protection via proxy — unauthenticated users are redirected to sign in.
-- **Admin role** — the first user to sign up becomes an admin; additional admins can be promoted via the `ADMIN_EMAILS` environment variable.
-- **Admin panel** (`/admin/users`) — admins can view all users, reset passwords, and delete accounts (with data cascade).
+### v1.1 — User Accounts & Authentication (removed in v1.5)
+- ~~Custom authentication (JWT sessions via `jose`, bcrypt password hashing).~~
+- ~~Sign up / sign in pages with server-side validation.~~
+- ~~Account-scoped data, route protection, admin roles, and admin panel.~~
 
 ### v1.2 — Per-Profile PDF Colors
 - Each profile can define its own **Accent Color** (invoice title, table header, underline) and **Secondary Color** (totals section and highlight) used in exported PDFs.
@@ -51,13 +49,17 @@ InvoiceFlow is a full-featured invoice generation app built with Next.js. Create
 - Row text in the item table (description, price, qty, total) is now vertically centered so the alternating row shade never overlaps the text.
 - Notes are centered on the PDF.
 
+### v1.5 — No-Login Experience
+- Removed authentication entirely — no sign up, sign in, or logout.
+- The app opens directly to the invoice dashboard; all auth UI, admin panel, and account settings were removed.
+- API sync (when a database is configured) now uses a single implicit owner instead of per-user accounts; without a database the app runs fully on localStorage.
+
 ## Tech Stack
 
 - **Framework** — Next.js (App Router)
 - **Styling** — Tailwind CSS v4 + Shadcn/ui
-- **State** — Zustand with localStorage persistence + server sync
-- **Database** — PostgreSQL + Prisma ORM
-- **Auth** — Custom JWT sessions (jose) + bcrypt password hashing
+- **State** — Zustand with localStorage persistence + optional server sync
+- **Database** — PostgreSQL + Prisma ORM (optional; app works without it)
 - **PDF** — jsPDF
 - **Theming** — next-themes
 
@@ -65,12 +67,12 @@ InvoiceFlow is a full-featured invoice generation app built with Next.js. Create
 
 ```bash
 npm install
-# set up your .env with DATABASE_URL and SESSION_SECRET, then:
-npx prisma db push
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+> No `.env` or database is required. The app runs entirely in the browser using localStorage. To enable optional server sync, set `DATABASE_URL`, run `npx prisma db push`, and restart the dev server.
 
 ## Build
 

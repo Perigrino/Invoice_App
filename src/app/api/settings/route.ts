@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getUserId } from "@/lib/auth/dal";
+import { getUserId } from "@/lib/user";
 
 export async function GET() {
   const userId = await getUserId();

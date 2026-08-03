@@ -125,7 +125,7 @@ export function ClientList() {
                 </div>
                 <div>
                   <p className="font-medium">{item.fullName}</p>
-                  <p className="text-xs text-gray-500">{item.company}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{item.company}</p>
                 </div>
               </div>
             ),
