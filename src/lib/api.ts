@@ -170,7 +170,3 @@ export async function saveCompany(company: Partial<CompanySettings>): Promise<bo
   });
   return Boolean(res);
 }
-
-export async function fetchCurrentUser(): Promise<{ id: string; name: string; email: string; role: string } | null> {
-  return await fetchApi<{ id: string; name: string; email: string; role: string }>("/api/auth/me");
-}

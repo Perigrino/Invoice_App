@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,10 +13,8 @@ import {
   ChevronRight,
   Plus,
   Check,
-  Shield,
 } from "lucide-react";
 import { useProfileStore } from "@/store/profile-store";
-import { fetchCurrentUser } from "@/lib/api";
 
 const navItems = [
   { href: "/invoices", label: "Invoices", icon: FileText },
@@ -75,18 +72,11 @@ function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    fetchCurrentUser().then((user) => {
-      if (user?.role === "admin") setIsAdmin(true);
-    });
-  }, []);
 
   return (
     <aside
       className={cn(
-        "flex flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950 transition-all duration-300",
+        "flex flex-col border-r border-gray-200 bg-white/70 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/70 transition-all duration-300",
         collapsed ? "w-16" : "w-60"
       )}
     >
@@ -94,7 +84,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {!collapsed && (
           <Link href="/invoices" className="flex items-center gap-2 font-semibold">
             <FileText className="h-5 w-5 text-emerald-600" />
-            <span className="bg-gradient-to-r from-emerald-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">InvoiceFlow</span>
+            <span className="bg-gradient-to-r from-emerald-500 via-teal-400 to-violet-500 bg-clip-text text-transparent">InvoiceFlow</span>
           </Link>
         )}
         {collapsed && (
@@ -140,22 +130,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </Link>
             );
           })}
-
-          {isAdmin && (
-            <Link
-              href="/admin/users"
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
-                pathname?.startsWith("/admin")
-                  ? "bg-gradient-to-r from-emerald-50 to-violet-50 text-emerald-700 dark:from-emerald-950/60 dark:to-violet-950/60 dark:text-emerald-400 shadow-sm"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50",
-                collapsed && "justify-center px-2"
-              )}
-            >
-              <Shield className="h-5 w-5 flex-shrink-0" />
-              {!collapsed && <span>Admin</span>}
-            </Link>
-          )}
         </nav>
       </ScrollArea>
 
