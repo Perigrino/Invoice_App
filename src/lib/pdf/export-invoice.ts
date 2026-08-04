@@ -1,6 +1,6 @@
-import { generateInvoicePDF } from "./generate-pdf";
+import type { TemplateConfig } from "../templates/types";
 
-interface ExportableInvoice {
+export interface ExportableInvoice {
   invoiceNumber: string;
   issueDate: string;
   dueDate: string | null;
@@ -20,7 +20,7 @@ interface ExportableInvoice {
   notes?: string;
 }
 
-interface CompanyDetails {
+export interface CompanyDetails {
   name?: string;
   fullName?: string;
   address?: string;
@@ -28,49 +28,37 @@ interface CompanyDetails {
   phone?: string;
 }
 
-export function exportInvoicePdf(
-  invoice: ExportableInvoice,
-  currency = "GHS",
-  company: CompanyDetails = {},
-  logo?: string,
-  settingsNotes?: string,
-  paperSize?: string,
-  pdfDirectory?: string,
-  accentColor?: string,
-  secondaryColor?: string
-) {
-  const combinedNotes = [invoice.notes, settingsNotes].filter(Boolean).join("\n\n");
-  const document = generateInvoicePDF({
-    invoiceNumber: invoice.invoiceNumber,
-    invoiceType: invoice.invoiceType || "invoice",
-    paperSize: paperSize || "A4",
-    issueDate: new Date(invoice.issueDate).toLocaleDateString("en-GH"),
-    dueDate: invoice.dueDate
-      ? new Date(invoice.dueDate).toLocaleDateString("en-GH")
-      : "—",
-    companyName: company.name || company.fullName || "",
-    companyAddress: company.address || "",
-    companyEmail: company.email || "",
-    companyPhone: company.phone || "",
-    clientName: invoice.clientName,
-    clientEmail: invoice.clientEmail,
-    clientPhone: invoice.clientPhone,
-    clientAddress: invoice.clientAddress || "",
-    lineItems: invoice.lineItems.map((item) => ({
-      ...item,
-      total: item.price * item.quantity,
-    })),
-    subtotal: invoice.subtotal,
-    discount: invoice.discount,
-    total: invoice.total,
-    notes: combinedNotes,
-    currency,
-    logo,
-    accentColor,
-    secondaryColor,
+export interface PdfExportParams {
+  invoice: ExportableInvoice;
+  currency?: string;
+  company?: CompanyDetails;
+  logo?: string;
+  settingsNotes?: string;
+  paperSize?: string;
+  pdfDirectory?: string;
+  accentColor?: string;
+  secondaryColor?: string;
+  template?: string;
+  templateConfig?: TemplateConfig;
+}
+
+export async function exportInvoicePdf(params: PdfExportParams): Promise<Uint8Array> {
+  const response = await fetch("/api/pdf/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
   });
 
-  const dir = (pdfDirectory || "").replace(/^\/+|\/+$/g, "").replace(/[/\\]/g, "_");
-  const filename = dir ? `${dir}_${invoice.invoiceNumber}.pdf` : `${invoice.invoiceNumber}.pdf`;
-  document.save(filename);
+  if (!response.ok) {
+    let message = `PDF export failed (${response.status})`;
+    try {
+      const err = await response.json();
+      if (err?.error) message = err.error;
+    } catch {
+      // ignore JSON parse failure; fall back to status message
+    }
+    throw new Error(message);
+  }
+
+  return new Uint8Array(await response.arrayBuffer());
 }

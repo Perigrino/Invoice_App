@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/ui/theme-provider";
+import { TranslationProvider } from "@/lib/i18n";
+import { HtmlLang } from "@/components/html-lang";
 import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -30,7 +32,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <TranslationProvider>
+            <HtmlLang />
+            {children}
+          </TranslationProvider>
         </ThemeProvider>
       </body>
     </html>

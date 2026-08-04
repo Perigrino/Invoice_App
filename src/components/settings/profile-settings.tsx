@@ -10,18 +10,20 @@ import { Upload, X, ImageIcon } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { useSettingsStore } from "@/store/settings-store";
 import { useCompanyStore } from "@/store/company-store";
+import { imageToSvg } from "@/lib/image-to-svg";
 
 export function ProfileSettings() {
   const { settings, updateSettings } = useSettingsStore();
   const { company, updateCompany } = useCompanyStore();
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const dataUrl = e.target?.result as string;
-        updateSettings({ logo: dataUrl });
+        const svg = await imageToSvg(dataUrl);
+        updateSettings({ logo: svg });
       };
       reader.readAsDataURL(file);
     }

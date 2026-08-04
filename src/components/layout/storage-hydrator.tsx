@@ -14,16 +14,22 @@ export function StorageHydrator() {
   const hydrateCompany = useCompanyStore((s) => s.hydrate);
   const hydrateProfiles = useProfileStore((s) => s.hydrate);
   const activeProfileId = useProfileStore((s) => s.activeProfileId);
+  const clearNewProfileFlag = useProfileStore((s) => s.clearNewProfileFlag);
 
   useEffect(() => {
     hydrateProfiles();
   }, [hydrateProfiles]);
 
   useEffect(() => {
-    hydrateInvoices();
-    hydrateClients();
-    hydrateSettings();
-    hydrateCompany();
-  }, [hydrateInvoices, hydrateClients, hydrateSettings, hydrateCompany, activeProfileId]);
+    (async () => {
+      await Promise.all([
+        hydrateInvoices(),
+        hydrateClients(),
+        hydrateSettings(),
+        hydrateCompany(),
+      ]);
+      clearNewProfileFlag();
+    })();
+  }, [hydrateInvoices, hydrateClients, hydrateSettings, hydrateCompany, activeProfileId, clearNewProfileFlag]);
   return null;
 }

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { AppSettings } from "@/types";
 import { loadFromStorage, saveToStorage } from "@/lib/storage";
 import { fetchSettings, saveSettings as apiSaveSettings } from "@/lib/api";
+import { useProfileStore } from "./profile-store";
 
 interface SettingsState {
   settings: AppSettings;
@@ -21,7 +22,7 @@ const defaultSettings: AppSettings = {
   dateFormat: "MM/DD/YYYY",
   pdfDirectory: "/exports",
   template: "modern",
-  paperSize: "A4",
+  paperSize: "A3",
   pdfAccentColor: "#00BCD4",
   pdfSecondaryColor: "#059669",
   showInvoiceId: true,
@@ -42,6 +43,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   hydrate: async () => {
     const local = loadFromStorage<AppSettings>("settings", defaultSettings);
+    if (useProfileStore.getState().isNewProfile) {
+      set({ settings: { ...defaultSettings }, _hydrated: true });
+      return;
+    }
     const remote = await fetchSettings();
     set({
       settings: { ...defaultSettings, ...local, ...remote },

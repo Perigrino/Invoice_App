@@ -13,11 +13,13 @@ export interface Profile {
 interface ProfileState {
   profiles: Profile[];
   activeProfileId: string;
+  isNewProfile: boolean;
   hydrate: () => void;
   addProfile: (name: string) => Profile;
   deleteProfile: (id: string) => void;
   renameProfile: (id: string, name: string) => void;
   switchProfile: (id: string) => void;
+  clearNewProfileFlag: () => void;
 }
 
 function uid() {
@@ -33,6 +35,7 @@ const defaultProfile: Profile = {
 export const useProfileStore = create<ProfileState>((set, get) => ({
   profiles: [defaultProfile],
   activeProfileId: "default",
+  isNewProfile: false,
 
   hydrate: () => {
     const raw = loadRaw<Profile[]>(PROFILES_KEY, [defaultProfile]);
@@ -59,7 +62,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     };
     const updated = [...get().profiles, profile];
     saveRaw(PROFILES_KEY, updated);
-    set({ profiles: updated });
+    set({ profiles: updated, isNewProfile: true });
     return profile;
   },
 
@@ -90,5 +93,9 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     setProfileNamespace(id);
     saveRaw(ACTIVE_KEY, id);
     set({ activeProfileId: id });
+  },
+
+  clearNewProfileFlag: () => {
+    set({ isNewProfile: false });
   },
 }));
