@@ -287,11 +287,7 @@ function buildModern(b: SpecBuilder, data: PDFData): string[] {
   const leftKids: string[] = [];
   const hasLogo = comp.logo && !!data.logo;
   if (hasLogo) {
-    leftKids.push(
-      b.el("View", { paddingBottom: data.companyAddress ? mm(2) : mm(6) }, [
-        b.el("Image", { src: data.logo, width: mm(6.4), height: mm(6.4), objectFit: "contain" }),
-      ]),
-    );
+    leftKids.push(b.el("Image", { src: data.logo, style: { maxHeight: mm(14), maxWidth: "100%", objectFit: "contain", marginBottom: data.companyAddress ? mm(2) : mm(6) } }));
     if (data.companyAddress) {
       leftKids.push(b.text(data.companyAddress, { fontSize: b.fontSize * 0.9, color: gray, marginTop: mm(1) }));
     }
