@@ -1,6 +1,6 @@
 {
-  "name": "invoice-app",
-  "version": "0.1.1",
+  "name": "invoiceflow",
+  "version": "0.1.2",
   "private": true,
   "description": "InvoiceFlow — a modern invoicing app for freelancers and small businesses.",
   "author": {

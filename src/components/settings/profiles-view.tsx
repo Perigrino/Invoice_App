@@ -12,7 +12,6 @@ import { useProfileStore } from "@/store/profile-store";
 import { useSettingsStore } from "@/store/settings-store";
 import { useCompanyStore } from "@/store/company-store";
 import { cn } from "@/lib/utils";
-import { imageToSvg } from "@/lib/image-to-svg";
 
 const PRESET_COLORS = [
   "#00BCD4",
@@ -118,8 +117,7 @@ export function ProfilesView() {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const dataUrl = e.target?.result as string;
-        const svg = await imageToSvg(dataUrl);
-        updateSettings({ logo: svg });
+        updateSettings({ logo: dataUrl });
       };
       reader.readAsDataURL(file);
     }

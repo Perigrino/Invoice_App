@@ -27,7 +27,6 @@ export default function RootLayout({
         className={`${plusJakartaSans.variable} h-full antialiased`}
       >
         <ThemeProvider
-          attribute="class"
           defaultTheme="light"
           enableSystem
           disableTransitionOnChange

@@ -3,6 +3,8 @@ const net = require("net");
 const http = require("http");
 const path = require("path");
 
+process.title = "InvoiceFlow";
+
 const DEV_URL = process.env.INVOICEFLOW_DEV_URL || "http://localhost:3000";
 
 let mainWindow = null;
@@ -51,7 +53,10 @@ async function startBundledServer() {
   process.env.HOSTNAME = "127.0.0.1";
   require(path.join(process.resourcesPath, "standalone", "server.js"));
   const url = `http://127.0.0.1:${port}`;
-  if (await waitForServer(url)) return url;
+  if (await waitForServer(url)) {
+    process.title = "InvoiceFlow";
+    return url;
+  }
   throw new Error(`Next.js server did not start at ${url}`);
 }
 
@@ -71,8 +76,14 @@ function createWindow(url) {
       sandbox: true,
     },
   });
-  mainWindow.once("ready-to-show", () => mainWindow.show());
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.setTitle("InvoiceFlow");
+    mainWindow.show();
+  });
   mainWindow.loadURL(url);
+  mainWindow.webContents.on("did-finish-load", () => {
+    mainWindow.setTitle("InvoiceFlow");
+  });
   mainWindow.webContents.setWindowOpenHandler(({ url: target }) => {
     shell.openExternal(target);
     return { action: "deny" };

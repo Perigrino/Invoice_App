@@ -10,7 +10,6 @@ import { Upload, X, ImageIcon } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { useSettingsStore } from "@/store/settings-store";
 import { useCompanyStore } from "@/store/company-store";
-import { imageToSvg } from "@/lib/image-to-svg";
 
 export function ProfileSettings() {
   const { settings, updateSettings } = useSettingsStore();
@@ -22,8 +21,7 @@ export function ProfileSettings() {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const dataUrl = e.target?.result as string;
-        const svg = await imageToSvg(dataUrl);
-        updateSettings({ logo: svg });
+        updateSettings({ logo: dataUrl });
       };
       reader.readAsDataURL(file);
     }
