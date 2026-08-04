@@ -360,7 +360,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
               <img
                 src={settings.logo}
                 alt="Company logo"
-                className="w-full flex-1 object-contain p-6"
+                className="max-h-24 object-contain p-6"
               />
             ) : (
               <div className="flex-1 flex flex-col justify-center p-6 text-sm text-gray-400">
