@@ -12,6 +12,7 @@ import { useProfileStore } from "@/store/profile-store";
 import { useSettingsStore } from "@/store/settings-store";
 import { useCompanyStore } from "@/store/company-store";
 import { cn } from "@/lib/utils";
+import { imageToSvg } from "@/lib/image-to-svg";
 
 const PRESET_COLORS = [
   "#00BCD4",
@@ -87,8 +88,8 @@ export function ProfilesView() {
   const renameProfile = useProfileStore((s) => s.renameProfile);
   const switchProfile = useProfileStore((s) => s.switchProfile);
 
-  const { settings, updateSettings } = useSettingsStore();
-  const { company, updateCompany } = useCompanyStore();
+  const { settings, updateSettings, reset: resetSettings } = useSettingsStore();
+  const { company, updateCompany, reset: resetCompany } = useCompanyStore();
 
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -97,7 +98,10 @@ export function ProfilesView() {
 
   const handleAdd = () => {
     if (!newName.trim()) return;
-    addProfile(newName.trim());
+    const profile = addProfile(newName.trim());
+    switchProfile(profile.id);
+    resetCompany();
+    resetSettings();
     setNewName("");
   };
 
@@ -108,13 +112,14 @@ export function ProfilesView() {
     setEditName("");
   };
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const dataUrl = e.target?.result as string;
-        updateSettings({ logo: dataUrl });
+        const svg = await imageToSvg(dataUrl);
+        updateSettings({ logo: svg });
       };
       reader.readAsDataURL(file);
     }

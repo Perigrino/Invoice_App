@@ -2,10 +2,12 @@ const { chromium } = require("playwright");
 const path = require("path");
 const fs = require("fs");
 
-const BASE = "http://localhost:3000";
+const BASE = process.env.BASE_URL || "http://localhost:3000";
 const OUT = path.resolve(__dirname, "..", "screenshots");
 
 if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, { recursive: true });
+
+const LOGO = `data:image/png;base64,${fs.readFileSync(path.join(OUT, "logo.png")).toString("base64")}`;
 
 const clients = [
   {
@@ -102,7 +104,7 @@ const invoices = [
 ];
 
 const settings = {
-  logo: "",
+  logo: LOGO,
   notes: "",
   currency: "USD",
   separator: "comma",
@@ -130,7 +132,7 @@ const settings = {
 const company = {
   fullName: "InvoiceFlow Studios",
   name: "InvoiceFlow",
-  logo: "",
+  logo: LOGO,
   address: "123 Commerce Ave, Suite 400",
   email: "hello@invoiceflow.app",
   phone: "+1 555-2300",
@@ -160,17 +162,83 @@ async function seed(page) {
   }, SEED);
 }
 
+async function expandLayout(page) {
+  await page.evaluate(() => {
+    document.documentElement.style.overflow = "visible";
+    document.body.style.overflow = "visible";
+    document.querySelectorAll("div").forEach((el) => {
+      const c = typeof el.className === "string" ? el.className : "";
+      if (c.includes("h-screen")) {
+        el.style.height = "auto";
+        el.style.overflow = "visible";
+      }
+      if (c.includes("flex-col") && c.includes("overflow-hidden")) {
+        el.style.height = "auto";
+        el.style.overflow = "visible";
+      }
+    });
+    const main = document.querySelector("main");
+    if (main) {
+      main.style.height = main.scrollHeight + "px";
+      main.style.overflow = "visible";
+      main.style.maxHeight = "none";
+    }
+  });
+}
+
 async function shoot(page, url, file, opts) {
   await page.goto(url, { waitUntil: "networkidle" });
-  await page.waitForTimeout(900);
-  await page.screenshot({ path: path.join(OUT, file), fullPage: true, ...(opts || {}) });
+  await page.waitForTimeout(opts?.wait || 900);
+  await expandLayout(page);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(OUT, file), fullPage: true });
   console.log("captured", file);
+}
+
+async function capturePdf() {
+  const body = {
+    invoice: invoices[0],
+    currency: "USD",
+    company: {
+      name: company.name,
+      fullName: company.fullName,
+      address: company.address,
+      email: company.email,
+      phone: company.phone,
+    },
+    logo: LOGO,
+    settingsNotes: "",
+    paperSize: "A4",
+    accentColor: settings.pdfAccentColor,
+    secondaryColor: settings.pdfSecondaryColor,
+    template: "modern",
+  };
+
+  const res = await fetch(BASE + "/api/pdf/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error("PDF export failed: " + res.status);
+
+  const pdfPath = path.join(OUT, "invoice-preview.pdf");
+  fs.writeFileSync(pdfPath, Buffer.from(await res.arrayBuffer()));
+  console.log("generated", pdfPath);
+
+  const pngPath = path.join(OUT, "pdf-preview.png");
+  const { execFileSync } = require("child_process");
+  execFileSync("sips", ["-s", "format", "png", pdfPath, "--out", pngPath]);
+  console.log("converted", pngPath);
 }
 
 async function main() {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
+
+  await page.route(/\/api\/(settings|company|invoices|clients|profiles)/, (route) =>
+    route.fulfill({ status: 404, body: "{}" })
+  );
 
   await page.goto(BASE + "/invoices", { waitUntil: "networkidle" });
   await seed(page);
@@ -179,10 +247,11 @@ async function main() {
 
   await shoot(page, BASE + "/invoices", "invoices.png");
   await shoot(page, BASE + "/clients", "clients.png");
-  await shoot(page, BASE + "/invoices/" + invoices[0].id, "invoice-editor.png");
+  await shoot(page, BASE + "/invoices/" + invoices[0].id, "invoice-editor.png", { wait: 3500 });
   await shoot(page, BASE + "/settings", "settings.png");
 
   await browser.close();
+  await capturePdf();
 }
 
 main().catch((e) => {

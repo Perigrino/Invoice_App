@@ -12,40 +12,19 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSettingsStore } from "@/store/settings-store";
+import { useTranslation } from "@/lib/i18n";
 
 export function GeneralSettings() {
   const { setTheme, resolvedTheme } = useTheme();
   const { settings, updateSettings } = useSettingsStore();
+  const t = useTranslation();
 
   return (
     <div className="space-y-6">
-      {/* Sound */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Sound</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select
-            value={settings.sound}
-            onValueChange={(v) => updateSettings({ sound: v as "default" | "chime" | "bell" | "silent" })}
-          >
-            <SelectTrigger className="w-full max-w-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">Default</SelectItem>
-              <SelectItem value="chime">Chime</SelectItem>
-              <SelectItem value="bell">Bell</SelectItem>
-              <SelectItem value="silent">Silent</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
       {/* Language */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Language</CardTitle>
+          <CardTitle className="text-base">{t.language}</CardTitle>
         </CardHeader>
         <CardContent>
           <Select
@@ -68,34 +47,17 @@ export function GeneralSettings() {
       {/* Preferences */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Preferences</CardTitle>
+          <CardTitle className="text-base">{t.preferences}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-gray-800">
               <div>
                 <Label className="cursor-pointer font-medium">
-                  Open PDF After Export
+                  {t.autoSave}
                 </Label>
                 <p className="text-sm text-gray-500">
-                  Automatically open PDF after generation
-                </p>
-              </div>
-              <Switch
-                checked={settings.openPdfAfterExport}
-                onCheckedChange={(checked) =>
-                  updateSettings({ openPdfAfterExport: checked })
-                }
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-gray-800">
-              <div>
-                <Label className="cursor-pointer font-medium">
-                  Auto-save Invoices
-                </Label>
-                <p className="text-sm text-gray-500">
-                  Automatically save invoices every 30 seconds
+                  {t.autoSaveDesc}
                 </p>
               </div>
               <Switch
@@ -109,10 +71,10 @@ export function GeneralSettings() {
             <div className="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-gray-800">
               <div>
                 <Label className="cursor-pointer font-medium">
-                  Dark Mode
+                  {t.darkMode}
                 </Label>
                 <p className="text-sm text-gray-500">
-                  Switch to dark theme
+                  {t.darkModeDesc}
                 </p>
               </div>
               <Switch
