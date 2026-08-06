@@ -8,11 +8,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { company: true },
-    });
-    return NextResponse.json(user?.company || {});
+    const company = await prisma.company.findUnique({ where: { userId } });
+    return NextResponse.json(company || {});
   } catch {
     return NextResponse.json(
       { error: "Failed to fetch company" },
@@ -28,13 +25,6 @@ export async function PUT(request: Request) {
   }
   try {
     const body = await request.json();
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { company: true },
-    });
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
 
     const companyData = {
       name: body.name || body.fullName || "",
@@ -43,19 +33,14 @@ export async function PUT(request: Request) {
       email: body.email,
       phone: body.phone,
       website: body.website,
+      taxId: body.taxId,
     };
 
-    let company;
-    if (user.companyId) {
-      company = await prisma.company.update({
-        where: { id: user.companyId },
-        data: companyData,
-      });
-    } else {
-      company = await prisma.company.create({
-        data: { ...companyData, users: { connect: { id: userId } } },
-      });
-    }
+    const company = await prisma.company.upsert({
+      where: { userId },
+      update: companyData,
+      create: { ...companyData, userId },
+    });
     return NextResponse.json(company);
   } catch {
     return NextResponse.json(

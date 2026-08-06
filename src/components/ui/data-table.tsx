@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ interface DataTableProps<T> {
   data: T[];
   onRowClick?: (item: T) => void;
   emptyState?: React.ReactNode;
+  renderCard?: (item: T) => React.ReactNode;
 }
 
 export function DataTable<T extends { id: string }>({
@@ -24,6 +25,7 @@ export function DataTable<T extends { id: string }>({
   data,
   onRowClick,
   emptyState,
+  renderCard,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -50,7 +52,14 @@ export function DataTable<T extends { id: string }>({
 
   return (
     <div className="overflow-visible rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-      <div className="overflow-visible">
+      {renderCard && (
+        <div className="grid gap-3 p-3 md:hidden">
+          {sorted.map((item) => (
+            <Fragment key={item.id}>{renderCard(item)}</Fragment>
+          ))}
+        </div>
+      )}
+      <div className={cn("overflow-visible", renderCard && "hidden md:block")}>
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 bg-gradient-to-r from-emerald-50 via-white to-violet-50 dark:border-gray-700 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">

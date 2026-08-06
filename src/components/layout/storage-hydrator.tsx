@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { setUserNamespace } from "@/lib/storage";
 import { useInvoiceStore } from "@/store/invoice-store";
 import { useClientStore } from "@/store/client-store";
 import { useSettingsStore } from "@/store/settings-store";
 import { useCompanyStore } from "@/store/company-store";
 import { useProfileStore } from "@/store/profile-store";
 
-export function StorageHydrator() {
+export function StorageHydrator({ userId }: { userId?: string }) {
   const hydrateInvoices = useInvoiceStore((s) => s.hydrate);
   const hydrateClients = useClientStore((s) => s.hydrate);
   const hydrateSettings = useSettingsStore((s) => s.hydrate);
@@ -15,6 +16,10 @@ export function StorageHydrator() {
   const hydrateProfiles = useProfileStore((s) => s.hydrate);
   const activeProfileId = useProfileStore((s) => s.activeProfileId);
   const clearNewProfileFlag = useProfileStore((s) => s.clearNewProfileFlag);
+
+  useEffect(() => {
+    setUserNamespace(userId ?? "");
+  }, [userId]);
 
   useEffect(() => {
     hydrateProfiles();

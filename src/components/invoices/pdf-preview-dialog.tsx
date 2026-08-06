@@ -61,8 +61,8 @@ export function PdfPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden sm:rounded-2xl">
-        <DialogHeader className="gap-0 border-b border-gray-200 px-6 py-5 dark:border-gray-800">
-          <div className="flex items-start justify-between gap-4 pr-10">
+        <DialogHeader className="gap-3 border-b border-gray-200 px-4 py-4 dark:border-gray-800 sm:px-6 sm:py-5">
+          <div className="flex flex-col gap-3 pr-10 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div className="min-w-0">
               <DialogTitle className="flex items-center gap-2 text-lg">
                 {title || t.pdfPreview}
@@ -76,7 +76,7 @@ export function PdfPreviewDialog({
               onValueChange={(v) => setSelectedTemplate(v as TemplateType)}
               disabled={downloading}
             >
-              <SelectTrigger className="w-44 shrink-0 gap-2">
+              <SelectTrigger className="w-full shrink-0 gap-2 sm:w-44">
                 <LayoutTemplate className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
                 <SelectValue />
               </SelectTrigger>
@@ -91,17 +91,27 @@ export function PdfPreviewDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto bg-slate-100 p-6 dark:bg-slate-950/50">
+        <div className="flex-1 overflow-auto bg-slate-100 p-3 dark:bg-slate-950/50 sm:p-6">
           <div className="mx-auto w-full" style={{ maxWidth: 794 }}>
             <LivePdfPreview params={{ ...params, template: selectedTemplate }} />
           </div>
         </div>
 
-        <DialogFooter className="border-t border-gray-200 bg-gray-50/50 px-6 py-4 dark:border-gray-800 dark:bg-gray-950/50">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2 border-t border-gray-200 bg-gray-50/50 px-4 py-4 dark:border-gray-800 dark:bg-gray-950/50 sm:justify-end sm:px-6">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 sm:flex-initial"
+            onClick={() => onOpenChange(false)}
+          >
             {t.close}
           </Button>
-          <Button type="button" onClick={handleDownload} disabled={downloading}>
+          <Button
+            type="button"
+            className="flex-1 sm:flex-initial"
+            onClick={handleDownload}
+            disabled={downloading}
+          >
             {downloading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (

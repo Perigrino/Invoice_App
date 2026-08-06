@@ -309,10 +309,10 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] lg:pb-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button type="button" variant="ghost" size="icon" asChild>
+          <Button type="button" variant="ghost" size="icon" asChild className="h-10 w-10 lg:h-9 lg:w-9">
             <Link href="/invoices">
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -420,12 +420,13 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
           </Card>
 
           <Card className={errors.items ? "border-red-300 dark:border-red-700 ring-1 ring-red-200 dark:ring-red-900/50" : undefined}>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="text-base">{t.productsServices}</CardTitle>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="h-10 w-full sm:h-9 sm:w-auto"
                 onClick={() => {
                   dispatch({ type: "add" });
                   if (errors.items) setErrors((prev) => ({ ...prev, items: false }));
@@ -439,7 +440,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200 text-xs text-gray-500 dark:border-gray-800 bg-gradient-to-r from-emerald-50/50 via-white to-violet-50/50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
+                    <tr className="hidden border-b border-gray-200 text-xs text-gray-500 dark:border-gray-800 bg-gradient-to-r from-emerald-50/50 via-white to-violet-50/50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 md:table-row">
                       <th className="px-2 py-2 text-left font-medium">{t.description}</th>
                       <th className="px-2 py-2 text-right font-medium w-24">{t.price}</th>
                       <th className="px-2 py-2 text-right font-medium w-20">{t.qty}</th>
@@ -522,7 +523,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
                   <button
                     type="button"
                     onClick={() => setInvoiceType("invoice")}
-                    className={`flex-1 whitespace-nowrap px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`flex-1 whitespace-normal px-3 py-2 text-sm font-medium transition-colors ${
                       invoiceType === "invoice"
                         ? "bg-emerald-500 text-white"
                         : "bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-950 dark:text-gray-400 dark:hover:bg-gray-800"
@@ -533,7 +534,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
                   <button
                     type="button"
                     onClick={() => setInvoiceType("proforma")}
-                    className={`flex-1 whitespace-nowrap border-l border-gray-200 dark:border-gray-700 px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`flex-1 whitespace-normal border-l border-gray-200 dark:border-gray-700 px-3 py-2 text-sm font-medium transition-colors ${
                       invoiceType === "proforma"
                         ? "bg-emerald-500 text-white"
                         : "bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-950 dark:text-gray-400 dark:hover:bg-gray-800"
@@ -588,7 +589,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hidden lg:block">
             <CardContent className="space-y-3 pt-6">
               <Button type="button" variant="outline" className="w-full" onClick={handleSave}>
                 <Save className="h-4 w-4" />
@@ -611,6 +612,19 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
               </div>
             </CardContent>
           </Card>
+        </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] backdrop-blur-sm dark:border-gray-800 dark:bg-gray-950/95 lg:hidden">
+        <div className="flex gap-3">
+          <Button type="button" variant="outline" className="h-11 flex-1" onClick={handleSave}>
+            <Save className="h-4 w-4" />
+            {invoiceId ? t.saveChanges : t.saveInvoice}
+          </Button>
+          <Button type="button" className="h-11 flex-1" onClick={handleExportPdf}>
+            <Eye className="h-4 w-4" />
+            {t.previewExportPdf}
+          </Button>
         </div>
       </div>
 

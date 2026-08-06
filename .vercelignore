@@ -1,0 +1,11 @@
+.git
+.next
+out
+dist
+build
+.pack
+screenshots
+electron
+node_modules
+prisma/dev.db
+prisma/dev.db-journal

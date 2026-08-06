@@ -11,8 +11,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Plus,
-  Check,
+  X,
 } from "lucide-react";
 import { useProfileStore } from "@/store/profile-store";
 
@@ -25,6 +24,8 @@ const navItems = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  mobileOpen: boolean;
+  onClose: () => void;
 }
 
 function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
@@ -35,29 +36,32 @@ function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
   const activeProfile = profiles.find((p) => p.id === activeProfileId);
 
   return (
-    <div className={cn("border-t border-gray-200 dark:border-gray-800", collapsed && "flex flex-col items-center")}>
-      {!collapsed && (
-        <div className="p-2">
-          <p className="px-1 pb-1.5 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-            Company
-          </p>
-          <div className="relative">
-            <select
-              value={activeProfileId}
-              onChange={(e) => switchProfile(e.target.value)}
-              className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-            >
-              {profiles.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+    <div
+      className={cn(
+        "border-t border-gray-200 dark:border-gray-800",
+        collapsed && "lg:flex lg:flex-col lg:items-center"
       )}
+    >
+      <div className={cn("p-2", collapsed && "lg:hidden")}>
+        <p className="px-1 pb-1.5 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          Company
+        </p>
+        <div className="relative">
+          <select
+            value={activeProfileId}
+            onChange={(e) => switchProfile(e.target.value)}
+            className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+          >
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
       {collapsed && activeProfile && (
-        <div className="p-2">
+        <div className="hidden p-2 lg:block">
           <div
             title={activeProfile.name}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-xs font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
@@ -70,41 +74,62 @@ function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, mobileOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
     <aside
       className={cn(
-        "flex flex-col border-r border-gray-200 bg-white/70 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/70 transition-all duration-300",
-        collapsed ? "w-16" : "w-60"
+        "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-gray-200 bg-white/95 backdrop-blur-xl transition-transform duration-300 ease-in-out dark:border-gray-800 dark:bg-gray-950/95 lg:static lg:z-auto lg:translate-x-0 lg:bg-white/70 lg:transition-[width] lg:duration-300 lg:dark:bg-gray-950/70",
+        mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
+        collapsed ? "lg:w-16" : "lg:w-60"
       )}
     >
       <div className="flex h-14 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-800">
-        {!collapsed && (
-          <Link href="/invoices" className="flex items-center gap-2 font-semibold">
-            <FileText className="h-5 w-5 text-emerald-600" />
-            <span className="bg-gradient-to-r from-emerald-500 via-teal-400 to-violet-500 bg-clip-text text-transparent">InvoiceFlow</span>
-          </Link>
-        )}
-        {collapsed && (
-          <Link href="/invoices" className="mx-auto">
-            <FileText className="h-5 w-5 text-emerald-600" />
-          </Link>
-        )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onToggle}
-          className="h-8 w-8"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
+        <Link
+          href="/invoices"
+          className={cn(
+            "flex items-center gap-2 font-semibold",
+            collapsed && "lg:hidden"
           )}
-        </Button>
+        >
+          <FileText className="h-5 w-5 text-emerald-600" />
+          <span className="bg-gradient-to-r from-emerald-500 via-teal-400 to-violet-500 bg-clip-text text-transparent">
+            InvoiceFlow
+          </span>
+        </Link>
+        <Link
+          href="/invoices"
+          className={cn("mx-auto hidden", collapsed && "lg:flex")}
+        >
+          <FileText className="h-5 w-5 text-emerald-600" />
+        </Link>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label="Close menu"
+            className="lg:hidden"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onToggle}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="hidden h-8 w-8 lg:flex"
+          >
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 px-2 py-4">
@@ -114,19 +139,22 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               pathname === item.href ||
               (item.href !== "/invoices" && pathname?.startsWith(item.href));
             return (
-                <Link
+              <Link
                 key={item.href}
                 href={item.href}
+                onClick={onClose}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 lg:py-2",
                   isActive
-                    ? "bg-gradient-to-r from-emerald-50 to-violet-50 text-emerald-700 dark:from-emerald-950/60 dark:to-violet-950/60 dark:text-emerald-400 shadow-sm"
+                    ? "bg-gradient-to-r from-emerald-50 to-violet-50 text-emerald-700 shadow-sm dark:from-emerald-950/60 dark:to-violet-950/60 dark:text-emerald-400"
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50",
-                  collapsed && "justify-center px-2"
+                  collapsed && "lg:justify-center lg:px-2"
                 )}
               >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
+                <span className={cn(collapsed && "lg:hidden")}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}
@@ -137,11 +165,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       <div className="border-t border-gray-200 dark:border-gray-800">
         <div className="border-t border-gray-200 p-4 dark:border-gray-800">
-          {!collapsed && (
-            <p className="text-xs text-gray-400">
-              InvoiceFlow v1.0
-            </p>
-          )}
+          <p
+            className={cn(
+              "text-xs text-gray-400",
+              collapsed && "lg:hidden"
+            )}
+          >
+            InvoiceFlow v1.0
+          </p>
         </div>
       </div>
     </aside>
