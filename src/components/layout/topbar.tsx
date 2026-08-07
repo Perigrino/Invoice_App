@@ -32,7 +32,7 @@ export function Topbar({ user }: { user: DashboardUser }) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      <div className="flex items-center gap-2 lg:gap-3">
+      <div className="ml-auto flex items-center gap-2 lg:gap-3">
         <Button
           type="button"
           variant="ghost"

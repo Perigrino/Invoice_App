@@ -114,6 +114,159 @@ body {
   animation: fadeIn 0.2s ease-out;
 }
 
+/* ---- Auth entrance ---- */
+@keyframes auth-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes auth-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes auth-pop {
+  0% { opacity: 0; transform: scale(0.55); }
+  55% { opacity: 1; transform: scale(1.07); }
+  75% { transform: scale(0.97); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.auth-fade {
+  opacity: 0;
+  animation: auth-fade 0.5s ease-out both;
+  animation-delay: var(--auth-delay, 0ms);
+}
+
+.auth-enter {
+  opacity: 0;
+  animation: auth-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--auth-delay, 0ms);
+}
+
+.auth-logo-enter {
+  opacity: 0;
+  animation: auth-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--auth-delay, 0ms);
+}
+
+/* Springy settle for press/hover micro-interactions */
+.btn-springy {
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-duration: 260ms;
+}
+
+/* Ambient background glows */
+@keyframes auth-glow-a {
+  0%, 100% { opacity: 0.45; transform: translate(-50%, 0) scale(1); }
+  50% { opacity: 0.85; transform: translate(-50%, 8px) scale(1.08); }
+}
+
+@keyframes auth-glow-b {
+  0%, 100% { opacity: 0.35; transform: translateY(0) scale(1); }
+  50% { opacity: 0.7; transform: translateY(-10px) scale(1.06); }
+}
+
+.auth-glow-a {
+  animation: auth-glow-a 9s ease-in-out infinite;
+}
+
+.auth-glow-b {
+  animation: auth-glow-b 12s ease-in-out infinite;
+}
+
+/* ---- Invoice scene background ---- */
+@keyframes auth-pop-in {
+  0% { transform: scale(0.35) rotate(-12deg); opacity: 0; }
+  60% { transform: scale(1.12) rotate(4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes auth-bob {
+  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+  50% { transform: translateY(-14px) rotate(var(--tilt, 0deg)); }
+}
+
+@keyframes auth-drift {
+  0%, 100% { transform: translate(0, 0) rotate(-3deg); }
+  33% { transform: translate(12px, -18px) rotate(2.5deg); }
+  66% { transform: translate(-8px, -8px) rotate(-1.5deg); }
+}
+
+@keyframes auth-twinkle {
+  0%, 100% { opacity: 0.18; transform: scale(1); }
+  50% { opacity: 0.95; transform: scale(1.18); }
+}
+
+@keyframes auth-fly {
+  0% { transform: translateX(-18vw) translateY(0) rotate(0deg); opacity: 0; }
+  4% { opacity: 0.9; }
+  92% { opacity: 0.9; }
+  100% { transform: translateX(115vw) translateY(-12vh) rotate(6deg); opacity: 0; }
+}
+
+@keyframes auth-rise-dot {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  20% { opacity: 0.7; }
+  100% { transform: translateY(-110px) scale(0.4); opacity: 0; }
+}
+
+.auth-receipt {
+  animation:
+    auth-pop-in 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    auth-drift 10s ease-in-out 1.6s infinite;
+}
+
+.auth-coin {
+  animation:
+    auth-pop-in 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    auth-bob 7s ease-in-out 1.4s infinite alternate;
+}
+
+.auth-glyph {
+  animation: auth-twinkle 5.5s ease-in-out infinite;
+}
+
+.auth-doc-silhouette {
+  animation: auth-bob 14s ease-in-out infinite alternate;
+}
+
+.auth-paper-plane {
+  animation: auth-fly 22s ease-in-out 3s infinite;
+  opacity: 0;
+}
+
+.auth-dot {
+  animation: auth-rise-dot 9s ease-in-out infinite;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-fade,
+  .auth-enter,
+  .auth-logo-enter {
+    animation-name: auth-fade;
+    animation-duration: 0.2s;
+    animation-timing-function: ease-out;
+  }
+  .auth-glow-a,
+  .auth-glow-b,
+  .auth-receipt,
+  .auth-coin,
+  .auth-glyph,
+  .auth-doc-silhouette,
+  .auth-paper-plane,
+  .auth-dot {
+    animation: none;
+  }
+  .auth-receipt,
+  .auth-coin,
+  .auth-glyph,
+  .auth-doc-silhouette {
+    opacity: 0.35;
+  }
+}
+
 @keyframes gradientShift {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
