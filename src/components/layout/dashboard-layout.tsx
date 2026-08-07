@@ -11,7 +11,9 @@ import { cn } from "@/lib/utils";
 export interface DashboardUser {
   id: string;
   name: string;
+  username?: string;
   email: string;
+  role?: string;
 }
 
 export function DashboardLayout({
@@ -71,6 +73,7 @@ export function DashboardLayout({
         onToggle={() => setCollapsed((c) => !c)}
         mobileOpen={mobileNavOpen}
         onClose={closeMobileNav}
+        isAdmin={user.role === "admin"}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar user={user} />

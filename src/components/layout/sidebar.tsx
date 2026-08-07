@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  ShieldCheck,
 } from "lucide-react";
 import { useProfileStore } from "@/store/profile-store";
 
@@ -26,6 +27,7 @@ interface SidebarProps {
   onToggle: () => void;
   mobileOpen: boolean;
   onClose: () => void;
+  isAdmin: boolean;
 }
 
 function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
@@ -74,8 +76,11 @@ function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-export function Sidebar({ collapsed, onToggle, mobileOpen, onClose }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, mobileOpen, onClose, isAdmin }: SidebarProps) {
   const pathname = usePathname();
+  const items = isAdmin
+    ? [...navItems, { href: "/admin", label: "Admin", icon: ShieldCheck }]
+    : navItems;
 
   return (
     <aside
@@ -134,7 +139,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onClose }: SidebarPro
 
       <ScrollArea className="flex-1 px-2 py-4">
         <nav className="flex flex-col gap-1">
-          {navItems.map((item) => {
+          {items.map((item) => {
             const isActive =
               pathname === item.href ||
               (item.href !== "/invoices" && pathname?.startsWith(item.href));
