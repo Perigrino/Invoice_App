@@ -17,6 +17,7 @@ export interface AuthFormState {
   error?: string;
   success?: string;
   needsVerification?: boolean;
+  email?: string;
 }
 
 async function sendVerificationLink(email: string): Promise<void> {
@@ -111,11 +112,13 @@ export async function signupAction(
     return {
       success:
         "Your account was created, but we couldn't send the verification email. Sign in to request a new link.",
+      email,
     };
   }
 
   return {
     success: "Account created. We sent a confirmation link to your email — click it to sign in.",
+    email,
   };
 }
 

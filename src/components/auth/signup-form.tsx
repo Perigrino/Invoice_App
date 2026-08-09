@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, Loader2, X } from "lucide-react";
+import { Check, Loader2, MailCheck, X } from "lucide-react";
 import { signupAction, resendVerificationAction, type AuthFormState } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,12 +34,57 @@ export function SignupForm() {
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   if (state.success) {
+    const confirmedEmail = state.email ?? email;
+    const sendFailed = state.success.includes("couldn't send");
     return (
-      <div className="space-y-4">
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-          {state.success}
-        </p>
-        <div className="space-y-2">
+      <div className="flex flex-col items-center space-y-5 text-center">
+        <div
+          className={`flex h-16 w-16 items-center justify-center rounded-2xl shadow-inner ${
+            sendFailed
+              ? "bg-amber-100 dark:bg-amber-950/60"
+              : "bg-emerald-100 dark:bg-emerald-950/60"
+          }`}
+        >
+          <MailCheck
+            className={`h-8 w-8 ${
+              sendFailed ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"
+            }`}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <h2 className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-50">
+            {sendFailed ? "Almost there" : "Check your inbox"}
+          </h2>
+          {sendFailed ? (
+            <p className="text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+              {state.success} We&apos;ll send a fresh link if you need one.
+            </p>
+          ) : (
+            <p className="text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+              We sent a confirmation link to
+              {confirmedEmail ? (
+                <>
+                  {" "}
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
+                    {confirmedEmail}
+                  </span>
+                </>
+              ) : (
+                " your email"
+              )}
+              . Click it to verify your account — the link expires in 1 hour.
+            </p>
+          )}
+        </div>
+
+        {!sendFailed && (
+          <div className="w-full rounded-lg border border-gray-200 bg-gray-50/60 px-3 py-2.5 text-left text-xs leading-relaxed text-gray-500 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-400">
+            Can&apos;t find it? Check your spam folder or request a new link below.
+          </div>
+        )}
+
+        <div className="w-full space-y-2">
           {resendState?.error && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-950/50 dark:text-red-400">
               {resendState.error}
@@ -58,15 +103,16 @@ export function SignupForm() {
             onClick={() =>
               startResending(async () => {
                 setResendState(null);
-                setResendState(await resendVerificationAction(email));
+                setResendState(await resendVerificationAction(confirmedEmail));
               })
             }
           >
             {resending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Resend verification email
+            {sendFailed ? "Try sending again" : "Resend verification email"}
           </Button>
         </div>
-        <Button asChild className="w-full">
+
+        <Button variant="ghost" asChild className="w-full">
           <Link href="/login">Go to sign in</Link>
         </Button>
       </div>
