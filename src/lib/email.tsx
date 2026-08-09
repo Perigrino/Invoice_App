@@ -1,28 +1,59 @@
-import { Resend } from "resend";
 import { render } from "@react-email/render";
 import { PasswordResetEmail } from "@/components/emails/password-reset-email";
 import { VerificationEmail } from "@/components/emails/verification-email";
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+const DEADSIMPLE_API_KEY = process.env.DEADSIMPLE_API_KEY;
+const DEADSIMPLE_INBOX_ID = process.env.DEADSIMPLE_INBOX_ID;
+
+const DEADSIMPLE_API_URL = "https://api.deadsimple.email";
+
+function requireConfig() {
+  if (!DEADSIMPLE_API_KEY) {
+    throw new Error("DEADSIMPLE_API_KEY must be set.");
+  }
+  if (!DEADSIMPLE_INBOX_ID) {
+    throw new Error("DEADSIMPLE_INBOX_ID must be set.");
+  }
+}
 
 async function sendEmail(
   to: string,
   subject: string,
   react: React.ReactElement
 ): Promise<void> {
-  if (!resend) {
-    throw new Error("RESEND_API_KEY is not set.");
+  requireConfig();
+  const [html, text] = await Promise.all([
+    render(react),
+    render(react, { plainText: true }),
+  ]);
+
+  const res = await fetch(
+    `${DEADSIMPLE_API_URL}/v1/inboxes/${DEADSIMPLE_INBOX_ID}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${DEADSIMPLE_API_KEY}`,
+      },
+      body: JSON.stringify({
+        to,
+        subject,
+        html_body: html,
+        text_body: text,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    let message = `Dead Simple API error (${res.status})`;
+    try {
+      const body = (await res.json()) as { error?: { message?: string } };
+      if (body.error?.message) message += `: ${body.error.message}`;
+    } catch {
+      // non-JSON error body — keep the status-only message
+    }
+    throw new Error(message);
   }
-  const html = await render(react);
-  const { error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM || "InvoiceFlow <noreply@mail.invoiceflow.app>",
-    to,
-    subject,
-    html,
-  });
-  if (error) throw new Error(error.message);
 }
 
 export function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
