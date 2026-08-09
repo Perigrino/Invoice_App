@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { resendVerificationAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
+import { track } from "@/lib/analytics";
 
 export function ResendVerificationButton({ email }: { email: string }) {
   const [message, setMessage] = useState<string | null>(null);
@@ -14,6 +15,7 @@ export function ResendVerificationButton({ email }: { email: string }) {
     startResending(async () => {
       const r = await resendVerificationAction(email);
       setMessage(r.success ?? r.error ?? "");
+      if (r.success) track("verification_resend", { email });
     });
   };
 

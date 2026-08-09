@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/ui/theme-provider";
+import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { TranslationProvider } from "@/lib/i18n";
 import { HtmlLang } from "@/components/html-lang";
 import "./globals.css";
@@ -31,10 +32,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TranslationProvider>
-            <HtmlLang />
-            {children}
-          </TranslationProvider>
+          <PostHogProvider>
+            <TranslationProvider>
+              <HtmlLang />
+              {children}
+            </TranslationProvider>
+          </PostHogProvider>
         </ThemeProvider>
       </body>
     </html>

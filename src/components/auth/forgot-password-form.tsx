@@ -1,18 +1,23 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { requestPasswordResetAction, type AuthFormState } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { track } from "@/lib/analytics";
 
 export function ForgotPasswordForm() {
   const [state, action, pending] = useActionState<AuthFormState, FormData>(
     requestPasswordResetAction,
     {}
   );
+
+  useEffect(() => {
+    if (state.success) track("password_reset_requested");
+  }, [state.success]);
 
   return (
     <form action={action} className="space-y-4">

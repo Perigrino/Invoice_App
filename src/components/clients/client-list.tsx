@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 import {
   Plus,
   Search,
@@ -124,8 +125,10 @@ export function ClientList() {
   const handleSave = () => {
     if (editing) {
       updateClient(editing, form);
+      track("client_updated");
     } else {
       addClient(form);
+      track("client_created");
     }
     setDialogOpen(false);
   };

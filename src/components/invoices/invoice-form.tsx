@@ -37,6 +37,7 @@ import { useCompanyStore } from "@/store/company-store";
 import { useProfileStore } from "@/store/profile-store";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
+import { track } from "@/lib/analytics";
 import type { PdfExportParams } from "@/lib/pdf/export-invoice";
 import Link from "next/link";
 import type { PreviewInvoiceData } from "./template-editor/preview/types";
@@ -203,6 +204,10 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     } else {
       saveInvoice(data, clientName);
     }
+    track(invoiceId ? "invoice_updated" : "invoice_created", {
+      invoice_type: invoiceType,
+      item_count: lineItems.length,
+    });
     router.push("/invoices");
   };
 
@@ -574,7 +579,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
               <CardTitle className="text-base">{t.pdfTemplate}</CardTitle>
             </CardHeader>
             <CardContent>
-              <Select value={selectedTemplate} onValueChange={(v) => setSelectedTemplate(v as TemplateType)}>
+              <Select value={selectedTemplate} onValueChange={(v) => { setSelectedTemplate(v as TemplateType); track("invoice_template_changed", { template: v }); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -686,6 +691,10 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
           params={buildExportParams(notes)}
           onDownload={async (tpl) => {
             await doExportPdf(notes, tpl);
+            track("invoice_pdf_exported", {
+              template: tpl || selectedTemplate,
+              invoice_type: invoiceType,
+            });
             setPreviewOpen(false);
           }}
         />

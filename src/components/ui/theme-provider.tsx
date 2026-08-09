@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { track } from "@/lib/analytics";
 
 type Theme = "light" | "dark" | "system";
 type ResolvedTheme = "light" | "dark";
@@ -94,6 +95,7 @@ export function ThemeProvider({
       const resolved = resolveTheme(next);
       setResolvedTheme(resolved);
       applyTheme(resolved);
+      track("theme_toggled", { theme: next });
     },
     [disableTransitionOnChange],
   );

@@ -21,6 +21,7 @@ import { useInvoiceStore } from "@/store/invoice-store";
 import { useSettingsStore } from "@/store/settings-store";
 import { useCompanyStore } from "@/store/company-store";
 import { useTranslation } from "@/lib/i18n";
+import { track } from "@/lib/analytics";
 import { TEMPLATE_ORDER } from "@/lib/templates/presets";
 import type { TemplateType, InvoiceStatus } from "@/types";
 import type { SavedInvoice } from "@/store/invoice-store";
@@ -299,13 +300,15 @@ export function InvoiceList() {
                 onOpenChange={(o) => setMenuOpen(o ? item.id : null)}
                 submenu={templateSubmenu === item.id}
                 onSubmenuChange={(o) => setTemplateSubmenu(o ? item.id : null)}
-                onDuplicate={() => { duplicateInvoice(item.id); setMenuOpen(null); }}
+                                onDuplicate={() => { duplicateInvoice(item.id); track("invoice_duplicated"); setMenuOpen(null); }}
                 onExport={(tpl) => handleExportWithTemplate(item, tpl)}
                 onView={() => handleViewPdf(item)}
-                onDelete={() => { deleteInvoice(item.id); setMenuOpen(null); }}
+                onDelete={() => { deleteInvoice(item.id); track("invoice_deleted"); setMenuOpen(null); }}
               />
             ),
           },
+
+
         ]}
         data={filtered}
         renderCard={(item) => (
@@ -332,10 +335,10 @@ export function InvoiceList() {
                   onOpenChange={(o) => setMenuOpen(o ? item.id : null)}
                   submenu={templateSubmenu === item.id}
                   onSubmenuChange={(o) => setTemplateSubmenu(o ? item.id : null)}
-                  onDuplicate={() => { duplicateInvoice(item.id); setMenuOpen(null); }}
+                  onDuplicate={() => { duplicateInvoice(item.id); track("invoice_duplicated"); setMenuOpen(null); }}
                   onExport={(tpl) => handleExportWithTemplate(item, tpl)}
                   onView={() => handleViewPdf(item)}
-                  onDelete={() => { deleteInvoice(item.id); setMenuOpen(null); }}
+                  onDelete={() => { deleteInvoice(item.id); track("invoice_deleted"); setMenuOpen(null); }}
                 />
               </div>
             </div>

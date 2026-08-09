@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Check, Loader2, X } from "lucide-react";
 import { signupAction, resendVerificationAction, type AuthFormState } from "@/app/actions/auth";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { passwordRules } from "@/lib/validations/auth";
+import { track } from "@/lib/analytics";
 
 export function SignupForm() {
   const [state, action, pending] = useActionState<AuthFormState, FormData>(
@@ -20,6 +21,14 @@ export function SignupForm() {
   const [password, setPassword] = useState("");
   const [resending, startResending] = useTransition();
   const [resendState, setResendState] = useState<AuthFormState | null>(null);
+
+  useEffect(() => {
+    if (state.success) {
+      track("signup_success", { email });
+    } else if (state.error) {
+      track("signup_error", { email });
+    }
+  }, [state.success, state.error, email]);
 
   const usernameValid = /^[a-zA-Z0-9_]{3,20}$/.test(username);
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -65,7 +74,11 @@ export function SignupForm() {
   }
 
   return (
-    <form action={action} className="space-y-4">
+    <form
+      action={action}
+      className="space-y-4"
+      onSubmit={() => track("signup_started", { email })}
+    >
       {state.error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-950/50 dark:text-red-400">
           {state.error}

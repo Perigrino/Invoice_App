@@ -6,6 +6,7 @@ import { Loader2, Trash2 } from "lucide-react";
 import { deleteUserAction, updateRoleAction } from "@/app/actions/admin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { track } from "@/lib/analytics";
 import {
   Select,
   SelectContent,
@@ -42,6 +43,7 @@ export function AdminUsers({
     startTransition(async () => {
       const r = await updateRoleAction(userId, role);
       if (r.error) setMessage(r.error);
+      else track("admin_role_changed", { userId, role });
       setPendingId(null);
       router.refresh();
     });
@@ -55,6 +57,7 @@ export function AdminUsers({
     startTransition(async () => {
       const r = await deleteUserAction(user.id);
       if (r.error) setMessage(r.error);
+      else track("admin_user_deleted", { userId: user.id });
       setPendingId(null);
       router.refresh();
     });

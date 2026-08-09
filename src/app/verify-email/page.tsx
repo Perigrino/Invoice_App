@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revokeTokens, verifyToken } from "@/lib/tokens";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { ResendVerificationButton } from "@/components/auth/verify-email-resend";
+import { VerifyEmailTracker } from "@/components/auth/verify-email-tracker";
 import { Button } from "@/components/ui/button";
 
 export default async function VerifyEmailPage({
@@ -34,6 +35,7 @@ export default async function VerifyEmailPage({
     >
       {valid ? (
         <div className="space-y-4">
+          <VerifyEmailTracker valid={valid} />
           <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
           <Button asChild className="w-full">
             <Link href="/login">Sign in</Link>

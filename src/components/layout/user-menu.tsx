@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, LogOut } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
+import { track } from "@/lib/analytics";
 import type { DashboardUser } from "./dashboard-layout";
 
 function initialsOf(user: DashboardUser) {
@@ -58,7 +59,7 @@ export function UserMenu({ user }: { user: DashboardUser }) {
             </p>
           </div>
           <div className="my-1 h-px bg-gray-100 dark:bg-gray-800" />
-          <form action={logoutAction}>
+          <form action={logoutAction} onSubmit={() => track("logout")}>
             <button
               type="submit"
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import {
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { track } from "@/lib/analytics";
 
 export function LoginForm() {
   const [state, action, pending] = useActionState<AuthFormState, FormData>(
@@ -21,6 +22,14 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [resendMsg, setResendMsg] = useState<string | null>(null);
   const [resending, startResending] = useTransition();
+  const prevPending = useRef(false);
+
+  useEffect(() => {
+    if (prevPending.current && !pending && !state.error) {
+      track("login_success", { email });
+    }
+    prevPending.current = pending;
+  }, [pending, state.error, email]);
 
   const resend = () => {
     setResendMsg(null);
@@ -31,7 +40,11 @@ export function LoginForm() {
   };
 
   return (
-    <form action={action} className="space-y-4">
+    <form
+      action={action}
+      className="space-y-4"
+      onSubmit={() => track("login_started", { email })}
+    >
       {state.error && (
         <div className="space-y-2">
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-950/50 dark:text-red-400">

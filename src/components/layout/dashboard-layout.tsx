@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import posthog from "posthog-js";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { StorageHydrator } from "./storage-hydrator";
@@ -57,6 +58,17 @@ export function DashboardLayout({
       document.body.style.overflow = prev;
     };
   }, [mobileNavOpen]);
+
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
+    posthog.identify(user.id, {
+      username: user.username,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    });
+    return () => posthog.reset();
+  }, [user.id, user.username, user.email, user.name, user.role]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gradient-subtle dark:bg-gradient-subtle">

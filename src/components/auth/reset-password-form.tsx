@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -8,6 +8,7 @@ import { resetPasswordAction, type AuthFormState } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { track } from "@/lib/analytics";
 
 export function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -18,6 +19,10 @@ export function ResetPasswordForm() {
     resetPasswordAction,
     {}
   );
+
+  useEffect(() => {
+    if (state.success) track("password_reset_success");
+  }, [state.success]);
 
   if (!token || !email) {
     return (
