@@ -17,7 +17,7 @@ async function sendEmail(
   }
   const html = await render(react);
   const { error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM || "InvoiceFlow <onboarding@resend.dev>",
+    from: process.env.EMAIL_FROM || "InvoiceFlow <noreply@mail.invoiceflow.app>",
     to,
     subject,
     html,
