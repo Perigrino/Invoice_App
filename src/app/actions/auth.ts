@@ -20,7 +20,7 @@ export interface AuthFormState {
   email?: string;
 }
 
-async function sendVerificationLink(email: string): Promise<void> {
+export async function sendVerificationLink(email: string): Promise<void> {
   const token = generateToken();
   await storeToken(email, token);
   const baseUrl = await getBaseUrl();
