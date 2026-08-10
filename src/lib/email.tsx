@@ -16,6 +16,20 @@ function requireConfig() {
   }
 }
 
+function foldLines(html: string): string {
+  const folded = html.replace(/></g, ">\n<");
+  if (process.env.NODE_ENV !== "production") {
+    for (const line of folded.split("\n")) {
+      if (line.length > 998) {
+        console.warn(
+          `[email] rendered line exceeds RFC 5322 998-char limit (${line.length} chars).`
+        );
+      }
+    }
+  }
+  return folded;
+}
+
 async function sendEmail(
   to: string,
   subject: string,
@@ -23,7 +37,7 @@ async function sendEmail(
 ): Promise<void> {
   requireConfig();
   const [html, text] = await Promise.all([
-    render(react),
+    render(react).then(foldLines),
     render(react, { plainText: true }),
   ]);
 
