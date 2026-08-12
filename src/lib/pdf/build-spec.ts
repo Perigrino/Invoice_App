@@ -69,7 +69,7 @@ class SpecBuilder {
   constructor(cfg: TemplateConfig) {
     this.cfg = cfg;
     this.font = FONT_MAP[cfg.font];
-    this.fontSize = cfg.fontSize || 9;
+    this.fontSize = cfg.fontSize || 12;
     this.spacingFactor = SPACING_FACTOR[cfg.spacing] || 1;
   }
 

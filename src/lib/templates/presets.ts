@@ -21,7 +21,7 @@ function baseConfig(
     accentColor,
     secondaryColor,
     font,
-    fontSize: 9,
+    fontSize: 12,
     spacing,
     components: {
       logo: true,
