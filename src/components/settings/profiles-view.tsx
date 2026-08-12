@@ -288,7 +288,10 @@ export function ProfilesView() {
                   </div>
                   <div className="space-y-3">
                     <p className="text-sm text-gray-500">
-                      Upload your company logo. Supported formats: PNG, JPG, SVG.
+                      Upload your company logo. Supported formats: PNG, JPG.
+                    </p>
+                    <p className="text-[10px] text-gray-400">
+                      For a better PDF experience, your image should have these dimensions: 2088x544px.
                     </p>
                     <div className="flex gap-2">
                       <Button type="button" variant="outline" size="sm" onClick={open}>
