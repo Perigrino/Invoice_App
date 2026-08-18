@@ -5,6 +5,7 @@ struct InvoiceFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Client.fullName) private var clients: [Client]
+    @Query(filter: #Predicate<Setting> { $0.isActive }) private var activeSettings: [Setting]
     
     var invoice: Invoice?
     
@@ -329,6 +330,7 @@ struct InvoiceFormView: View {
     private func loadInvoice() {
         guard let invoice = invoice else {
             addLineItem()
+            notes = activeSettings.first?.notes ?? ""
             return
         }
         invoiceNumber = invoice.invoiceNumber

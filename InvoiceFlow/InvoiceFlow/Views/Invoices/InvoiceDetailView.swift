@@ -3,8 +3,9 @@ import SwiftData
 
 struct InvoiceDetailView: View {
     let invoice: Invoice
+    var onExport: (() -> Void)?
     @Environment(\.modelContext) private var modelContext
-    @State private var showingExport = false
+    @State private var showingExportFallback = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,11 +20,16 @@ struct InvoiceDetailView: View {
                 }
                 Spacer()
                 Button {
-                    showingExport = true
+                    if let onExport {
+                        onExport()
+                    } else {
+                        showingExportFallback = true
+                    }
                 } label: {
                     Label("Export PDF", systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("exportPDFButton")
             }
             .padding()
 
@@ -46,13 +52,13 @@ struct InvoiceDetailView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Issue Date").font(.caption.bold()).foregroundColor(.secondary)
-                            Text(invoice.issueDate.formatted(date: .long, time: .omitted))
+                            Text(DateFormatHelper.string(from: invoice.issueDate))
                         }
                         Spacer()
                         if let dueDate = invoice.dueDate {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Due Date").font(.caption.bold()).foregroundColor(.secondary)
-                                Text(dueDate.formatted(date: .long, time: .omitted))
+                                Text(DateFormatHelper.string(from: dueDate))
                             }
                         }
                     }
@@ -106,7 +112,7 @@ struct InvoiceDetailView: View {
                 .padding()
             }
         }
-        .sheet(isPresented: $showingExport) {
+        .sheet(isPresented: $showingExportFallback) {
             PDFExportView(sourceInvoice: invoice)
         }
     }

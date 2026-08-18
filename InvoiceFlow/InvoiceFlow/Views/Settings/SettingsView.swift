@@ -93,12 +93,16 @@ struct SettingsView: View {
             setting = newSetting
         }
         isLoading = false
+        if let active = setting {
+            applySettingsGlobals(active)
+        }
     }
 
     private func switchProfile(_ s: Setting) {
         for setting in allSettings { setting.isActive = false }
         s.isActive = true
         setting = s
+        applySettingsGlobals(s)
     }
 
     private func createProfile() {

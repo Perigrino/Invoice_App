@@ -464,40 +464,108 @@ final class InvoiceFlowUITests: XCTestCase {
 
         ensureAtLeastOneInvoiceExists()
 
-        let firstRow = app.tables.cells.firstMatch
-        if firstRow.waitForExistence(timeout: 3) {
-            firstRow.rightClick()
+        openExportDialogFromFirstRow()
+
+        // Export dialog should be visible with template picker, preview, and edit fields
+        let cancelButton = app.buttons["cancelExport"]
+        let exportButton = app.buttons["Export"]
+        XCTAssertTrue(cancelButton.exists || exportButton.exists, "Export dialog should open")
+
+        // Template picker should be present
+        let templatePicker = app.popUpButtons["templatePicker"]
+        XCTAssertTrue(templatePicker.exists, "Template picker should be present in export dialog")
+
+        if exportButton.exists {
+            exportButton.click()
             sleep(1)
+        }
 
-            let exportPDFOption = app.menuItems["Export PDF"]
-            if exportPDFOption.waitForExistence(timeout: 3) {
-                exportPDFOption.click()
-                sleep(2)
-
-                // Export dialog should be visible with template picker, preview, and edit fields
-                let exportTitle = app.staticTexts["Export PDF"]
-                let cancelButton = app.buttons["Cancel"]
-                let exportButton = app.buttons["Export"]
-                XCTAssertTrue(exportTitle.exists || exportButton.exists, "Export dialog should open")
-
-                // Template picker should be present
-                let templatePicker = app.popUpButtons.firstMatch
-                XCTAssertTrue(templatePicker.exists, "Template picker should be present in export dialog")
-
-                if exportButton.exists {
-                    exportButton.click()
-                    sleep(1)
-                }
-
-                // Dismiss dialog
-                if cancelButton.exists {
-                    cancelButton.click()
-                }
-            }
+        // Dismiss dialog
+        if cancelButton.exists {
+            cancelButton.click()
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - 13. PDF Export - Template change must not duplicate invoices
+
+    func testTemplateChangeDoesNotDuplicateInvoice() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        ensureAtLeastOneInvoiceExists()
+
+        let table = invoiceList
+        let rowsBefore = table.cells.count
+        guard rowsBefore > 0 else { XCTFail("Need at least one invoice to test"); return }
+
+        openExportDialogFromFirstRow()
+
+        // Change the template picker a couple of times to force re-renders
+        let templatePicker = app.popUpButtons["templatePicker"]
+        if templatePicker.waitForExistence(timeout: 3) {
+            templatePicker.click()
+            sleep(1)
+            let businessOption = app.menuItems["Business"]
+            if businessOption.waitForExistence(timeout: 2) {
+                businessOption.click()
+                sleep(2)
+            }
+            templatePicker.click()
+            sleep(1)
+            let elegantOption = app.menuItems["Elegant"]
+            if elegantOption.waitForExistence(timeout: 2) {
+                elegantOption.click()
+                sleep(2)
+            }
+        }
+
+        // Dismiss the export dialog without exporting
+        let cancelButton = app.buttons["cancelExport"]
+        if cancelButton.exists {
+            cancelButton.click()
+            sleep(2)
+        }
+
+        let rowsAfter = table.cells.count
+        XCTAssertEqual(rowsAfter, rowsBefore, "Changing the PDF template must not create duplicate invoices")
+    }
+
+    // MARK: - 14. PDF Export dialog must close via Cancel
+
+    func testPDFExportDialogCloses() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        ensureAtLeastOneInvoiceExists()
+
+        openExportDialogFromFirstRow()
+
+        let cancelButton = app.buttons["cancelExport"]
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 3), "Cancel button should exist in PDF export dialog")
+        cancelButton.click()
+        sleep(2)
+
+        let templatePicker = app.popUpButtons["templatePicker"]
+        XCTAssertFalse(templatePicker.exists, "PDF export dialog should close after clicking Cancel")
+    }
+
+// MARK: - Helpers
+
+    private var invoiceList: XCUIElement {
+        app.outlines.matching(NSPredicate(format: "label != 'Sidebar'")).firstMatch
+    }
+
+    private func openExportDialogFromFirstRow() {
+        let firstRow = invoiceList.cells.firstMatch
+        guard firstRow.waitForExistence(timeout: 3) else { return }
+        firstRow.click()
+        sleep(1)
+
+        let exportButton = app.buttons["exportSelectedPDF"]
+        guard exportButton.waitForExistence(timeout: 3), exportButton.isEnabled else { return }
+        exportButton.click()
+        sleep(2)
+    }
 
     private func findField(_ labelOrPlaceholder: String) -> XCUIElement {
         let predicate = NSPredicate(
@@ -548,7 +616,7 @@ final class InvoiceFlowUITests: XCTestCase {
 
     private func ensureAtLeastOneInvoiceExists() {
         navigateToInvoices()
-        let table = app.tables.firstMatch
+        let table = invoiceList
         if !table.exists || table.cells.count == 0 {
             let newInvoiceButton = app.buttons["New Invoice"]
             if newInvoiceButton.waitForExistence(timeout: 3) {

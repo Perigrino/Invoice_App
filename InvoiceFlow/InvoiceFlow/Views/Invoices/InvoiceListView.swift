@@ -67,12 +67,6 @@ struct InvoiceListView: View {
                     }
                 }
                 .listStyle(.inset(alternatesRowBackgrounds: true))
-                .onChange(of: selectedInvoices) { _, newSelection in
-                    if let first = newSelection.first {
-                        editingInvoice = first
-                        selectedInvoices.removeAll()
-                    }
-                }
             }
         }
         .navigationTitle("Invoices")
@@ -85,6 +79,15 @@ struct InvoiceListView: View {
                     Label("New Invoice", systemImage: "plus")
                 }
             }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    exportingInvoice = selectedInvoices.sorted { $0.createdAt > $1.createdAt }.first
+                } label: {
+                    Label("Export PDF", systemImage: "square.and.arrow.up")
+                }
+                .accessibilityIdentifier("exportSelectedPDF")
+                .disabled(selectedInvoices.isEmpty)
+            }
         }
         .searchable(text: $searchText, prompt: "Search invoices...")
         .sheet(isPresented: $showNewInvoice) {
@@ -94,7 +97,12 @@ struct InvoiceListView: View {
             InvoiceFormView(invoice: invoice)
         }
         .sheet(item: $viewingInvoice) { invoice in
-            InvoiceDetailView(invoice: invoice)
+            InvoiceDetailView(invoice: invoice) {
+                viewingInvoice = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    exportingInvoice = invoice
+                }
+            }
         }
         .sheet(item: $exportingInvoice) { invoice in
             PDFExportView(sourceInvoice: invoice)
@@ -154,7 +162,7 @@ struct InvoiceRow: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .frame(width: 70, alignment: .center)
-            Text(invoice.issueDate.formatted(date: .abbreviated, time: .omitted))
+            Text(DateFormatHelper.string(from: invoice.issueDate))
                 .font(.caption)
                 .foregroundColor(.secondary)
             Text(formatCurrency(invoice.total))

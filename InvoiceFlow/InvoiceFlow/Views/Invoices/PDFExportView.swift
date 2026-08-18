@@ -87,6 +87,7 @@ struct PDFExportView: View {
                 }
             }
             .frame(width: 160)
+            .accessibilityIdentifier("templatePicker")
 
             Picker("Paper", selection: $paperSize) {
                 ForEach(["A4", "A3", "Letter", "Legal"], id: \.self) { size in
@@ -94,9 +95,11 @@ struct PDFExportView: View {
                 }
             }
             .frame(width: 100)
+            .accessibilityIdentifier("paperPicker")
 
             Button("Cancel") { dismiss() }
                 .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("cancelExport")
 
             Button(action: { savePDF() }) {
                 Label("Export", systemImage: "square.and.arrow.up")
@@ -256,6 +259,9 @@ struct PDFExportView: View {
     }
 
     private func loadFromSource() {
+        if let activeSetting {
+            applySettingsGlobals(activeSetting)
+        }
         invoiceNumber = sourceInvoice.invoiceNumber
         invoiceType = sourceInvoice.invoiceType
         issueDate = sourceInvoice.issueDate
@@ -272,36 +278,49 @@ struct PDFExportView: View {
         lineItems = (sourceInvoice.lineItems ?? []).map { LineItemDraft(item: $0) }
     }
 
-    private func buildWorkingInvoice() -> Invoice {
-        let working = Invoice(
+    private func buildPDFData() -> InvoiceRenderData {
+        let client = selectedClientIndex > 0 && selectedClientIndex <= clients.count ? clients[selectedClientIndex - 1] : nil
+        let subtotal = computedTotals.0
+        let total = computedTotals.1
+        return InvoiceRenderData(
             invoiceNumber: invoiceNumber,
             invoiceType: invoiceType,
-            subtotal: computedTotals.0,
+            issueDate: issueDate,
+            dueDate: dueDate,
+            notes: notes,
+            subtotal: subtotal,
             discount: discountApplied,
             tax: taxApplied,
-            total: computedTotals.1,
-            balanceDue: computedTotals.1,
-            notes: notes,
-            issueDate: issueDate,
-            dueDate: dueDate
+            total: total,
+            clientName: client?.fullName ?? "",
+            clientCompany: client?.company ?? "",
+            clientEmail: client?.email ?? "",
+            lineItems: lineItems.map {
+                InvoiceRenderLineItem(
+                    description: $0.description,
+                    quantity: $0.quantity,
+                    price: $0.price,
+                    tax: $0.tax,
+                    total: $0.price * $0.quantity + $0.price * $0.quantity * $0.tax / 100
+                )
+            },
+            companyName: activeSetting?.companyName?.isEmpty == false ? activeSetting!.companyName! : (activeSetting?.profileName ?? "Your Company"),
+            companyEmail: activeSetting?.companyEmail ?? "",
+            companyPhone: activeSetting?.companyPhone ?? "",
+            companyAddress: activeSetting?.companyAddress ?? "",
+            companyWebsite: activeSetting?.companyWebsite ?? "",
+            logoData: activeSetting?.logoData,
+            currencyCode: activeSetting?.currency ?? "USD",
+            dateFormat: activeSetting?.dateFormat ?? "MM/DD/YYYY",
+            accentHex: activeSetting?.pdfAccentColor ?? "#1E3A5F",
+            secondaryHex: activeSetting?.pdfSecondaryColor ?? "#059669",
+            showInvoiceId: activeSetting?.showInvoiceId ?? true,
+            showDueDate: activeSetting?.showDueDate ?? true,
+            showCurrency: activeSetting?.showCurrency ?? true,
+            showDiscount: activeSetting?.showDiscount ?? true,
+            showTax: activeSetting?.showTax ?? true,
+            showNote: activeSetting?.showNote ?? true
         )
-        if selectedClientIndex > 0, selectedClientIndex <= clients.count {
-            working.client = clients[selectedClientIndex - 1]
-        }
-        let items = lineItems.map { item -> InvoiceLineItem in
-            let li = InvoiceLineItem(
-                itemDescription: item.description,
-                price: item.price,
-                quantity: item.quantity,
-                discount: 0,
-                tax: item.tax,
-                total: item.price * item.quantity + item.price * item.quantity * item.tax / 100
-            )
-            li.sortOrder = 0
-            return li
-        }
-        working.lineItems = items
-        return working
     }
 
     private func renderPreview() {
@@ -309,9 +328,9 @@ struct PDFExportView: View {
         hasRendered = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
             hasRendered = false
-            let working = buildWorkingInvoice()
+            let data = buildPDFData()
             let generator = PDFGenerator()
-            if let url = generator.generatePDF(for: working, template: selectedTemplate, setting: activeSetting, paperSize: paperSize) {
+            if let url = generator.generatePDF(for: data, template: selectedTemplate, paperSize: paperSize) {
                 pdfDocument = PDFDocument(url: url)
             }
         }

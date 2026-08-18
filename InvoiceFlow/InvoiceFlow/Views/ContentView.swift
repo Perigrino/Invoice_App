@@ -27,20 +27,69 @@ extension Color {
 
 struct CurrencyFormatter {
     static let shared = CurrencyFormatter()
-    
-    private let formatter: NumberFormatter = {
+
+    // Global current values, refreshed from the active Setting.
+    static var activeCurrencyCode: String = "USD"
+    static var separator: String = "comma"
+    static var decimalPlaces: Int = 2
+    static var signPlacement: String = "before"
+
+    func string(from value: Double, currencyCode: String? = nil) -> String {
+        let code = currencyCode ?? Self.activeCurrencyCode
+        let number = Self.numberString(value)
+        let symbol = Self.currencySymbol(for: code)
+        if Self.signPlacement == "after" {
+            return "\(number)\(symbol)"
+        }
+        return "\(symbol)\(number)"
+    }
+
+    private static func numberString(_ value: Double) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = decimalPlaces
+        f.maximumFractionDigits = decimalPlaces
+        switch separator {
+        case "dot":
+            f.groupingSeparator = "."
+            f.decimalSeparator = ","
+        case "space":
+            f.groupingSeparator = " "
+            f.decimalSeparator = ","
+        default:
+            f.groupingSeparator = ","
+            f.decimalSeparator = "."
+        }
+        return f.string(from: NSNumber(value: value)) ?? "0"
+    }
+
+    private static func currencySymbol(for code: String) -> String {
         let f = NumberFormatter()
         f.numberStyle = .currency
-        f.currencyCode = "USD"
-        return f
-    }()
-    
-    func string(from value: Double, currencyCode: String = "USD") -> String {
-        if formatter.currencyCode != currencyCode {
-            formatter.currencyCode = currencyCode
-        }
-        return formatter.string(from: NSNumber(value: value)) ?? "$0.00"
+        f.currencyCode = code
+        return f.currencySymbol ?? code
     }
+}
+
+enum DateFormatHelper {
+    static var activeFormat = "MM/DD/YYYY"
+
+    static func string(from date: Date, format: String = DateFormatHelper.activeFormat) -> String {
+        let f = DateFormatter()
+        f.dateFormat = format
+            .replacingOccurrences(of: "YYYY", with: "yyyy")
+            .replacingOccurrences(of: "DD", with: "dd")
+        return f.string(from: date)
+    }
+}
+
+/// Propagates the active profile's values to app-wide formatting helpers.
+func applySettingsGlobals(_ setting: Setting) {
+    CurrencyFormatter.activeCurrencyCode = setting.currency
+    CurrencyFormatter.separator = setting.separator
+    CurrencyFormatter.decimalPlaces = setting.decimalPlaces
+    CurrencyFormatter.signPlacement = setting.signPlacement
+    DateFormatHelper.activeFormat = setting.dateFormat
 }
 
 struct Currency: Identifiable, CaseIterable {
@@ -115,6 +164,7 @@ struct SettingsUI {
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query(filter: #Predicate<Setting> { $0.isActive }) private var activeSettings: [Setting]
     @State private var selectedTab: SidebarTab = .invoices
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
 
@@ -160,15 +210,23 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(activeSettings.first?.darkMode == true ? .dark : .light)
         .task { seedDefaultSettingIfNeeded() }
     }
 
     private func seedDefaultSettingIfNeeded() {
         let descriptor = FetchDescriptor<Setting>()
-        guard let existing = try? modelContext.fetch(descriptor), existing.isEmpty else { return }
-        modelContext.insert(Setting())
+        let existing = (try? modelContext.fetch(descriptor)) ?? []
+        guard existing.isEmpty else {
+            if let active = existing.first(where: { $0.isActive }) ?? existing.first {
+                applySettingsGlobals(active)
+            }
+            return
+        }
+        let setting = Setting()
+        modelContext.insert(setting)
         try? modelContext.save()
+        applySettingsGlobals(setting)
     }
 }
 

@@ -1,5 +1,4 @@
-import Foundation
-import PDFKit
+import SwiftUI
 import AppKit
 
 struct PDFPageSpec {
@@ -16,577 +15,611 @@ struct PDFPageSpec {
     }
 }
 
-class PDFGenerator {
-    private var setting: Setting?
+// MARK: - Render data (plain value types, never persisted)
 
-    func generatePDF(for invoice: Invoice, template: PDFTemplate = .modern, setting: Setting? = nil, paperSize: String? = nil) -> URL? {
-        self.setting = setting
-        let pageSpec = PDFPageSpec.size(for: paperSize ?? setting?.paperSize ?? "A4")
-        let pageRect = CGRect(x: 0, y: 0, width: pageSpec.width, height: pageSpec.height)
+struct InvoiceRenderLineItem {
+    var description = ""
+    var quantity = 1.0
+    var price = 0.0
+    var tax = 0.0
+    var total = 0.0
+}
 
-        let data = NSMutableData()
-        guard let consumer = CGDataConsumer(data: data as CFMutableData),
-              let pdfContext = CGContext(consumer: consumer, mediaBox: nil, nil) else {
+struct InvoiceRenderData {
+    var invoiceNumber = ""
+    var invoiceType = "invoice"
+    var issueDate = Date()
+    var dueDate: Date?
+    var notes = ""
+    var subtotal = 0.0
+    var discount = 0.0
+    var tax = 0.0
+    var total = 0.0
+    var clientName = ""
+    var clientCompany = ""
+    var clientEmail = ""
+    var lineItems: [InvoiceRenderLineItem] = []
+    var companyName = ""
+    var companyEmail = ""
+    var companyPhone = ""
+    var companyAddress = ""
+    var companyWebsite = ""
+    var logoData: Data?
+    var currencyCode = "USD"
+    var dateFormat = "MM/DD/YYYY"
+    var accentHex = "#1E3A5F"
+    var secondaryHex = "#059669"
+    var showInvoiceId = true
+    var showDueDate = true
+    var showCurrency = true
+    var showDiscount = true
+    var showTax = true
+    var showNote = true
+}
+
+// MARK: - PDF Generator
+
+final class PDFGenerator {
+    func generatePDF(for data: InvoiceRenderData, template: PDFTemplate = .modern, paperSize: String? = nil) -> URL? {
+        let spec = PDFPageSpec.size(for: paperSize ?? "A4")
+        let pageSize = NSSize(width: spec.width, height: spec.height)
+
+        let rootView = InvoicePDFView(data: data, template: template, paperSize: paperSize ?? "A4")
+            .frame(width: spec.width, height: spec.height)
+
+        let hosting = NSHostingView(rootView: rootView)
+        hosting.frame = NSRect(origin: .zero, size: pageSize)
+        hosting.layoutSubtreeIfNeeded()
+
+        let dataRepresentation = hosting.dataWithPDF(inside: hosting.bounds)
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileName = data.invoiceNumber.isEmpty ? "invoice.pdf" : "\(data.invoiceNumber).pdf"
+        let fileURL = tempDir.appendingPathComponent(fileName)
+        do {
+            try dataRepresentation.write(to: fileURL)
+            return fileURL
+        } catch {
             return nil
         }
-
-        var mediaBox = pageRect
-        pdfContext.beginPage(mediaBox: &mediaBox)
-
-        switch template {
-        case .modern: drawModern(in: pdfContext, pageRect: pageRect, invoice: invoice)
-        case .business: drawBusiness(in: pdfContext, pageRect: pageRect, invoice: invoice)
-        case .minimal: drawMinimal(in: pdfContext, pageRect: pageRect, invoice: invoice)
-        case .professional: drawProfessional(in: pdfContext, pageRect: pageRect, invoice: invoice)
-        case .elegant: drawElegant(in: pdfContext, pageRect: pageRect, invoice: invoice)
-        }
-
-        pdfContext.endPage()
-        pdfContext.closePDF()
-
-        let tempDir = FileManager.default.temporaryDirectory
-        let fileURL = tempDir.appendingPathComponent("\(invoice.invoiceNumber).pdf")
-        try? (data as Data).write(to: fileURL)
-        return fileURL
-    }
-
-    // MARK: - Shared helpers
-
-    private var accentColor: NSColor {
-        NSColor(hex: (setting?.pdfAccentColor ?? "#1E3A5F").replacingOccurrences(of: "#", with: ""))
-    }
-
-    private var secondaryColor: NSColor {
-        NSColor(hex: (setting?.pdfSecondaryColor ?? "#059669").replacingOccurrences(of: "#", with: ""))
-    }
-
-    private var companyName: String {
-        setting?.companyName?.isEmpty == false ? setting!.companyName! : (setting?.profileName ?? "Your Company")
-    }
-
-    private func drawLogo(in context: CGContext, pageRect: CGRect, x: CGFloat, y: CGFloat, maxHeight: CGFloat) {
-        guard let data = setting?.logoData, let image = NSImage(data: data) else { return }
-        let size = image.size
-        guard size.width > 0, size.height > 0 else { return }
-        let scale = min(maxHeight / size.height, 120 / size.width, 1)
-        let drawWidth = size.width * scale
-        let drawHeight = size.height * scale
-        let rect = CGRect(x: x, y: y - drawHeight, width: drawWidth, height: drawHeight)
-        if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            context.saveGState()
-            context.interpolationQuality = .high
-            context.draw(cgImage, in: rect)
-            context.restoreGState()
-        }
-    }
-
-    private func drawBillTo(in context: CGContext, pageRect: CGRect, invoice: Invoice, x: CGFloat, y: CGFloat) {
-        guard let client = invoice.client else { return }
-
-        let labelAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 9, weight: .semibold),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]
-        let nameAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11, weight: .medium),
-            .foregroundColor: NSColor.labelColor
-        ]
-        let detailAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 10),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]
-
-        NSAttributedString(string: "BILL TO", attributes: labelAttr).draw(at: CGPoint(x: x, y: y))
-        var yCursor = y - 16
-        NSAttributedString(string: client.fullName, attributes: nameAttr).draw(at: CGPoint(x: x, y: yCursor))
-        yCursor -= 14
-        if let company = client.company, !company.isEmpty {
-            NSAttributedString(string: company, attributes: detailAttr).draw(at: CGPoint(x: x, y: yCursor))
-            yCursor -= 14
-        }
-        if let email = client.email, !email.isEmpty {
-            NSAttributedString(string: email, attributes: detailAttr).draw(at: CGPoint(x: x, y: yCursor))
-        }
-    }
-
-    private func drawLineItemsTable(in context: CGContext, pageRect: CGRect, invoice: Invoice, startY: CGFloat, headerColor: NSColor, headerTextColor: NSColor = .white) {
-        let margin: CGFloat = 40
-        let colWidths: [CGFloat] = [pageRect.width - 320, 50, 80, 80, 110]
-        let headers = ["Description", "Qty", "Price", "Tax", "Total"]
-        let headerAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 9, weight: .semibold),
-            .foregroundColor: headerTextColor
-        ]
-
-        let headerRect = CGRect(x: margin, y: startY - 22, width: pageRect.width - margin * 2, height: 22)
-        context.setFillColor(headerColor.cgColor)
-        context.fill(headerRect)
-
-        var x: CGFloat = margin + 8
-        for (i, header) in headers.enumerated() {
-            let alignment = i >= 3 ? NSParagraphStyle.alignmentRight() : NSParagraphStyle.alignmentLeft()
-            let attr = [NSAttributedString.Key.font: NSFont.systemFont(ofSize: 9, weight: .semibold),
-                        .foregroundColor: headerTextColor,
-                        .paragraphStyle: alignment] as [NSAttributedString.Key: Any]
-            NSAttributedString(string: header, attributes: attr).draw(in: CGRect(x: x, y: startY - 16, width: colWidths[i], height: 14))
-            x += colWidths[i]
-        }
-
-        let itemAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 10),
-            .foregroundColor: NSColor.labelColor
-        ]
-        let itemMutedAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 10),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]
-
-        var y = startY - 44
-        for (index, item) in (invoice.lineItems ?? []).enumerated() {
-            if index % 2 == 1 {
-                context.setFillColor(NSColor.gray.withAlphaComponent(0.05).cgColor)
-                context.fill(CGRect(x: margin, y: y - 2, width: pageRect.width - margin * 2, height: 22))
-            }
-            x = margin + 8
-            let values = [item.itemDescription, "\(Int(item.quantity))", formatCurrency(item.price), "\(Int(item.tax))%", formatCurrency(item.total)]
-            for (i, text) in values.enumerated() {
-                let attr = i >= 3 ? itemMutedAttr : itemAttr
-                let paragraph = NSParagraphStyle.alignmentRight()
-                var drawAttr = attr
-                if i >= 3 {
-                    drawAttr = [NSAttributedString.Key.font: NSFont.systemFont(ofSize: 10),
-                                .foregroundColor: NSColor.labelColor,
-                                .paragraphStyle: paragraph]
-                }
-                if i == 4 {
-                    drawAttr = [NSAttributedString.Key.font: NSFont.systemFont(ofSize: 10, weight: .semibold),
-                                .foregroundColor: NSColor.labelColor,
-                                .paragraphStyle: paragraph]
-                }
-                NSAttributedString(string: text, attributes: drawAttr).draw(in: CGRect(x: x, y: y, width: colWidths[i], height: 16))
-                x += colWidths[i]
-            }
-            y -= 24
-        }
-
-        context.setStrokeColor(NSColor.gray.withAlphaComponent(0.3).cgColor)
-        context.setLineWidth(0.5)
-        context.move(to: CGPoint(x: margin, y: y))
-        context.addLine(to: CGPoint(x: pageRect.width - margin, y: y))
-        context.strokePath()
-    }
-
-    private func drawTotals(in context: CGContext, pageRect: CGRect, invoice: Invoice, y: CGFloat, totalColor: NSColor? = nil) {
-        let x = pageRect.width - 250
-        var yCursor = y
-
-        let labelAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 10),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]
-        let valueAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 10, weight: .medium),
-            .foregroundColor: NSColor.labelColor
-        ]
-        let totalAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 15, weight: .bold),
-            .foregroundColor: totalColor ?? NSColor.labelColor
-        ]
-
-        func row(_ label: String, _ value: String, _ attr: [NSAttributedString.Key: Any]) {
-            NSAttributedString(string: label, attributes: attr).draw(at: CGPoint(x: x, y: yCursor))
-            let para = NSParagraphStyle.alignmentRight()
-            var valueAttrWithAlign = attr
-            valueAttrWithAlign[.paragraphStyle] = para
-            NSAttributedString(string: value, attributes: valueAttrWithAlign).draw(in: CGRect(x: x + 110, y: yCursor, width: 100, height: 16))
-            yCursor -= 20
-        }
-
-        row("Subtotal", formatCurrency(invoice.subtotal), valueAttr)
-        if invoice.discount > 0 {
-            row("Discount", "-\(formatCurrency(invoice.discount))", valueAttr)
-        }
-        if invoice.tax > 0 {
-            row("Tax", "+\(formatCurrency(invoice.tax))", valueAttr)
-        }
-
-        context.setStrokeColor(NSColor.gray.withAlphaComponent(0.3).cgColor)
-        context.setLineWidth(0.5)
-        context.move(to: CGPoint(x: x, y: yCursor + 10))
-        context.addLine(to: CGPoint(x: pageRect.width - 40, y: yCursor + 10))
-        context.strokePath()
-        yCursor -= 18
-
-        row("Total", formatCurrency(invoice.total), totalAttr)
-    }
-
-    private func drawNotes(in context: CGContext, pageRect: CGRect, invoice: Invoice, y: CGFloat) {
-        guard let notes = invoice.notes, !notes.isEmpty else { return }
-
-        let margin: CGFloat = 40
-        let notesAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 9),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]
-        NSAttributedString(string: "Notes", attributes: [
-            .font: NSFont.systemFont(ofSize: 9, weight: .semibold),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]).draw(at: CGPoint(x: margin, y: y))
-
-        NSAttributedString(string: notes, attributes: notesAttr).draw(at: CGPoint(x: margin, y: y - 16))
-    }
-
-    // MARK: - Modern
-
-    private func drawModern(in context: CGContext, pageRect: CGRect, invoice: Invoice) {
-        // Accent bar at top
-        context.setFillColor(accentColor.cgColor)
-        context.fill(CGRect(x: 0, y: pageRect.height - 80, width: pageRect.width, height: 80))
-
-        drawLogo(in: context, pageRect: pageRect, x: 40, y: pageRect.height - 20, maxHeight: 44)
-
-        let titleX: CGFloat = setting?.logoData != nil ? 170 : 40
-        let titleAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 26, weight: .bold),
-            .foregroundColor: NSColor.white
-        ]
-        NSAttributedString(string: invoice.invoiceType.uppercased(), attributes: titleAttributes)
-            .draw(at: CGPoint(x: titleX, y: pageRect.height - 62))
-
-        let numAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.75)
-        ]
-        NSAttributedString(string: invoice.invoiceNumber, attributes: numAttributes)
-            .draw(at: CGPoint(x: titleX, y: pageRect.height - 32))
-
-        // Company + dates on right side of header band
-        let companyAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
-            .foregroundColor: NSColor.white
-        ]
-        NSAttributedString(string: companyName, attributes: companyAttr)
-            .draw(at: CGPoint(x: pageRect.width - 260, y: pageRect.height - 28))
-
-        drawBillTo(in: context, pageRect: pageRect, invoice: invoice, x: 40, y: pageRect.height - 150)
-
-        drawLineItemsTable(in: context, pageRect: pageRect, invoice: invoice, startY: pageRect.height - 210, headerColor: accentColor)
-        drawTotals(in: context, pageRect: pageRect, invoice: invoice, y: 240, totalColor: accentColor)
-        drawNotes(in: context, pageRect: pageRect, invoice: invoice, y: 120)
-    }
-
-    // MARK: - Business
-
-    private func drawBusiness(in context: CGContext, pageRect: CGRect, invoice: Invoice) {
-        let margin: CGFloat = 40
-
-        drawLogo(in: context, pageRect: pageRect, x: margin, y: pageRect.height - 20, maxHeight: 48)
-        let logoPresent = setting?.logoData != nil
-        let nameY = logoPresent ? pageRect.height - 70 : pageRect.height - 40
-        let nameAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 20, weight: .bold),
-            .foregroundColor: NSColor.labelColor
-        ]
-        NSAttributedString(string: companyName, attributes: nameAttr).draw(at: CGPoint(x: margin, y: nameY))
-
-        // Company contact details
-        var contactLines: [String] = []
-        if let email = setting?.companyEmail, !email.isEmpty { contactLines.append(email) }
-        if let phone = setting?.companyPhone, !phone.isEmpty { contactLines.append(phone) }
-        if let address = setting?.companyAddress, !address.isEmpty { contactLines.append(address) }
-        let contactAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 9),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]
-        var y = nameY - 16
-        for line in contactLines.prefix(3) {
-            NSAttributedString(string: line, attributes: contactAttr).draw(at: CGPoint(x: margin, y: y))
-            y -= 13
-        }
-
-        // Title + number, right-aligned
-        let titleAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 24, weight: .bold),
-            .foregroundColor: accentColor
-        ]
-        let para = NSParagraphStyle.alignmentRight()
-        var titleDraw = titleAttr
-        titleDraw[.paragraphStyle] = para
-        NSAttributedString(string: invoice.invoiceType.uppercased(), attributes: titleDraw)
-            .draw(in: CGRect(x: pageRect.width - 300, y: pageRect.height - 60, width: 260, height: 28))
-
-        let numAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-            .foregroundColor: NSColor.secondaryLabelColor,
-            .paragraphStyle: para
-        ]
-        NSAttributedString(string: invoice.invoiceNumber, attributes: numAttr)
-            .draw(in: CGRect(x: pageRect.width - 300, y: pageRect.height - 34, width: 260, height: 16))
-
-        // Divider
-        context.setStrokeColor(accentColor.cgColor)
-        context.setLineWidth(2)
-        context.move(to: CGPoint(x: margin, y: pageRect.height - 110))
-        context.addLine(to: CGPoint(x: pageRect.width - margin, y: pageRect.height - 110))
-        context.strokePath()
-
-        drawBillTo(in: context, pageRect: pageRect, invoice: invoice, x: margin, y: pageRect.height - 150)
-        drawLineItemsTable(in: context, pageRect: pageRect, invoice: invoice, startY: pageRect.height - 210, headerColor: accentColor)
-        drawTotals(in: context, pageRect: pageRect, invoice: invoice, y: 240, totalColor: accentColor)
-        drawNotes(in: context, pageRect: pageRect, invoice: invoice, y: 120)
-    }
-
-    // MARK: - Minimal
-
-    private func drawMinimal(in context: CGContext, pageRect: CGRect, invoice: Invoice) {
-        let margin: CGFloat = 48
-
-        drawLogo(in: context, pageRect: pageRect, x: margin, y: pageRect.height - 20, maxHeight: 40)
-        let logoPresent = setting?.logoData != nil
-        let nameY = logoPresent ? pageRect.height - 62 : pageRect.height - 44
-        let nameAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 18, weight: .semibold),
-            .foregroundColor: NSColor.labelColor
-        ]
-        NSAttributedString(string: companyName, attributes: nameAttr).draw(at: CGPoint(x: margin, y: nameY))
-
-        // Small caps title, right aligned
-        let titleAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 14, weight: .medium),
-            .foregroundColor: NSColor.labelColor
-        ]
-        let para = NSParagraphStyle.alignmentRight()
-        var titleDraw = titleAttr
-        titleDraw[.paragraphStyle] = para
-        NSAttributedString(string: invoice.invoiceType.uppercased(), attributes: titleDraw)
-            .draw(in: CGRect(x: pageRect.width - 320, y: pageRect.height - 52, width: 272, height: 18))
-        let numAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11),
-            .foregroundColor: NSColor.secondaryLabelColor,
-            .paragraphStyle: para
-        ]
-        NSAttributedString(string: invoice.invoiceNumber, attributes: numAttr)
-            .draw(in: CGRect(x: pageRect.width - 320, y: pageRect.height - 34, width: 272, height: 16))
-
-        // Thin rule
-        context.setStrokeColor(NSColor.gray.withAlphaComponent(0.4).cgColor)
-        context.setLineWidth(0.5)
-        context.move(to: CGPoint(x: margin, y: pageRect.height - 92))
-        context.addLine(to: CGPoint(x: pageRect.width - margin, y: pageRect.height - 92))
-        context.strokePath()
-
-        // Dates in a row
-        var dateY = pageRect.height - 130
-        let dateLabelAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 8, weight: .semibold),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]
-        let dateValueAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 10),
-            .foregroundColor: NSColor.labelColor
-        ]
-        NSAttributedString(string: "ISSUE DATE", attributes: dateLabelAttr).draw(at: CGPoint(x: margin, y: dateY))
-        NSAttributedString(string: invoice.issueDate.formatted(date: .abbreviated, time: .omitted), attributes: dateValueAttr)
-            .draw(at: CGPoint(x: margin, y: dateY - 14))
-        if let dueDate = invoice.dueDate {
-            NSAttributedString(string: "DUE DATE", attributes: dateLabelAttr).draw(at: CGPoint(x: margin + 200, y: dateY))
-            NSAttributedString(string: dueDate.formatted(date: .abbreviated, time: .omitted), attributes: dateValueAttr)
-                .draw(at: CGPoint(x: margin + 200, y: dateY - 14))
-        }
-
-        drawBillTo(in: context, pageRect: pageRect, invoice: invoice, x: margin, y: pageRect.height - 230)
-        drawLineItemsTable(in: context, pageRect: pageRect, invoice: invoice, startY: pageRect.height - 300, headerColor: NSColor.gray.withAlphaComponent(0.12), headerTextColor: .labelColor)
-        drawTotals(in: context, pageRect: pageRect, invoice: invoice, y: 220)
-        drawNotes(in: context, pageRect: pageRect, invoice: invoice, y: 110)
-    }
-
-    // MARK: - Professional
-
-    private func drawProfessional(in context: CGContext, pageRect: CGRect, invoice: Invoice) {
-        let margin: CGFloat = 40
-
-        // Double top border
-        context.setStrokeColor(accentColor.cgColor)
-        context.setLineWidth(3)
-        context.move(to: CGPoint(x: 0, y: pageRect.height - 12))
-        context.addLine(to: CGPoint(x: pageRect.width, y: pageRect.height - 12))
-        context.strokePath()
-        context.setStrokeColor(NSColor.gray.withAlphaComponent(0.3).cgColor)
-        context.setLineWidth(0.5)
-        context.move(to: CGPoint(x: 0, y: pageRect.height - 20))
-        context.addLine(to: CGPoint(x: pageRect.width, y: pageRect.height - 20))
-        context.strokePath()
-
-        drawLogo(in: context, pageRect: pageRect, x: margin, y: pageRect.height - 68, maxHeight: 46)
-        let logoPresent = setting?.logoData != nil
-        let nameY = logoPresent ? pageRect.height - 118 : pageRect.height - 60
-        let nameAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 18, weight: .semibold),
-            .foregroundColor: NSColor.labelColor
-        ]
-        NSAttributedString(string: companyName, attributes: nameAttr).draw(at: CGPoint(x: margin, y: nameY))
-
-        // Title block, right
-        let titleAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 22, weight: .bold),
-            .foregroundColor: NSColor.labelColor
-        ]
-        let para = NSParagraphStyle.alignmentRight()
-        var titleDraw = titleAttr
-        titleDraw[.paragraphStyle] = para
-        NSAttributedString(string: invoice.invoiceType.uppercased(), attributes: titleDraw)
-            .draw(in: CGRect(x: pageRect.width - 320, y: pageRect.height - 70, width: 280, height: 26))
-        let numAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-            .foregroundColor: secondaryColor,
-            .paragraphStyle: para
-        ]
-        NSAttributedString(string: invoice.invoiceNumber, attributes: numAttr)
-            .draw(in: CGRect(x: pageRect.width - 320, y: pageRect.height - 44, width: 280, height: 16))
-
-        // Info strip
-        let stripY = pageRect.height - 150
-        context.setFillColor(secondaryColor.withAlphaComponent(0.1).cgColor)
-        context.fill(CGRect(x: 0, y: stripY, width: pageRect.width, height: 30))
-
-        var stripX: CGFloat = margin
-        let stripLabelAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 8, weight: .semibold),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]
-        let stripValueAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 10, weight: .medium),
-            .foregroundColor: NSColor.labelColor
-        ]
-        NSAttributedString(string: "ISSUED", attributes: stripLabelAttr).draw(at: CGPoint(x: stripX, y: stripY + 16))
-        NSAttributedString(string: invoice.issueDate.formatted(date: .abbreviated, time: .omitted), attributes: stripValueAttr)
-            .draw(at: CGPoint(x: stripX, y: stripY + 3))
-        stripX += 160
-        if let dueDate = invoice.dueDate {
-            NSAttributedString(string: "DUE", attributes: stripLabelAttr).draw(at: CGPoint(x: stripX, y: stripY + 16))
-            NSAttributedString(string: dueDate.formatted(date: .abbreviated, time: .omitted), attributes: stripValueAttr)
-                .draw(at: CGPoint(x: stripX, y: stripY + 3))
-            stripX += 160
-        }
-        NSAttributedString(string: "TYPE", attributes: stripLabelAttr).draw(at: CGPoint(x: stripX, y: stripY + 16))
-        NSAttributedString(string: invoice.invoiceType.capitalized, attributes: stripValueAttr)
-            .draw(at: CGPoint(x: stripX, y: stripY + 3))
-
-        drawBillTo(in: context, pageRect: pageRect, invoice: invoice, x: margin, y: pageRect.height - 210)
-        drawLineItemsTable(in: context, pageRect: pageRect, invoice: invoice, startY: pageRect.height - 270, headerColor: secondaryColor)
-        drawTotals(in: context, pageRect: pageRect, invoice: invoice, y: 240, totalColor: secondaryColor)
-        drawNotes(in: context, pageRect: pageRect, invoice: invoice, y: 120)
-    }
-
-    // MARK: - Elegant
-
-    private func drawElegant(in context: CGContext, pageRect: CGRect, invoice: Invoice) {
-        let margin: CGFloat = 56
-
-        // Centered title
-        let titleAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont(name: "Georgia", size: 24) ?? NSFont.systemFont(ofSize: 24, weight: .bold),
-            .foregroundColor: NSColor.labelColor
-        ]
-        let para = NSParagraphStyle.alignmentCenter()
-        var titleDraw = titleAttr
-        titleDraw[.paragraphStyle] = para
-        NSAttributedString(string: invoice.invoiceType.uppercased(), attributes: titleDraw)
-            .draw(in: CGRect(x: 80, y: pageRect.height - 74, width: pageRect.width - 160, height: 28))
-
-        let numAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11, weight: .medium),
-            .foregroundColor: accentColor,
-            .paragraphStyle: para
-        ]
-        NSAttributedString(string: invoice.invoiceNumber, attributes: numAttr)
-            .draw(in: CGRect(x: 80, y: pageRect.height - 48, width: pageRect.width - 160, height: 16))
-
-        // Ornamental double rules around title
-        let ruleY = pageRect.height - 100
-        context.setStrokeColor(NSColor.gray.withAlphaComponent(0.5).cgColor)
-        context.setLineWidth(0.5)
-        context.move(to: CGPoint(x: margin, y: ruleY))
-        context.addLine(to: CGPoint(x: pageRect.width / 2 - 120, y: ruleY))
-        context.strokePath()
-        context.move(to: CGPoint(x: pageRect.width / 2 + 120, y: ruleY))
-        context.addLine(to: CGPoint(x: pageRect.width - margin, y: ruleY))
-        context.strokePath()
-
-        // Company centered
-        let companyAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont(name: "Georgia", size: 14) ?? NSFont.systemFont(ofSize: 14, weight: .medium),
-            .foregroundColor: NSColor.labelColor,
-            .paragraphStyle: para
-        ]
-        NSAttributedString(string: companyName, attributes: companyAttr)
-            .draw(in: CGRect(x: 100, y: pageRect.height - 138, width: pageRect.width - 200, height: 18))
-
-        drawLogo(in: context, pageRect: pageRect, x: pageRect.width / 2 - 30, y: pageRect.height - 186, maxHeight: 48)
-
-        let bodyY = setting?.logoData != nil ? pageRect.height - 250 : pageRect.height - 200
-        drawBillTo(in: context, pageRect: pageRect, invoice: invoice, x: margin, y: bodyY)
-
-        // Dates on right side of bill-to block
-        if let dueDate = invoice.dueDate {
-            let rightX = pageRect.width - 180
-            let dateLabelAttr: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 8, weight: .semibold),
-                .foregroundColor: NSColor.secondaryLabelColor
-            ]
-            let dateValueAttr: [NSAttributedString.Key: Any] = [
-                .font: NSFont(name: "Georgia", size: 11) ?? NSFont.systemFont(ofSize: 11),
-                .foregroundColor: NSColor.labelColor
-            ]
-            NSAttributedString(string: "ISSUE DATE", attributes: dateLabelAttr).draw(at: CGPoint(x: rightX, y: bodyY))
-            NSAttributedString(string: invoice.issueDate.formatted(date: .abbreviated, time: .omitted), attributes: dateValueAttr)
-                .draw(at: CGPoint(x: rightX, y: bodyY - 15))
-            NSAttributedString(string: "DUE DATE", attributes: dateLabelAttr).draw(at: CGPoint(x: rightX, y: bodyY - 38))
-            NSAttributedString(string: dueDate.formatted(date: .abbreviated, time: .omitted), attributes: dateValueAttr)
-                .draw(at: CGPoint(x: rightX, y: bodyY - 53))
-        }
-
-        drawLineItemsTable(in: context, pageRect: pageRect, invoice: invoice, startY: bodyY - 80, headerColor: NSColor.gray.withAlphaComponent(0.1), headerTextColor: .labelColor)
-        drawTotals(in: context, pageRect: pageRect, invoice: invoice, y: 230, totalColor: accentColor)
-        drawNotes(in: context, pageRect: pageRect, invoice: invoice, y: 120)
-    }
-
-    private func formatCurrency(_ amount: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = setting?.currency ?? "USD"
-        return formatter.string(from: NSNumber(value: amount)) ?? "$0.00"
     }
 }
 
-private extension NSParagraphStyle {
-    static func alignmentRight() -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        style.alignment = .right
-        return style
+// MARK: - Invoice PDF View
+
+struct InvoicePDFView: View {
+    let data: InvoiceRenderData
+    let template: PDFTemplate
+    let paperSize: String
+
+    private var spec: PDFPageSpec { PDFPageSpec.size(for: paperSize) }
+
+    private var accent: Color {
+        Color(hex: cleanHex(data.accentHex))
     }
 
-    static func alignmentLeft() -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        style.alignment = .left
-        return style
+    private var secondary: Color {
+        Color(hex: cleanHex(data.secondaryHex))
     }
 
-    static func alignmentCenter() -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        style.alignment = .center
-        return style
+    private func cleanHex(_ hex: String) -> String {
+        let value = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        return value.isEmpty ? "1E3A5F" : value
+    }
+
+    var body: some View {
+        Group {
+            switch template {
+            case .modern: ModernTheme(data: data, accent: accent, spec: spec)
+            case .business: BusinessTheme(data: data, accent: accent, spec: spec)
+            case .minimal: MinimalTheme(data: data, spec: spec)
+            case .professional: ProfessionalTheme(data: data, accent: accent, secondary: secondary, spec: spec)
+            case .elegant: ElegantTheme(data: data, accent: accent, spec: spec)
+            }
+        }
+        .background(Color.white)
     }
 }
 
-extension NSColor {
-    convenience init(hex: String) {
-        let scanner = Scanner(string: hex)
-        var rgbValue: UInt64 = 0
-        scanner.scanHexInt64(&rgbValue)
-        let r = CGFloat((rgbValue & 0xFF0000) >> 16) / 255.0
-        let g = CGFloat((rgbValue & 0x00FF00) >> 8) / 255.0
-        let b = CGFloat(rgbValue & 0x0000FF) / 255.0
-        self.init(red: r, green: g, blue: b, alpha: 1.0)
+// MARK: - Shared building blocks
+
+private struct CompanyBlock: View {
+    let data: InvoiceRenderData
+    var color: Color = .black
+    var centered = false
+    var logoHeight: CGFloat = 44
+
+    var body: some View {
+        VStack(alignment: centered ? .center : .leading, spacing: 3) {
+            if let logoData = data.logoData, let image = NSImage(data: logoData) {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(height: logoHeight)
+                    .frame(maxWidth: 140, alignment: centered ? .center : .leading)
+            }
+            Text(data.companyName.isEmpty ? "Your Company" : data.companyName)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(color)
+                .multilineTextAlignment(centered ? .center : .leading)
+            if !data.companyAddress.isEmpty {
+                Text(data.companyAddress)
+                    .font(.system(size: 9))
+                    .foregroundColor(color.opacity(0.85))
+                    .multilineTextAlignment(centered ? .center : .leading)
+                    .frame(maxWidth: 260, alignment: centered ? .center : .leading)
+            }
+            if !data.companyEmail.isEmpty || !data.companyPhone.isEmpty {
+                Text([data.companyEmail, data.companyPhone].filter { !$0.isEmpty }.joined(separator: "  •  "))
+                    .font(.system(size: 8.5))
+                    .foregroundColor(color.opacity(0.75))
+                    .multilineTextAlignment(centered ? .center : .leading)
+            }
+        }
+    }
+}
+
+private struct BillToBlock: View {
+    let data: InvoiceRenderData
+
+    var body: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("BILL TO").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
+                if !data.clientName.isEmpty {
+                    Text(data.clientName).font(.system(size: 12, weight: .medium)).foregroundColor(.black)
+                }
+                if !data.clientCompany.isEmpty {
+                    Text(data.clientCompany).font(.system(size: 10)).foregroundColor(.gray)
+                }
+                if !data.clientEmail.isEmpty {
+                    Text(data.clientEmail).font(.system(size: 10)).foregroundColor(.gray)
+                }
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 3) {
+                if data.showInvoiceId {
+                    Text("INVOICE NO").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
+                    Text(data.invoiceNumber.isEmpty ? "—" : data.invoiceNumber).font(.system(size: 11, weight: .medium)).foregroundColor(.black)
+                }
+                HStack(spacing: 20) {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("ISSUED").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
+                        Text(DateFormatHelper.string(from: data.issueDate, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
+                    }
+                    if data.showDueDate, let due = data.dueDate {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("DUE").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
+                            Text(DateFormatHelper.string(from: due, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct LineItemsTable: View {
+    let data: InvoiceRenderData
+    var headerColor: Color = .black
+    var headerTextColor: Color = .white
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Description").frame(maxWidth: .infinity, alignment: .leading)
+                Text("Qty").frame(width: 50, alignment: .trailing)
+                Text("Unit Price").frame(width: 80, alignment: .trailing)
+                Text("Tax").frame(width: 40, alignment: .trailing)
+                Text("Amount").frame(width: 95, alignment: .trailing)
+            }
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundColor(headerTextColor)
+            .padding(.vertical, 7)
+            .padding(.horizontal, 10)
+            .background(headerColor)
+
+            ForEach(Array(data.lineItems.enumerated()), id: \.offset) { index, item in
+                HStack {
+                    Text(item.description.isEmpty ? "—" : item.description)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(trimmed(item.quantity)).frame(width: 50, alignment: .trailing)
+                    Text(format(item.price)).frame(width: 80, alignment: .trailing)
+                    Text("\(trimmed(item.tax))%").frame(width: 40, alignment: .trailing)
+                    Text(format(item.total)).frame(width: 95, alignment: .trailing)
+                }
+                .font(.system(size: 9))
+                .foregroundColor(.black)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(index % 2 == 1 ? Color.black.opacity(0.03) : Color.white)
+                Divider().overlay(Color.black.opacity(0.08))
+            }
+
+            if data.lineItems.isEmpty {
+                Text("No line items")
+                    .font(.system(size: 9))
+                    .foregroundColor(.gray)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .overlay(Rectangle().stroke(Color.black.opacity(0.15), lineWidth: 0.5))
+    }
+
+    private func trimmed(_ value: Double) -> String {
+        value == value.rounded() ? String(Int(value)) : String(format: "%.2f", value)
+    }
+
+    private func format(_ value: Double) -> String {
+        CurrencyFormatter.shared.string(from: value, currencyCode: data.currencyCode)
+    }
+}
+
+private struct TotalsBlock: View {
+    let data: InvoiceRenderData
+    var accent: Color = .black
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            if data.showCurrency {
+                HStack {
+                    Text("Subtotal").font(.system(size: 10)).foregroundColor(.gray)
+                    Text(format(data.subtotal)).font(.system(size: 10, weight: .medium))
+                }
+                if data.showDiscount && data.discount > 0 {
+                    HStack {
+                        Text("Discount").font(.system(size: 10)).foregroundColor(.gray)
+                        Text("-\(format(data.discount))").font(.system(size: 10, weight: .medium)).foregroundColor(.red)
+                    }
+                }
+                if data.showTax && data.tax > 0 {
+                    HStack {
+                        Text("Tax").font(.system(size: 10)).foregroundColor(.gray)
+                        Text("+\(format(data.tax))").font(.system(size: 10, weight: .medium)).foregroundColor(.green)
+                    }
+                }
+            }
+            Divider().frame(width: 220)
+            HStack(spacing: 8) {
+                Text("Total").font(.system(size: 13, weight: .bold))
+                Text(format(data.total)).font(.system(size: 15, weight: .bold)).foregroundColor(accent)
+            }
+        }
+        .frame(width: 240)
+    }
+
+    private func format(_ value: Double) -> String {
+        CurrencyFormatter.shared.string(from: value, currencyCode: data.currencyCode)
+    }
+}
+
+private struct NotesBlock: View {
+    let data: InvoiceRenderData
+
+    var body: some View {
+        if data.showNote && !data.notes.isEmpty {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Notes").font(.system(size: 9, weight: .semibold)).foregroundColor(.gray)
+                Text(data.notes)
+                    .font(.system(size: 9))
+                    .foregroundColor(.black.opacity(0.8))
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+private struct FooterBar: View {
+    let data: InvoiceRenderData
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Divider()
+            Text(data.companyName.isEmpty ? "Thank you for your business" : "\(data.companyName)  •  Thank you for your business")
+                .font(.system(size: 8.5))
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 40)
+        .padding(.vertical, 10)
+    }
+}
+
+// MARK: - Themes
+
+private struct ModernTheme: View {
+    let data: InvoiceRenderData
+    let accent: Color
+    let spec: PDFPageSpec
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top) {
+                CompanyBlock(data: data, color: .white)
+                Spacer(minLength: 30)
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(data.invoiceType.uppercased())
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundColor(.white)
+                    if data.showInvoiceId {
+                        Text(data.invoiceNumber)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.white.opacity(0.85))
+                    }
+                    HStack(spacing: 18) {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("ISSUED").font(.system(size: 8, weight: .semibold)).foregroundColor(.white.opacity(0.7))
+                            Text(DateFormatHelper.string(from: data.issueDate, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.white)
+                        }
+                        if data.showDueDate, let due = data.dueDate {
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text("DUE").font(.system(size: 8, weight: .semibold)).foregroundColor(.white.opacity(0.7))
+                                Text(DateFormatHelper.string(from: due, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.white)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 40)
+            .padding(.vertical, 26)
+            .background(accent)
+
+            VStack(alignment: .leading, spacing: 20) {
+                BillToBlock(data: data)
+                LineItemsTable(data: data, headerColor: accent, headerTextColor: .white)
+                HStack(alignment: .top) {
+                    NotesBlock(data: data)
+                    Spacer(minLength: 16)
+                    TotalsBlock(data: data, accent: accent)
+                }
+            }
+            .padding(40)
+
+            Spacer(minLength: 0)
+            FooterBar(data: data)
+        }
+        .frame(width: spec.width, height: spec.height, alignment: .top)
+        .background(Color.white)
+    }
+}
+
+private struct BusinessTheme: View {
+    let data: InvoiceRenderData
+    let accent: Color
+    let spec: PDFPageSpec
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top) {
+                CompanyBlock(data: data, color: .black)
+                Spacer(minLength: 30)
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(data.invoiceType.uppercased())
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(accent)
+                    if data.showInvoiceId {
+                        Text(data.invoiceNumber)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
+            .padding(.horizontal, 40)
+            .padding(.top, 40)
+            .padding(.bottom, 18)
+
+            Rectangle()
+                .fill(accent)
+                .frame(height: 2)
+                .padding(.horizontal, 40)
+
+            VStack(alignment: .leading, spacing: 20) {
+                BillToBlock(data: data)
+                LineItemsTable(data: data, headerColor: accent, headerTextColor: .white)
+                HStack(alignment: .top) {
+                    NotesBlock(data: data)
+                    Spacer(minLength: 16)
+                    TotalsBlock(data: data, accent: accent)
+                }
+            }
+            .padding(40)
+
+            Spacer(minLength: 0)
+            FooterBar(data: data)
+        }
+        .frame(width: spec.width, height: spec.height, alignment: .top)
+        .background(Color.white)
+    }
+}
+
+private struct MinimalTheme: View {
+    let data: InvoiceRenderData
+    let spec: PDFPageSpec
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top) {
+                CompanyBlock(data: data, color: .black)
+                Spacer(minLength: 30)
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(data.invoiceType.uppercased())
+                        .font(.system(size: 14, weight: .medium))
+                        .kerning(3)
+                        .foregroundColor(.black)
+                    if data.showInvoiceId {
+                        Text(data.invoiceNumber)
+                            .font(.system(size: 11))
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
+            .padding(.horizontal, 48)
+            .padding(.top, 44)
+            .padding(.bottom, 16)
+
+            Divider()
+                .padding(.horizontal, 48)
+
+            VStack(alignment: .leading, spacing: 20) {
+                BillToBlock(data: data)
+                LineItemsTable(data: data, headerColor: Color.black.opacity(0.08), headerTextColor: .black)
+                HStack(alignment: .top) {
+                    NotesBlock(data: data)
+                    Spacer(minLength: 16)
+                    TotalsBlock(data: data, accent: .black)
+                }
+            }
+            .padding(48)
+
+            Spacer(minLength: 0)
+            FooterBar(data: data)
+        }
+        .frame(width: spec.width, height: spec.height, alignment: .top)
+        .background(Color.white)
+    }
+}
+
+private struct ProfessionalTheme: View {
+    let data: InvoiceRenderData
+    let accent: Color
+    let secondary: Color
+    let spec: PDFPageSpec
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Rectangle().fill(accent).frame(height: 3)
+            Rectangle().fill(Color.black.opacity(0.15)).frame(height: 0.5)
+
+            HStack(alignment: .top) {
+                CompanyBlock(data: data, color: .black)
+                Spacer(minLength: 30)
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(data.invoiceType.uppercased())
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.black)
+                    if data.showInvoiceId {
+                        Text(data.invoiceNumber)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(secondary)
+                    }
+                }
+            }
+            .padding(.horizontal, 40)
+            .padding(.vertical, 24)
+
+            HStack(spacing: 32) {
+                labelValue("ISSUED", DateFormatHelper.string(from: data.issueDate, format: data.dateFormat))
+                if data.showDueDate, let due = data.dueDate {
+                    labelValue("DUE", DateFormatHelper.string(from: due, format: data.dateFormat))
+                }
+                labelValue("TYPE", data.invoiceType.capitalized)
+                Spacer()
+            }
+            .padding(.horizontal, 40)
+            .padding(.vertical, 8)
+            .background(secondary.opacity(0.12))
+
+            VStack(alignment: .leading, spacing: 20) {
+                BillToBlock(data: data)
+                LineItemsTable(data: data, headerColor: secondary, headerTextColor: .white)
+                HStack(alignment: .top) {
+                    NotesBlock(data: data)
+                    Spacer(minLength: 16)
+                    TotalsBlock(data: data, accent: secondary)
+                }
+            }
+            .padding(40)
+
+            Spacer(minLength: 0)
+            FooterBar(data: data)
+        }
+        .frame(width: spec.width, height: spec.height, alignment: .top)
+        .background(Color.white)
+    }
+
+    private func labelValue(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label).font(.system(size: 7.5, weight: .semibold)).foregroundColor(.gray)
+            Text(value).foregroundColor(.black)
+        }
+    }
+}
+
+private struct ElegantTheme: View {
+    let data: InvoiceRenderData
+    let accent: Color
+    let spec: PDFPageSpec
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Rectangle().fill(Color.black.opacity(0.4)).frame(height: 0.5)
+                Text(data.invoiceType.uppercased())
+                    .fontDesign(.serif)
+                    .font(.system(size: 24))
+                    .kerning(6)
+                    .foregroundColor(.black)
+                Rectangle().fill(Color.black.opacity(0.4)).frame(height: 0.5)
+            }
+            .padding(.horizontal, 56)
+            .padding(.top, 40)
+
+            if data.showInvoiceId {
+                Text(data.invoiceNumber)
+                    .font(.system(size: 10, weight: .medium))
+                    .kerning(2)
+                    .foregroundColor(accent)
+                    .padding(.top, 6)
+            }
+
+            CompanyBlock(data: data, color: .black, centered: true)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 18)
+
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("BILL TO").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
+                    if !data.clientName.isEmpty {
+                        Text(data.clientName).font(.system(size: 12, weight: .medium)).foregroundColor(.black)
+                    }
+                    if !data.clientCompany.isEmpty {
+                        Text(data.clientCompany).font(.system(size: 10)).foregroundColor(.gray)
+                    }
+                    if !data.clientEmail.isEmpty {
+                        Text(data.clientEmail).font(.system(size: 10)).foregroundColor(.gray)
+                    }
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text("ISSUED").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
+                    Text(DateFormatHelper.string(from: data.issueDate, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
+                    if data.showDueDate, let due = data.dueDate {
+                        Text("DUE").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray).padding(.top, 4)
+                        Text(DateFormatHelper.string(from: due, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
+                    }
+                }
+            }
+            .padding(.horizontal, 56)
+            .padding(.top, 26)
+
+            LineItemsTable(data: data, headerColor: Color.black.opacity(0.08), headerTextColor: .black)
+                .padding(.horizontal, 56)
+                .padding(.top, 20)
+
+            HStack(alignment: .top) {
+                NotesBlock(data: data)
+                Spacer(minLength: 16)
+                TotalsBlock(data: data, accent: accent)
+            }
+            .padding(.horizontal, 56)
+            .padding(.top, 16)
+
+            Spacer(minLength: 0)
+            FooterBar(data: data)
+        }
+        .frame(width: spec.width, height: spec.height, alignment: .top)
+        .background(Color.white)
     }
 }
