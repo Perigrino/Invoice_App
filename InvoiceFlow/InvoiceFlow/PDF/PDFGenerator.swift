@@ -59,6 +59,7 @@ struct InvoiceRenderData {
 
 // MARK: - PDF Generator
 
+@MainActor
 final class PDFGenerator {
     func generatePDF(for data: InvoiceRenderData, template: PDFTemplate = .modern, paperSize: String? = nil) -> URL? {
         let spec = PDFPageSpec.size(for: paperSize ?? "A4")
@@ -67,19 +68,55 @@ final class PDFGenerator {
         let rootView = InvoicePDFView(data: data, template: template, paperSize: paperSize ?? "A4")
             .frame(width: spec.width, height: spec.height)
 
-        let hosting = NSHostingView(rootView: rootView)
-        hosting.frame = NSRect(origin: .zero, size: pageSize)
-        hosting.layoutSubtreeIfNeeded()
+        // NSHostingView.dataWithPDF(inside:) does not capture SwiftUI content
+        // (produces a blank page), so render the view to a high-resolution image
+        // and embed it in the PDF page.
+        let renderer = ImageRenderer(content: rootView)
+        renderer.scale = 3.0
+        renderer.isOpaque = true
+        guard let image = renderer.nsImage,
+              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
 
-        let dataRepresentation = hosting.dataWithPDF(inside: hosting.bounds)
         let tempDir = FileManager.default.temporaryDirectory
         let fileName = data.invoiceNumber.isEmpty ? "invoice.pdf" : "\(data.invoiceNumber).pdf"
         let fileURL = tempDir.appendingPathComponent(fileName)
         do {
-            try dataRepresentation.write(to: fileURL)
+            let pdfData = try makePDF(cgImage: cgImage, pageSize: pageSize)
+            try pdfData.write(to: fileURL)
             return fileURL
         } catch {
             return nil
+        }
+    }
+
+    private func makePDF(cgImage: CGImage, pageSize: NSSize) throws -> Data {
+        let data = NSMutableData()
+        guard let consumer = CGDataConsumer(data: data as CFMutableData) else {
+            throw PDFGeneratorError.couldNotCreateConsumer
+        }
+        var mediaBox = CGRect(origin: .zero, size: CGSize(width: pageSize.width, height: pageSize.height))
+        guard let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
+            throw PDFGeneratorError.couldNotCreateContext
+        }
+        context.beginPDFPage(nil)
+        context.interpolationQuality = .high
+        context.draw(cgImage, in: mediaBox)
+        context.endPDFPage()
+        context.closePDF()
+        return data as Data
+    }
+}
+
+enum PDFGeneratorError: LocalizedError {
+    case couldNotCreateConsumer
+    case couldNotCreateContext
+
+    var errorDescription: String? {
+        switch self {
+        case .couldNotCreateConsumer: return "Could not create the PDF data consumer."
+        case .couldNotCreateContext: return "Could not create the PDF drawing context."
         }
     }
 }
