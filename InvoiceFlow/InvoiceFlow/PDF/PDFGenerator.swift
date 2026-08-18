@@ -15,7 +15,7 @@ struct PDFPageSpec {
     }
 }
 
-// MARK: - Render data (plain value types, never persisted)
+// MARK: - Render data
 
 struct InvoiceRenderLineItem {
     var description = ""
@@ -68,9 +68,6 @@ final class PDFGenerator {
         let rootView = InvoicePDFView(data: data, template: template, paperSize: paperSize ?? "A4")
             .frame(width: spec.width, height: spec.height)
 
-        // NSHostingView.dataWithPDF(inside:) does not capture SwiftUI content
-        // (produces a blank page), so render the view to a high-resolution image
-        // and embed it in the PDF page.
         let renderer = ImageRenderer(content: rootView)
         renderer.scale = 3.0
         renderer.isOpaque = true
@@ -112,7 +109,6 @@ final class PDFGenerator {
 enum PDFGeneratorError: LocalizedError {
     case couldNotCreateConsumer
     case couldNotCreateContext
-
     var errorDescription: String? {
         switch self {
         case .couldNotCreateConsumer: return "Could not create the PDF data consumer."
@@ -121,7 +117,7 @@ enum PDFGeneratorError: LocalizedError {
     }
 }
 
-// MARK: - Invoice PDF View
+// MARK: - Invoice PDF View (Router)
 
 struct InvoicePDFView: View {
     let data: InvoiceRenderData
@@ -129,18 +125,11 @@ struct InvoicePDFView: View {
     let paperSize: String
 
     private var spec: PDFPageSpec { PDFPageSpec.size(for: paperSize) }
-
-    private var accent: Color {
-        Color(hex: cleanHex(data.accentHex))
-    }
-
-    private var secondary: Color {
-        Color(hex: cleanHex(data.secondaryHex))
-    }
-
+    private var accent: Color { Color(hex: cleanHex(data.accentHex)) }
+    private var secondary: Color { Color(hex: cleanHex(data.secondaryHex)) }
     private func cleanHex(_ hex: String) -> String {
-        let value = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
-        return value.isEmpty ? "1E3A5F" : value
+        let v = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        return v.isEmpty ? "1E3A5F" : v
     }
 
     var body: some View {
@@ -150,221 +139,118 @@ struct InvoicePDFView: View {
             case .business: BusinessTheme(data: data, accent: accent, spec: spec)
             case .minimal: MinimalTheme(data: data, spec: spec)
             case .professional: ProfessionalTheme(data: data, accent: accent, secondary: secondary, spec: spec)
-            case .elegant: ElegantTheme(data: data, accent: accent, spec: spec)
             }
         }
         .background(Color.white)
     }
 }
 
-// MARK: - Shared building blocks
+// ═══════════════════════════════════════════════════════════════════════
+// MARK: - SHARED BUILDING BLOCKS
+// ═══════════════════════════════════════════════════════════════════════
 
-private struct CompanyBlock: View {
+private struct BigLogo: View {
     let data: InvoiceRenderData
-    var color: Color = .black
-    var centered = false
-    var logoHeight: CGFloat = 44
+    var height: CGFloat = 64
+    var maxWidth: CGFloat = 180
 
     var body: some View {
-        VStack(alignment: centered ? .center : .leading, spacing: 3) {
-            if let logoData = data.logoData, let image = NSImage(data: logoData) {
-                Image(nsImage: image)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(height: logoHeight)
-                    .frame(maxWidth: 140, alignment: centered ? .center : .leading)
-            }
-            Text(data.companyName.isEmpty ? "Your Company" : data.companyName)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(color)
-                .multilineTextAlignment(centered ? .center : .leading)
-            if !data.companyAddress.isEmpty {
-                Text(data.companyAddress)
-                    .font(.system(size: 9))
-                    .foregroundColor(color.opacity(0.85))
-                    .multilineTextAlignment(centered ? .center : .leading)
-                    .frame(maxWidth: 260, alignment: centered ? .center : .leading)
-            }
-            if !data.companyEmail.isEmpty || !data.companyPhone.isEmpty {
-                Text([data.companyEmail, data.companyPhone].filter { !$0.isEmpty }.joined(separator: "  •  "))
-                    .font(.system(size: 8.5))
-                    .foregroundColor(color.opacity(0.75))
-                    .multilineTextAlignment(centered ? .center : .leading)
-            }
+        if let logoData = data.logoData, let image = NSImage(data: logoData) {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(height: height)
+                .frame(maxWidth: maxWidth)
         }
     }
 }
 
-private struct BillToBlock: View {
+private struct TableClean: View {
     let data: InvoiceRenderData
-
-    var body: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("BILL TO").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
-                if !data.clientName.isEmpty {
-                    Text(data.clientName).font(.system(size: 12, weight: .medium)).foregroundColor(.black)
-                }
-                if !data.clientCompany.isEmpty {
-                    Text(data.clientCompany).font(.system(size: 10)).foregroundColor(.gray)
-                }
-                if !data.clientEmail.isEmpty {
-                    Text(data.clientEmail).font(.system(size: 10)).foregroundColor(.gray)
-                }
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 3) {
-                if data.showInvoiceId {
-                    Text("INVOICE NO").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
-                    Text(data.invoiceNumber.isEmpty ? "—" : data.invoiceNumber).font(.system(size: 11, weight: .medium)).foregroundColor(.black)
-                }
-                HStack(spacing: 20) {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("ISSUED").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
-                        Text(DateFormatHelper.string(from: data.issueDate, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
-                    }
-                    if data.showDueDate, let due = data.dueDate {
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text("DUE").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
-                            Text(DateFormatHelper.string(from: due, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private struct LineItemsTable: View {
-    let data: InvoiceRenderData
-    var headerColor: Color = .black
-    var headerTextColor: Color = .white
+    var headerBg: Color = Color.black
+    var headerFg: Color = .white
+    var altRow: Bool = true
+    var borderColor: Color = Color.black.opacity(0.12)
 
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Description").frame(maxWidth: .infinity, alignment: .leading)
-                Text("Qty").frame(width: 50, alignment: .trailing)
-                Text("Unit Price").frame(width: 80, alignment: .trailing)
-                Text("Tax").frame(width: 40, alignment: .trailing)
-                Text("Amount").frame(width: 95, alignment: .trailing)
+                Text("ITEM DESCRIPTION").frame(maxWidth: .infinity, alignment: .leading)
+                Text("QTY").frame(width: 50, alignment: .trailing)
+                Text("PRICE").frame(width: 80, alignment: .trailing)
+                Text("TOTAL").frame(width: 90, alignment: .trailing)
             }
-            .font(.system(size: 9, weight: .semibold))
-            .foregroundColor(headerTextColor)
-            .padding(.vertical, 7)
-            .padding(.horizontal, 10)
-            .background(headerColor)
+            .font(.system(size: 8.5, weight: .bold))
+            .foregroundColor(headerFg)
+            .kerning(0.8)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(headerBg)
 
-            ForEach(Array(data.lineItems.enumerated()), id: \.offset) { index, item in
+            ForEach(Array(data.lineItems.enumerated()), id: \.offset) { idx, item in
                 HStack {
-                    Text(item.description.isEmpty ? "—" : item.description)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Text(trimmed(item.quantity)).frame(width: 50, alignment: .trailing)
-                    Text(format(item.price)).frame(width: 80, alignment: .trailing)
-                    Text("\(trimmed(item.tax))%").frame(width: 40, alignment: .trailing)
-                    Text(format(item.total)).frame(width: 95, alignment: .trailing)
+                    Text(item.description.isEmpty ? "—" : item.description).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(fmt(item.quantity)).frame(width: 50, alignment: .trailing)
+                    Text(fmt(item.price)).frame(width: 80, alignment: .trailing)
+                    Text(fmt(item.total)).frame(width: 90, alignment: .trailing)
                 }
-                .font(.system(size: 9))
+                .font(.system(size: 8.5))
                 .foregroundColor(.black)
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(index % 2 == 1 ? Color.black.opacity(0.03) : Color.white)
-                Divider().overlay(Color.black.opacity(0.08))
+                .padding(.vertical, 7)
+                .padding(.horizontal, 12)
+                .background(altRow && idx % 2 == 0 ? Color.black.opacity(0.03) : Color.clear)
+                Divider().overlay(borderColor)
             }
 
             if data.lineItems.isEmpty {
-                Text("No line items")
-                    .font(.system(size: 9))
-                    .foregroundColor(.gray)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack { Text("No line items").foregroundColor(.gray); Spacer() }
+                    .font(.system(size: 9)).padding(12)
             }
         }
-        .overlay(Rectangle().stroke(Color.black.opacity(0.15), lineWidth: 0.5))
+        .overlay(Rectangle().stroke(borderColor, lineWidth: 0.5))
     }
 
-    private func trimmed(_ value: Double) -> String {
-        value == value.rounded() ? String(Int(value)) : String(format: "%.2f", value)
-    }
-
-    private func format(_ value: Double) -> String {
-        CurrencyFormatter.shared.string(from: value, currencyCode: data.currencyCode)
-    }
+    private func fmt(_ v: Double) -> String { CurrencyFormatter.shared.string(from: v, currencyCode: data.currencyCode) }
 }
 
 private struct TotalsBlock: View {
     let data: InvoiceRenderData
     var accent: Color = .black
+    var filledTotal = false
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 4) {
+        VStack(alignment: .trailing, spacing: 5) {
             if data.showCurrency {
-                HStack {
-                    Text("Subtotal").font(.system(size: 10)).foregroundColor(.gray)
-                    Text(format(data.subtotal)).font(.system(size: 10, weight: .medium))
-                }
-                if data.showDiscount && data.discount > 0 {
-                    HStack {
-                        Text("Discount").font(.system(size: 10)).foregroundColor(.gray)
-                        Text("-\(format(data.discount))").font(.system(size: 10, weight: .medium)).foregroundColor(.red)
-                    }
-                }
-                if data.showTax && data.tax > 0 {
-                    HStack {
-                        Text("Tax").font(.system(size: 10)).foregroundColor(.gray)
-                        Text("+\(format(data.tax))").font(.system(size: 10, weight: .medium)).foregroundColor(.green)
-                    }
-                }
+                tRow("SUB TOTAL", fmt(data.subtotal))
+                if data.showDiscount && data.discount > 0 { tRow("DISCOUNT", "-\(fmt(data.discount))", color: .red) }
+                if data.showTax && data.tax > 0 { tRow("TAX", "+\(fmt(data.tax))", color: .green) }
             }
-            Divider().frame(width: 220)
-            HStack(spacing: 8) {
-                Text("Total").font(.system(size: 13, weight: .bold))
-                Text(format(data.total)).font(.system(size: 15, weight: .bold)).foregroundColor(accent)
+            Divider().frame(width: 200)
+            HStack(spacing: 12) {
+                Text("TOTAL").font(.system(size: 13, weight: .bold))
+                Text(fmt(data.total))
+                    .font(.system(size: 16, weight: .black))
+                    .foregroundColor(accent)
             }
+            .padding(filledTotal ? EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16) : EdgeInsets())
+            .background(filledTotal ? accent : Color.clear)
+            .foregroundColor(filledTotal ? .white : .black)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
         }
-        .frame(width: 240)
+        .frame(width: 220)
     }
 
-    private func format(_ value: Double) -> String {
-        CurrencyFormatter.shared.string(from: value, currencyCode: data.currencyCode)
+    private func tRow(_ l: String, _ v: String, color: Color = .black) -> some View {
+        HStack { Text(l).font(.system(size: 9, weight: .medium)).foregroundColor(.gray); Spacer(); Text(v).font(.system(size: 9, weight: .semibold)).foregroundColor(color) }
     }
+    private func fmt(_ v: Double) -> String { CurrencyFormatter.shared.string(from: v, currencyCode: data.currencyCode) }
 }
 
-private struct NotesBlock: View {
-    let data: InvoiceRenderData
-
-    var body: some View {
-        if data.showNote && !data.notes.isEmpty {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Notes").font(.system(size: 9, weight: .semibold)).foregroundColor(.gray)
-                Text(data.notes)
-                    .font(.system(size: 9))
-                    .foregroundColor(.black.opacity(0.8))
-                    .multilineTextAlignment(.leading)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-private struct FooterBar: View {
-    let data: InvoiceRenderData
-
-    var body: some View {
-        VStack(spacing: 4) {
-            Divider()
-            Text(data.companyName.isEmpty ? "Thank you for your business" : "\(data.companyName)  •  Thank you for your business")
-                .font(.system(size: 8.5))
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.horizontal, 40)
-        .padding(.vertical, 10)
-    }
-}
-
-// MARK: - Themes
+// ═══════════════════════════════════════════════════════════════════════
+// MARK: - MODERN THEME — M2: Dark Header
+// Dark header bar with logo + big "INVOICE" title, notes at bottom
+// ═══════════════════════════════════════════════════════════════════════
 
 private struct ModernTheme: View {
     let data: InvoiceRenderData
@@ -373,54 +259,118 @@ private struct ModernTheme: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top) {
-                CompanyBlock(data: data, color: .white)
-                Spacer(minLength: 30)
-                VStack(alignment: .trailing, spacing: 4) {
+            // Dark header with logo and invoice title
+            HStack(alignment: .center) {
+                BigLogo(data: data, height: 72, maxWidth: 190)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 6) {
                     Text(data.invoiceType.uppercased())
-                        .font(.system(size: 26, weight: .bold))
+                        .font(.system(size: 32, weight: .black))
                         .foregroundColor(.white)
+                        .tracking(2)
                     if data.showInvoiceId {
                         Text(data.invoiceNumber)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.white.opacity(0.85))
-                    }
-                    HStack(spacing: 18) {
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text("ISSUED").font(.system(size: 8, weight: .semibold)).foregroundColor(.white.opacity(0.7))
-                            Text(DateFormatHelper.string(from: data.issueDate, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.white)
-                        }
-                        if data.showDueDate, let due = data.dueDate {
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text("DUE").font(.system(size: 8, weight: .semibold)).foregroundColor(.white.opacity(0.7))
-                                Text(DateFormatHelper.string(from: due, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.white)
-                            }
-                        }
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.white.opacity(0.7))
                     }
                 }
             }
             .padding(.horizontal, 40)
-            .padding(.vertical, 26)
-            .background(accent)
+            .padding(.vertical, 24)
+            .background(Color(red: 0.11, green: 0.11, blue: 0.13))
 
-            VStack(alignment: .leading, spacing: 20) {
-                BillToBlock(data: data)
-                LineItemsTable(data: data, headerColor: accent, headerTextColor: .white)
-                HStack(alignment: .top) {
-                    NotesBlock(data: data)
-                    Spacer(minLength: 16)
-                    TotalsBlock(data: data, accent: accent)
+            // Company info + dates row
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if !data.companyName.isEmpty {
+                        Text(data.companyName).font(.system(size: 15, weight: .bold)).foregroundColor(.black)
+                    }
+                    if !data.companyAddress.isEmpty { Text(data.companyAddress).font(.system(size: 9)).foregroundColor(.gray) }
+                    if !data.companyEmail.isEmpty || !data.companyPhone.isEmpty {
+                        Text([data.companyEmail, data.companyPhone].filter { !$0.isEmpty }.joined(separator: "  •  "))
+                            .font(.system(size: 8.5)).foregroundColor(.gray)
+                    }
                 }
-            }
-            .padding(40)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    if data.showInvoiceId {
+                        HStack(spacing: 6) {
+                            Text("Invoice No.").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
+                            Text(data.invoiceNumber).font(.system(size: 11, weight: .bold)).foregroundColor(.black)
+                        }
+                    }
+                    HStack(spacing: 6) {
+                        Text("Issue Date").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
+                        Text(DateFormatHelper.string(from: data.issueDate, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
+                    }
+                    if data.showDueDate, let due = data.dueDate {
+                        HStack(spacing: 6) {
+                            Text("Due Date").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
+                            Text(DateFormatHelper.string(from: due, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
+                        }
+                    }
+                }
+            }.padding(.horizontal, 40).padding(.top, 20).padding(.bottom, 12)
+
+            // Accent divider
+            Rectangle().fill(accent).frame(height: 2).padding(.horizontal, 40)
+
+            // Client info
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("INVOICE TO:").font(.system(size: 9, weight: .bold)).foregroundColor(.gray).tracking(1)
+                    if !data.clientName.isEmpty { Text(data.clientName).font(.system(size: 13, weight: .bold)).foregroundColor(.black) }
+                    if !data.clientCompany.isEmpty { Text(data.clientCompany).font(.system(size: 10)).foregroundColor(.gray) }
+                    if !data.clientEmail.isEmpty { Text(data.clientEmail).font(.system(size: 9)).foregroundColor(.gray) }
+                }
+                Spacer()
+            }.padding(.horizontal, 40).padding(.top, 16)
+
+            // Table
+            TableClean(data: data, headerBg: accent, headerFg: .white)
+                .padding(.horizontal, 40).padding(.top, 12)
+
+            // Totals
+            HStack(alignment: .top) { Spacer(); TotalsBlock(data: data, accent: accent, filledTotal: true) }
+                .padding(.horizontal, 40).padding(.top, 8)
 
             Spacer(minLength: 0)
-            FooterBar(data: data)
+
+            // Notes + Terms at bottom
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if data.showNote && !data.notes.isEmpty {
+                        Text("*NOTES:").font(.system(size: 9, weight: .bold)).foregroundColor(.black)
+                        Text(data.notes).font(.system(size: 8)).foregroundColor(.gray)
+                    } else {
+                        Text("*NOTES:").font(.system(size: 9, weight: .bold)).foregroundColor(.black)
+                        Text("_______________________________").font(.system(size: 8)).foregroundColor(.gray.opacity(0.5))
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("THANK YOU FOR YOUR BUSINESS!").font(.system(size: 9, weight: .bold)).foregroundColor(accent).tracking(0.5)
+                    Text("TERM & CONDITIONS:").font(.system(size: 7.5, weight: .bold)).foregroundColor(.black)
+                    Text("Payment is due within 30 days of invoice date.\nLate payments may incur a 5% fee.")
+                        .font(.system(size: 7)).foregroundColor(.gray)
+                }
+            }.padding(.horizontal, 40).padding(.top, 8)
+
+            // Footer
+            HStack {
+                if !data.companyName.isEmpty { Text(data.companyName).font(.system(size: 7)).foregroundColor(.gray) }
+                Spacer()
+            }.padding(.horizontal, 40).padding(.vertical, 10)
         }
-        .frame(width: spec.width, height: spec.height, alignment: .top)
+        .frame(width: spec.width, height: spec.height)
         .background(Color.white)
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// MARK: - BUSINESS THEME — B1: Corporate
+// Full accent header with big logo, notes at bottom
+// ═══════════════════════════════════════════════════════════════════════
 
 private struct BusinessTheme: View {
     let data: InvoiceRenderData
@@ -429,47 +379,109 @@ private struct BusinessTheme: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top) {
-                CompanyBlock(data: data, color: .black)
-                Spacer(minLength: 30)
-                VStack(alignment: .trailing, spacing: 4) {
+            // Full accent header with logo and invoice title
+            HStack(alignment: .center) {
+                BigLogo(data: data, height: 80, maxWidth: 200)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 6) {
                     Text(data.invoiceType.uppercased())
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(accent)
+                        .font(.system(size: 32, weight: .black))
+                        .foregroundColor(.white)
+                        .tracking(2)
                     if data.showInvoiceId {
-                        Text(data.invoiceNumber)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.gray)
+                        Text("Invoice #\(data.invoiceNumber)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.white.opacity(0.8))
                     }
                 }
             }
             .padding(.horizontal, 40)
-            .padding(.top, 40)
-            .padding(.bottom, 18)
+            .padding(.vertical, 28)
+            .background(accent)
 
-            Rectangle()
-                .fill(accent)
-                .frame(height: 2)
-                .padding(.horizontal, 40)
-
-            VStack(alignment: .leading, spacing: 20) {
-                BillToBlock(data: data)
-                LineItemsTable(data: data, headerColor: accent, headerTextColor: .white)
-                HStack(alignment: .top) {
-                    NotesBlock(data: data)
-                    Spacer(minLength: 16)
-                    TotalsBlock(data: data, accent: accent)
+            // Company info + dates row
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if !data.companyName.isEmpty {
+                        Text(data.companyName).font(.system(size: 15, weight: .bold)).foregroundColor(.black)
+                    }
+                    if !data.companyAddress.isEmpty { Text(data.companyAddress).font(.system(size: 9)).foregroundColor(.gray) }
+                    if !data.companyEmail.isEmpty || !data.companyPhone.isEmpty {
+                        Text([data.companyEmail, data.companyPhone].filter { !$0.isEmpty }.joined(separator: "  •  "))
+                            .font(.system(size: 8.5)).foregroundColor(.gray)
+                    }
                 }
-            }
-            .padding(40)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text("Issue Date").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
+                        Text(DateFormatHelper.string(from: data.issueDate, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
+                    }
+                    if data.showDueDate, let due = data.dueDate {
+                        HStack(spacing: 6) {
+                            Text("Due Date").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
+                            Text(DateFormatHelper.string(from: due, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
+                        }
+                    }
+                }
+            }.padding(.horizontal, 40).padding(.top, 20).padding(.bottom, 12)
+
+            // Client info
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("BILL TO:").font(.system(size: 9, weight: .bold)).foregroundColor(.gray).tracking(1)
+                    if !data.clientName.isEmpty { Text(data.clientName).font(.system(size: 13, weight: .bold)).foregroundColor(.black) }
+                    if !data.clientCompany.isEmpty { Text(data.clientCompany).font(.system(size: 10)).foregroundColor(.gray) }
+                    if !data.clientEmail.isEmpty { Text(data.clientEmail).font(.system(size: 9)).foregroundColor(.gray) }
+                }
+                Spacer()
+            }.padding(.horizontal, 40).padding(.top, 12)
+
+            // Table
+            TableClean(data: data, headerBg: accent, headerFg: .white)
+                .padding(.horizontal, 40).padding(.top, 12)
+
+            // Totals
+            HStack(alignment: .top) { Spacer(); TotalsBlock(data: data, accent: accent, filledTotal: true) }
+                .padding(.horizontal, 40).padding(.top, 8)
 
             Spacer(minLength: 0)
-            FooterBar(data: data)
+
+            // Notes + Terms at bottom
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if data.showNote && !data.notes.isEmpty {
+                        Text("*NOTES:").font(.system(size: 9, weight: .bold)).foregroundColor(.black)
+                        Text(data.notes).font(.system(size: 8)).foregroundColor(.gray)
+                    } else {
+                        Text("*NOTES:").font(.system(size: 9, weight: .bold)).foregroundColor(.black)
+                        Text("_______________________________").font(.system(size: 8)).foregroundColor(.gray.opacity(0.5))
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("THANK YOU FOR YOUR BUSINESS!").font(.system(size: 9, weight: .bold)).foregroundColor(accent).tracking(0.5)
+                    Text("TERM & CONDITIONS:").font(.system(size: 7.5, weight: .bold)).foregroundColor(.black)
+                    Text("Payment is due within 30 days of invoice date.\nLate payments may incur a 5% fee.")
+                        .font(.system(size: 7)).foregroundColor(.gray)
+                }
+            }.padding(.horizontal, 40).padding(.top, 8)
+
+            // Footer
+            HStack {
+                if !data.companyName.isEmpty { Text(data.companyName).font(.system(size: 7)).foregroundColor(.gray) }
+                Spacer()
+            }.padding(.horizontal, 40).padding(.vertical, 10)
         }
-        .frame(width: spec.width, height: spec.height, alignment: .top)
+        .frame(width: spec.width, height: spec.height)
         .background(Color.white)
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// MARK: - MINIMAL THEME — Mi2: Typewriter
+// Monospace font, dotted separators, clean layout, notes at bottom
+// ═══════════════════════════════════════════════════════════════════════
 
 private struct MinimalTheme: View {
     let data: InvoiceRenderData
@@ -477,46 +489,110 @@ private struct MinimalTheme: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Header with logo and title
             HStack(alignment: .top) {
-                CompanyBlock(data: data, color: .black)
+                VStack(alignment: .leading, spacing: 4) {
+                    BigLogo(data: data, height: 64, maxWidth: 170)
+                    if !data.companyName.isEmpty {
+                        Text(data.companyName).font(.system(size: 16, weight: .bold, design: .monospaced)).foregroundColor(.black)
+                    }
+                    if !data.companyAddress.isEmpty {
+                        Text(data.companyAddress).font(.system(size: 9, design: .monospaced)).foregroundColor(.gray)
+                    }
+                }
                 Spacer(minLength: 30)
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: 6) {
                     Text(data.invoiceType.uppercased())
-                        .font(.system(size: 14, weight: .medium))
-                        .kerning(3)
+                        .font(.system(size: 22, weight: .bold, design: .monospaced))
                         .foregroundColor(.black)
                     if data.showInvoiceId {
                         Text(data.invoiceNumber)
-                            .font(.system(size: 11))
+                            .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.gray)
                     }
                 }
-            }
-            .padding(.horizontal, 48)
-            .padding(.top, 44)
-            .padding(.bottom, 16)
+            }.padding(.horizontal, 48).padding(.top, 40).padding(.bottom, 12)
 
-            Divider()
+            // Dotted separator
+            Text(String(repeating: "· ", count: 55))
+                .font(.system(size: 8, design: .monospaced))
+                .foregroundColor(.gray.opacity(0.5))
                 .padding(.horizontal, 48)
 
-            VStack(alignment: .leading, spacing: 20) {
-                BillToBlock(data: data)
-                LineItemsTable(data: data, headerColor: Color.black.opacity(0.08), headerTextColor: .black)
-                HStack(alignment: .top) {
-                    NotesBlock(data: data)
-                    Spacer(minLength: 16)
-                    TotalsBlock(data: data, accent: .black)
+            // Client + dates
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("BILL TO:").font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundColor(.gray).tracking(1)
+                    if !data.clientName.isEmpty {
+                        Text(data.clientName).font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundColor(.black)
+                    }
+                    if !data.clientCompany.isEmpty {
+                        Text(data.clientCompany).font(.system(size: 10, design: .monospaced)).foregroundColor(.gray)
+                    }
+                    if !data.clientEmail.isEmpty {
+                        Text(data.clientEmail).font(.system(size: 9, design: .monospaced)).foregroundColor(.gray)
+                    }
                 }
-            }
-            .padding(48)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text("Issued:").font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundColor(.gray)
+                        Text(DateFormatHelper.string(from: data.issueDate, format: data.dateFormat)).font(.system(size: 10, design: .monospaced)).foregroundColor(.black)
+                    }
+                    if data.showDueDate, let due = data.dueDate {
+                        HStack(spacing: 6) {
+                            Text("Due:").font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundColor(.gray)
+                            Text(DateFormatHelper.string(from: due, format: data.dateFormat)).font(.system(size: 10, design: .monospaced)).foregroundColor(.black)
+                        }
+                    }
+                }
+            }.padding(.horizontal, 48).padding(.top, 12)
+
+            // Table
+            TableClean(data: data, headerBg: Color.black, headerFg: .white, altRow: false, borderColor: Color.black.opacity(0.08))
+                .padding(.horizontal, 48).padding(.top, 12)
+
+            // Totals
+            HStack(alignment: .top) { Spacer(); TotalsBlock(data: data, accent: .black) }
+                .padding(.horizontal, 48).padding(.top, 8)
 
             Spacer(minLength: 0)
-            FooterBar(data: data)
+
+            // Notes + Terms at bottom
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if data.showNote && !data.notes.isEmpty {
+                        Text("*NOTES:").font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundColor(.black)
+                        Text(data.notes).font(.system(size: 8, design: .monospaced)).foregroundColor(.gray)
+                    } else {
+                        Text("*NOTES:").font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundColor(.black)
+                        Text("_______________________________").font(.system(size: 8, design: .monospaced)).foregroundColor(.gray.opacity(0.5))
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("THANK YOU FOR YOUR BUSINESS!").font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundColor(.black).tracking(0.5)
+                    Text("TERM & CONDITIONS:").font(.system(size: 7.5, weight: .bold, design: .monospaced)).foregroundColor(.black)
+                    Text("Payment is due within 30 days of invoice date.\nLate payments may incur a 5% fee.")
+                        .font(.system(size: 7, design: .monospaced)).foregroundColor(.gray)
+                }
+            }.padding(.horizontal, 48).padding(.top, 8)
+
+            // Footer
+            HStack {
+                if !data.companyName.isEmpty { Text(data.companyName).font(.system(size: 7, design: .monospaced)).foregroundColor(.gray) }
+                Spacer()
+            }.padding(.horizontal, 48).padding(.vertical, 10)
         }
-        .frame(width: spec.width, height: spec.height, alignment: .top)
+        .frame(width: spec.width, height: spec.height)
         .background(Color.white)
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// MARK: - PROFESSIONAL THEME — P4: Bordered
+// Big logo, bold title, bordered client/dates cards, notes at bottom
+// ═══════════════════════════════════════════════════════════════════════
 
 private struct ProfessionalTheme: View {
     let data: InvoiceRenderData
@@ -526,137 +602,92 @@ private struct ProfessionalTheme: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Rectangle().fill(accent).frame(height: 3)
-            Rectangle().fill(Color.black.opacity(0.15)).frame(height: 0.5)
-
+            // Header with big logo and bold title
             HStack(alignment: .top) {
-                CompanyBlock(data: data, color: .black)
-                Spacer(minLength: 30)
-                VStack(alignment: .trailing, spacing: 4) {
+                BigLogo(data: data, height: 88, maxWidth: 220)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 6) {
                     Text(data.invoiceType.uppercased())
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.system(size: 34, weight: .black))
                         .foregroundColor(.black)
+                        .tracking(2)
                     if data.showInvoiceId {
                         Text(data.invoiceNumber)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(secondary)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.gray)
                     }
                 }
-            }
-            .padding(.horizontal, 40)
-            .padding(.vertical, 24)
+            }.padding(.horizontal, 40).padding(.top, 32).padding(.bottom, 16)
 
-            HStack(spacing: 32) {
-                labelValue("ISSUED", DateFormatHelper.string(from: data.issueDate, format: data.dateFormat))
-                if data.showDueDate, let due = data.dueDate {
-                    labelValue("DUE", DateFormatHelper.string(from: due, format: data.dateFormat))
+            // Bordered client + dates cards
+            HStack(alignment: .top, spacing: 16) {
+                // Client card
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("INVOICE TO:").font(.system(size: 8, weight: .bold)).foregroundColor(.gray).tracking(1)
+                    if !data.clientName.isEmpty { Text(data.clientName).font(.system(size: 13, weight: .bold)).foregroundColor(.black) }
+                    if !data.clientCompany.isEmpty { Text(data.clientCompany).font(.system(size: 10)).foregroundColor(.gray) }
+                    if !data.clientEmail.isEmpty { Text(data.clientEmail).font(.system(size: 9)).foregroundColor(.gray) }
                 }
-                labelValue("TYPE", data.invoiceType.capitalized)
-                Spacer()
-            }
-            .padding(.horizontal, 40)
-            .padding(.vertical, 8)
-            .background(secondary.opacity(0.12))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(accent.opacity(0.3), lineWidth: 1))
 
-            VStack(alignment: .leading, spacing: 20) {
-                BillToBlock(data: data)
-                LineItemsTable(data: data, headerColor: secondary, headerTextColor: .white)
-                HStack(alignment: .top) {
-                    NotesBlock(data: data)
-                    Spacer(minLength: 16)
-                    TotalsBlock(data: data, accent: secondary)
-                }
-            }
-            .padding(40)
-
-            Spacer(minLength: 0)
-            FooterBar(data: data)
-        }
-        .frame(width: spec.width, height: spec.height, alignment: .top)
-        .background(Color.white)
-    }
-
-    private func labelValue(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(label).font(.system(size: 7.5, weight: .semibold)).foregroundColor(.gray)
-            Text(value).foregroundColor(.black)
-        }
-    }
-}
-
-private struct ElegantTheme: View {
-    let data: InvoiceRenderData
-    let accent: Color
-    let spec: PDFPageSpec
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Rectangle().fill(Color.black.opacity(0.4)).frame(height: 0.5)
-                Text(data.invoiceType.uppercased())
-                    .fontDesign(.serif)
-                    .font(.system(size: 24))
-                    .kerning(6)
-                    .foregroundColor(.black)
-                Rectangle().fill(Color.black.opacity(0.4)).frame(height: 0.5)
-            }
-            .padding(.horizontal, 56)
-            .padding(.top, 40)
-
-            if data.showInvoiceId {
-                Text(data.invoiceNumber)
-                    .font(.system(size: 10, weight: .medium))
-                    .kerning(2)
-                    .foregroundColor(accent)
-                    .padding(.top, 6)
-            }
-
-            CompanyBlock(data: data, color: .black, centered: true)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 18)
-
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("BILL TO").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
-                    if !data.clientName.isEmpty {
-                        Text(data.clientName).font(.system(size: 12, weight: .medium)).foregroundColor(.black)
+                // Dates card
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Text("Issue Date:").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
+                        Text(DateFormatHelper.string(from: data.issueDate, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
                     }
-                    if !data.clientCompany.isEmpty {
-                        Text(data.clientCompany).font(.system(size: 10)).foregroundColor(.gray)
-                    }
-                    if !data.clientEmail.isEmpty {
-                        Text(data.clientEmail).font(.system(size: 10)).foregroundColor(.gray)
-                    }
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text("ISSUED").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray)
-                    Text(DateFormatHelper.string(from: data.issueDate, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
                     if data.showDueDate, let due = data.dueDate {
-                        Text("DUE").font(.system(size: 8.5, weight: .semibold)).foregroundColor(.gray).padding(.top, 4)
-                        Text(DateFormatHelper.string(from: due, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
+                        HStack(spacing: 6) {
+                            Text("Due Date:").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
+                            Text(DateFormatHelper.string(from: due, format: data.dateFormat)).font(.system(size: 10)).foregroundColor(.black)
+                        }
                     }
                 }
-            }
-            .padding(.horizontal, 56)
-            .padding(.top, 26)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(accent.opacity(0.3), lineWidth: 1))
+            }.padding(.horizontal, 40)
 
-            LineItemsTable(data: data, headerColor: Color.black.opacity(0.08), headerTextColor: .black)
-                .padding(.horizontal, 56)
-                .padding(.top, 20)
+            // Table
+            TableClean(data: data, headerBg: accent, headerFg: .white)
+                .padding(.horizontal, 40).padding(.top, 16)
 
-            HStack(alignment: .top) {
-                NotesBlock(data: data)
-                Spacer(minLength: 16)
-                TotalsBlock(data: data, accent: accent)
-            }
-            .padding(.horizontal, 56)
-            .padding(.top, 16)
+            // Totals
+            HStack(alignment: .top) { Spacer(); TotalsBlock(data: data, accent: secondary, filledTotal: true) }
+                .padding(.horizontal, 40).padding(.top, 8)
 
             Spacer(minLength: 0)
-            FooterBar(data: data)
+
+            // Notes + Terms at bottom
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if data.showNote && !data.notes.isEmpty {
+                        Text("*NOTES:").font(.system(size: 9, weight: .bold)).foregroundColor(.black)
+                        Text(data.notes).font(.system(size: 8)).foregroundColor(.gray)
+                    } else {
+                        Text("*NOTES:").font(.system(size: 9, weight: .bold)).foregroundColor(.black)
+                        Text("_______________________________").font(.system(size: 8)).foregroundColor(.gray.opacity(0.5))
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("THANK YOU FOR YOUR BUSINESS!").font(.system(size: 9, weight: .bold)).foregroundColor(secondary).tracking(0.5)
+                    Text("TERM & CONDITIONS:").font(.system(size: 7.5, weight: .bold)).foregroundColor(.black)
+                    Text("Payment is due within 30 days of invoice date.\nLate payments may incur a 5% fee.")
+                        .font(.system(size: 7)).foregroundColor(.gray)
+                }
+            }.padding(.horizontal, 40).padding(.top, 8)
+
+            // Footer
+            HStack {
+                if !data.companyName.isEmpty { Text(data.companyName).font(.system(size: 7)).foregroundColor(.gray) }
+                Spacer()
+            }.padding(.horizontal, 40).padding(.vertical, 10)
         }
-        .frame(width: spec.width, height: spec.height, alignment: .top)
+        .frame(width: spec.width, height: spec.height)
         .background(Color.white)
     }
 }
+

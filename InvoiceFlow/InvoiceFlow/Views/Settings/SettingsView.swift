@@ -256,7 +256,7 @@ struct InvoiceSettingsView: View {
                 section("PDF Template") {
                     SettingsUI.pickerRow(label: "PDF Template", selection: $setting.template, options: [
                         ("modern","Modern"),("business","Business"),("minimal","Minimal"),
-                        ("professional","Professional"),("elegant","Elegant")
+                        ("professional","Professional")
                     ])
                     SettingsUI.pickerRow(label: "Paper Size", selection: $setting.paperSize, options: [
                         ("A3","A3"),("A4","A4"),("Letter","Letter"),("Legal","Legal")

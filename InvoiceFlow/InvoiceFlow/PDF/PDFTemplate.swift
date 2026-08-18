@@ -5,7 +5,6 @@ enum PDFTemplate: String, CaseIterable, Identifiable {
     case business
     case minimal
     case professional
-    case elegant
 
     var id: String { rawValue }
 

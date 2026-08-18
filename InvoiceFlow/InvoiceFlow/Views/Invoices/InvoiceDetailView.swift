@@ -5,6 +5,7 @@ struct InvoiceDetailView: View {
     let invoice: Invoice
     var onExport: (() -> Void)?
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @State private var showingExportFallback = false
 
     var body: some View {
@@ -19,6 +20,13 @@ struct InvoiceDetailView: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Label("Close", systemImage: "xmark.circle")
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("closeDetail")
                 Button {
                     if let onExport {
                         onExport()

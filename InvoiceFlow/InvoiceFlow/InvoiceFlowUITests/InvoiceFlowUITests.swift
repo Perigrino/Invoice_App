@@ -368,6 +368,36 @@ final class InvoiceFlowUITests: XCTestCase {
         }
     }
 
+    // MARK: - 8b. Invoice Detail Closes
+
+    func testInvoiceDetailCloses() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        ensureAtLeastOneInvoiceExists()
+
+        let firstRow = invoiceList.cells.firstMatch
+        guard firstRow.waitForExistence(timeout: 3) else {
+            XCTFail("Expected at least one invoice row")
+            return
+        }
+        firstRow.rightClick()
+        sleep(1)
+
+        let viewDetailsOption = app.menuItems["View Details"]
+        XCTAssertTrue(viewDetailsOption.waitForExistence(timeout: 3), "View Details menu item should appear")
+        viewDetailsOption.click()
+        sleep(2)
+
+        let closeButton = app.buttons["closeDetail"]
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 5), "Detail sheet should show a Close button")
+        XCTAssertTrue(app.buttons["exportPDFButton"].exists, "Detail sheet should show an Export PDF button")
+
+        closeButton.click()
+        XCTAssertTrue(closeButton.waitForNonExistence(timeout: 5), "Detail sheet should dismiss after Close")
+        XCTAssertTrue(app.buttons["exportSelectedPDF"].exists, "Invoice list should still be visible after closing details")
+    }
+
     // MARK: - 9. Context Menu on Client Row
 
     func testClientContextMenuAppears() {
@@ -508,13 +538,6 @@ final class InvoiceFlowUITests: XCTestCase {
             let businessOption = app.menuItems["Business"]
             if businessOption.waitForExistence(timeout: 2) {
                 businessOption.click()
-                sleep(2)
-            }
-            templatePicker.click()
-            sleep(1)
-            let elegantOption = app.menuItems["Elegant"]
-            if elegantOption.waitForExistence(timeout: 2) {
-                elegantOption.click()
                 sleep(2)
             }
         }
