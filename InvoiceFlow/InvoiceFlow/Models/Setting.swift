@@ -30,6 +30,7 @@ final class Setting {
     var companyPhone: String?
     var companyAddress: String?
     var companyWebsite: String?
+    var exportPath: String?
 
     init(
         id: UUID = UUID(),
@@ -58,7 +59,8 @@ final class Setting {
         companyEmail: String? = nil,
         companyPhone: String? = nil,
         companyAddress: String? = nil,
-        companyWebsite: String? = nil
+        companyWebsite: String? = nil,
+        exportPath: String? = nil
     ) {
         self.id = id
         self.profileName = profileName
@@ -87,5 +89,6 @@ final class Setting {
         self.companyPhone = companyPhone
         self.companyAddress = companyAddress
         self.companyWebsite = companyWebsite
+        self.exportPath = exportPath
     }
 }

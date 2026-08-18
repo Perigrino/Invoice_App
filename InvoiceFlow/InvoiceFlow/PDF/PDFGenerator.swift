@@ -19,9 +19,9 @@ struct PDFPageSpec {
 class PDFGenerator {
     private var setting: Setting?
 
-    func generatePDF(for invoice: Invoice, template: PDFTemplate = .modern, setting: Setting? = nil) -> URL? {
+    func generatePDF(for invoice: Invoice, template: PDFTemplate = .modern, setting: Setting? = nil, paperSize: String? = nil) -> URL? {
         self.setting = setting
-        let pageSpec = PDFPageSpec.size(for: setting?.paperSize ?? "A4")
+        let pageSpec = PDFPageSpec.size(for: paperSize ?? setting?.paperSize ?? "A4")
         let pageRect = CGRect(x: 0, y: 0, width: pageSpec.width, height: pageSpec.height)
 
         let data = NSMutableData()

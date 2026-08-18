@@ -65,6 +65,13 @@ struct SettingsView: View {
                     } label: {
                         Label("New Profile", systemImage: "plus")
                     }
+                    if allSettings.count > 1, let active = setting {
+                        Button(role: .destructive) {
+                            deleteProfile(active)
+                        } label: {
+                            Label("Delete \"\(active.profileName)\"", systemImage: "trash")
+                        }
+                    }
                 } label: {
                     Label(setting?.profileName ?? "Default", systemImage: "person.circle")
                 }
@@ -91,11 +98,22 @@ struct SettingsView: View {
     private func switchProfile(_ s: Setting) {
         for setting in allSettings { setting.isActive = false }
         s.isActive = true
+        setting = s
     }
 
     private func createProfile() {
-        let new = Setting(profileName: "New Profile", isActive: false)
+        let count = allSettings.count
+        let new = Setting(profileName: "Profile \(count + 1)", isActive: false)
         modelContext.insert(new)
+        switchProfile(new)
+    }
+
+    private func deleteProfile(_ s: Setting) {
+        let remaining = allSettings.filter { $0.id != s.id }
+        modelContext.delete(s)
+        if let next = remaining.first {
+            switchProfile(next)
+        }
     }
 }
 
@@ -128,12 +146,13 @@ struct ProfileSettingsView: View {
                         if let data = setting.logoData, let nsImage = NSImage(data: data) {
                             Image(nsImage: nsImage)
                                 .resizable()
-                                .frame(width: 80, height: 80)
+                                .scaledToFit()
+                                .frame(width: 180, height: 180)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         } else {
                             RoundedRectangle(cornerRadius: 12)
                                 .fill(Color.gray.opacity(0.1))
-                                .frame(width: 80, height: 80)
+                                .frame(width: 180, height: 180)
                                 .overlay(Image(systemName: "photo").foregroundColor(.secondary))
                         }
                         VStack(alignment: .leading, spacing: 8) {
@@ -360,12 +379,25 @@ struct CurrencySettingsView: View {
 
 struct GeneralSettingsView: View {
     @Bindable var setting: Setting
+    @State private var exportPath: String = ""
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 section("Appearance") {
                     SettingsUI.toggle(label: "Dark Mode", isOn: $setting.darkMode)
+                }
+                section("PDF Export") {
+                    HStack {
+                        Text("Export Folder").frame(width: 120, alignment: .leading)
+                        TextField(exportPath.isEmpty ? "~/Documents" : exportPath, text: $exportPath)
+                            .textFieldStyle(.roundedBorder)
+                        Button("Choose...") { chooseExportFolder() }
+                        Spacer()
+                    }
+                    Text("PDFs will be saved to this folder when exporting.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 section("Language") {
                     SettingsUI.pickerRow(label: "Language", selection: $setting.language, options: [
@@ -374,6 +406,23 @@ struct GeneralSettingsView: View {
                 }
             }
             .padding(20)
+        }
+        .onAppear {
+            exportPath = setting.exportPath ?? ""
+        }
+        .onChange(of: exportPath) { _, newValue in
+            setting.exportPath = newValue
+        }
+    }
+
+    private func chooseExportFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        if panel.runModal() == .OK, let url = panel.url {
+            exportPath = url.path
+            setting.exportPath = url.path
         }
     }
 

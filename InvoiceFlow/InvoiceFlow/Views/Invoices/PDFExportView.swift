@@ -23,7 +23,6 @@ struct PDFExportView: View {
     @State private var lineItems: [LineItemDraft] = []
     @State private var pdfDocument: PDFDocument?
     @State private var hasRendered = false
-    @State private var showingSavePanel = false
 
     private var activeSetting: Setting? {
         settings.first(where: { $0.isActive }) ?? settings.first
@@ -46,15 +45,32 @@ struct PDFExportView: View {
         }
         .onChange(of: selectedTemplate) { _, _ in renderPreview() }
         .onChange(of: paperSize) { _, _ in renderPreview() }
-        .fileExporter(
-            isPresented: $showingSavePanel,
-            document: PDFDocumentWrapper(document: pdfDocument, fallbackName: invoiceNumber.isEmpty ? "invoice" : invoiceNumber),
-            contentType: .pdf,
-            defaultFilename: invoiceNumber.isEmpty ? "invoice" : invoiceNumber
-        ) { result in
-            switch result {
-            case .success: dismiss()
-            case .failure: break
+    }
+
+    private var exportDirectoryURL: URL? {
+        guard let path = activeSetting?.exportPath, !path.isEmpty else { return nil }
+        return URL(fileURLWithPath: path)
+    }
+
+    private func savePDF() {
+        guard let pdfDocument, let data = pdfDocument.dataRepresentation() else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = invoiceNumber.isEmpty ? "invoice.pdf" : "\(invoiceNumber).pdf"
+        if let dir = exportDirectoryURL {
+            panel.directoryURL = dir
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            do {
+                try data.write(to: url)
+                dismiss()
+            } catch {
+                let alert = NSAlert()
+                alert.messageText = "Export failed"
+                alert.informativeText = error.localizedDescription
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
             }
         }
     }
@@ -82,7 +98,7 @@ struct PDFExportView: View {
             Button("Cancel") { dismiss() }
                 .keyboardShortcut(.cancelAction)
 
-            Button(action: { showingSavePanel = true }) {
+            Button(action: { savePDF() }) {
                 Label("Export", systemImage: "square.and.arrow.up")
             }
             .buttonStyle(.borderedProminent)
@@ -145,7 +161,7 @@ struct PDFExportView: View {
     private var lineItemsSection: some View {
         section("Line Items") {
             ForEach($lineItems) { $item in
-                LineItemDraftRow(item: $item)
+                LineItemDraftRow(item: $item, currencyCode: activeSetting?.currency ?? "USD")
             }
             Button {
                 lineItems.append(LineItemDraft())
@@ -244,7 +260,8 @@ struct PDFExportView: View {
         invoiceType = sourceInvoice.invoiceType
         issueDate = sourceInvoice.issueDate
         dueDate = sourceInvoice.dueDate ?? Date().addingTimeInterval(30 * 24 * 3600)
-        notes = sourceInvoice.notes ?? ""
+        let invoiceNotes = sourceInvoice.notes ?? ""
+        notes = invoiceNotes.isEmpty ? (activeSetting?.notes ?? "") : invoiceNotes
         discount = sourceInvoice.discount
         tax = sourceInvoice.tax
         selectedTemplate = PDFTemplate(rawValue: activeSetting?.template ?? "modern") ?? .modern
@@ -294,7 +311,7 @@ struct PDFExportView: View {
             hasRendered = false
             let working = buildWorkingInvoice()
             let generator = PDFGenerator()
-            if let url = generator.generatePDF(for: working, template: selectedTemplate, setting: activeSetting) {
+            if let url = generator.generatePDF(for: working, template: selectedTemplate, setting: activeSetting, paperSize: paperSize) {
                 pdfDocument = PDFDocument(url: url)
             }
         }
@@ -326,6 +343,7 @@ struct LineItemDraft: Identifiable, Equatable {
 
 struct LineItemDraftRow: View {
     @Binding var item: LineItemDraft
+    var currencyCode: String = "USD"
 
     var body: some View {
         VStack(spacing: 6) {
@@ -357,7 +375,7 @@ struct LineItemDraftRow: View {
     }
 
     private func formatCurrency(_ amount: Double) -> String {
-        CurrencyFormatter.shared.string(from: amount)
+        CurrencyFormatter.shared.string(from: amount, currencyCode: currencyCode)
     }
 }
 
@@ -379,31 +397,3 @@ struct PDFKitView: NSViewRepresentable {
         nsView.document = document
     }
 }
-
-struct PDFDocumentWrapper: FileDocument {
-    static var readableContentTypes: [UTType] { [.pdf] }
-
-    var document: PDFDocument?
-    var fallbackName: String
-
-    init(document: PDFDocument?, fallbackName: String) {
-        self.document = document
-        self.fallbackName = fallbackName
-    }
-
-    init(configuration: ReadConfiguration) throws {
-        if let data = configuration.file.regularFileContents {
-            document = PDFDocument(data: data)
-        }
-        fallbackName = "invoice"
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        if let data = document?.dataRepresentation() {
-            return FileWrapper(regularFileWithContents: data)
-        }
-        return FileWrapper(regularFileWithContents: Data())
-    }
-}
-
-import UniformTypeIdentifiers

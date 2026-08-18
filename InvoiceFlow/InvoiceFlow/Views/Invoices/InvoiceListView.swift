@@ -22,76 +22,55 @@ struct InvoiceListView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                TextField("Search invoices...", text: $searchText)
-                    .textFieldStyle(.plain)
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(8)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .overlay(Divider(), alignment: .bottom)
-
-            Group {
-                if filteredInvoices.isEmpty {
-                    EmptyStateView(
-                        icon: "doc.text",
-                        title: "No Invoices",
-                        message: searchText.isEmpty ? "Create your first invoice to get started." : "No invoices match your search."
-                    )
-                } else {
-                    List(selection: $selectedInvoices) {
-                        ForEach(filteredInvoices) { invoice in
-                            InvoiceRow(invoice: invoice)
-                                .tag(invoice)
-                                .contextMenu {
-                                    Button {
-                                        viewingInvoice = invoice
-                                    } label: {
-                                        Label("View Details", systemImage: "eye")
-                                    }
-                                    Button {
-                                        editingInvoice = invoice
-                                    } label: {
-                                        Label("Edit", systemImage: "pencil")
-                                    }
-                                    Divider()
-                                    Button {
-                                        duplicateInvoice(invoice)
-                                    } label: {
-                                        Label("Duplicate", systemImage: "doc.on.doc")
-                                    }
-                                    Button {
-                                        exportingInvoice = invoice
-                                    } label: {
-                                        Label("Export PDF", systemImage: "square.and.arrow.up")
-                                    }
-                                    Divider()
-                                    Button(role: .destructive) {
-                                        invoiceToDelete = invoice
-                                        showDeleteConfirmation = true
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+        Group {
+            if filteredInvoices.isEmpty {
+                EmptyStateView(
+                    icon: "doc.text",
+                    title: "No Invoices",
+                    message: searchText.isEmpty ? "Create your first invoice to get started." : "No invoices match your search."
+                )
+            } else {
+                List(selection: $selectedInvoices) {
+                    ForEach(filteredInvoices) { invoice in
+                        InvoiceRow(invoice: invoice)
+                            .tag(invoice)
+                            .contextMenu {
+                                Button {
+                                    viewingInvoice = invoice
+                                } label: {
+                                    Label("View Details", systemImage: "eye")
                                 }
-                        }
+                                Button {
+                                    editingInvoice = invoice
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                Divider()
+                                Button {
+                                    duplicateInvoice(invoice)
+                                } label: {
+                                    Label("Duplicate", systemImage: "doc.on.doc")
+                                }
+                                Button {
+                                    exportingInvoice = invoice
+                                } label: {
+                                    Label("Export PDF", systemImage: "square.and.arrow.up")
+                                }
+                                Divider()
+                                Button(role: .destructive) {
+                                    invoiceToDelete = invoice
+                                    showDeleteConfirmation = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                     }
-                    .listStyle(.inset(alternatesRowBackgrounds: true))
-                    .onChange(of: selectedInvoices) { _, newSelection in
-                        if let first = newSelection.first {
-                            editingInvoice = first
-                            selectedInvoices.removeAll()
-                        }
+                }
+                .listStyle(.inset(alternatesRowBackgrounds: true))
+                .onChange(of: selectedInvoices) { _, newSelection in
+                    if let first = newSelection.first {
+                        editingInvoice = first
+                        selectedInvoices.removeAll()
                     }
                 }
             }
@@ -107,6 +86,7 @@ struct InvoiceListView: View {
                 }
             }
         }
+        .searchable(text: $searchText, prompt: "Search invoices...")
         .sheet(isPresented: $showNewInvoice) {
             InvoiceFormView()
         }

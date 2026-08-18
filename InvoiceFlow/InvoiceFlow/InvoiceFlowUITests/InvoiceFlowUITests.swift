@@ -293,7 +293,7 @@ final class InvoiceFlowUITests: XCTestCase {
         skipOnboardingIfPresent()
         navigateToClients()
 
-        let searchField = app.textFields["Search clients..."]
+        let searchField = app.searchFields.firstMatch
         if searchField.waitForExistence(timeout: 3) {
             searchField.click()
             searchField.typeText("nonexistent")
@@ -318,7 +318,7 @@ final class InvoiceFlowUITests: XCTestCase {
         skipOnboardingIfPresent()
         navigateToInvoices()
 
-        let searchField = app.textFields["Search invoices..."]
+        let searchField = app.searchFields.firstMatch
         if searchField.waitForExistence(timeout: 3) {
             searchField.click()
             searchField.typeText("nonexistent")

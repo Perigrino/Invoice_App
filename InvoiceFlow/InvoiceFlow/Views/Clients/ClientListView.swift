@@ -21,60 +21,39 @@ struct ClientListView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                TextField("Search clients...", text: $searchText)
-                    .textFieldStyle(.plain)
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(8)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .overlay(Divider(), alignment: .bottom)
-
-            Group {
-                if filteredClients.isEmpty {
-                    EmptyStateView(
-                        icon: "person.2",
-                        title: "No Clients",
-                        message: searchText.isEmpty ? "Add your first client to get started." : "No clients match your search."
-                    )
-                } else {
-                    List(selection: $selectedClients) {
-                        ForEach(filteredClients) { client in
-                            ClientRow(client: client)
-                                .tag(client)
-                                .contextMenu {
-                                    Button {
-                                        editingClient = client
-                                    } label: {
-                                        Label("Edit", systemImage: "pencil")
-                                    }
-                                    Divider()
-                                    Button(role: .destructive) {
-                                        clientToDelete = client
-                                        showDeleteConfirmation = true
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+        Group {
+            if filteredClients.isEmpty {
+                EmptyStateView(
+                    icon: "person.2",
+                    title: "No Clients",
+                    message: searchText.isEmpty ? "Add your first client to get started." : "No clients match your search."
+                )
+            } else {
+                List(selection: $selectedClients) {
+                    ForEach(filteredClients) { client in
+                        ClientRow(client: client)
+                            .tag(client)
+                            .contextMenu {
+                                Button {
+                                    editingClient = client
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
                                 }
-                        }
+                                Divider()
+                                Button(role: .destructive) {
+                                    clientToDelete = client
+                                    showDeleteConfirmation = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                     }
-                    .listStyle(.inset(alternatesRowBackgrounds: true))
-                    .onChange(of: selectedClients) { _, newSelection in
-                        if let first = newSelection.first {
-                            editingClient = first
-                            selectedClients.removeAll()
-                        }
+                }
+                .listStyle(.inset(alternatesRowBackgrounds: true))
+                .onChange(of: selectedClients) { _, newSelection in
+                    if let first = newSelection.first {
+                        editingClient = first
+                        selectedClients.removeAll()
                     }
                 }
             }
