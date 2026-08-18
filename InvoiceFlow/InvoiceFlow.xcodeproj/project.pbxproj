@@ -18,14 +18,26 @@
 		BF09 /* ClientFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR09 /* ClientFormView.swift */; };
 		BF10 /* ClientListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR10 /* ClientListView.swift */; };
 		BF11 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR11 /* EmptyStateView.swift */; };
-		BF12 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR12 /* StatusBadge.swift */; };
 		BF13 /* InvoiceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR13 /* InvoiceDetailView.swift */; };
 		BF14 /* InvoiceFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR14 /* InvoiceFormView.swift */; };
 		BF15 /* InvoiceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR15 /* InvoiceListView.swift */; };
 		BF16 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR16 /* SettingsView.swift */; };
 		BF17 /* PDFGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR17 /* PDFGenerator.swift */; };
+		BF18 /* PDFTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR18 /* PDFTemplate.swift */; };
+		BF12 /* PDFExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR12 /* PDFExportView.swift */; };
 		AA0000000000000000000019 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000018 /* Assets.xcassets */; };
+		UT_BF01 /* InvoiceFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT_FR01 /* InvoiceFlowUITests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		UT_PROXY01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000000000000000000011 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0000000000000000000010;
+			remoteInfo = InvoiceFlow;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		FR01 /* InvoiceFlowApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceFlowApp.swift; sourceTree = "<group>"; };
@@ -39,18 +51,28 @@
 		FR09 /* ClientFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientFormView.swift; sourceTree = "<group>"; };
 		FR10 /* ClientListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientListView.swift; sourceTree = "<group>"; };
 		FR11 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
-		FR12 /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
 		FR13 /* InvoiceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceDetailView.swift; sourceTree = "<group>"; };
 		FR14 /* InvoiceFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceFormView.swift; sourceTree = "<group>"; };
 		FR15 /* InvoiceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceListView.swift; sourceTree = "<group>"; };
 		FR16 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FR17 /* PDFGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFGenerator.swift; sourceTree = "<group>"; };
+		FR18 /* PDFTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFTemplate.swift; sourceTree = "<group>"; };
+		FR12 /* PDFExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA000000000000000000000C /* InvoiceFlow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = InvoiceFlow.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		UT_FR01 /* InvoiceFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceFlowUITests.swift; sourceTree = "<group>"; };
+		UT_PR01 /* InvoiceFlowUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InvoiceFlowUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AA000000000000000000000F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		UT_FP01 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -89,6 +111,7 @@
 			isa = PBXGroup;
 			children = (
 				FR17,
+				FR18,
 			);
 			path = PDF;
 			sourceTree = "<group>";
@@ -116,6 +139,7 @@
 				FR13,
 				FR14,
 				FR15,
+				FR12,
 			);
 			path = Invoices;
 			sourceTree = "<group>";
@@ -124,7 +148,6 @@
 			isa = PBXGroup;
 			children = (
 				FR11,
-				FR12,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -141,6 +164,7 @@
 			isa = PBXGroup;
 			children = (
 				AA000000000000000000000C,
+				UT_PR01,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -154,9 +178,18 @@
 				AA0000000000000000000008,
 				AA000000000000000000000A,
 				AA000000000000000000000B,
+				UT_GRP01,
 			);
 			name = Root;
 			path = InvoiceFlow;
+			sourceTree = "<group>";
+		};
+		UT_GRP01 /* InvoiceFlowUITests */ = {
+			isa = PBXGroup;
+			children = (
+				UT_FR01,
+			);
+			path = InvoiceFlowUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -179,6 +212,24 @@
 			productReference = AA000000000000000000000C /* InvoiceFlow.app */;
 			productType = "com.apple.product-type.application";
 		};
+		UT_TGT01 /* InvoiceFlowUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = UT_CL01 /* Build configuration list for PBXNativeTarget "InvoiceFlowUITests" */;
+			buildPhases = (
+				UT_SRC01 /* Sources */,
+				UT_FP01 /* Frameworks */,
+				UT_RES01 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				UT_DEP01 /* PBXTargetDependency */,
+			);
+			name = InvoiceFlowUITests;
+			productName = InvoiceFlowUITests;
+			productReference = UT_PR01 /* InvoiceFlowUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -191,6 +242,10 @@
 				TargetAttributes = {
 					AA0000000000000000000010 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					UT_TGT01 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = AA0000000000000000000010;
 					};
 				};
 			};
@@ -208,6 +263,7 @@
 			projectRoot = "";
 			targets = (
 				AA0000000000000000000010 /* InvoiceFlow */,
+				UT_TGT01 /* InvoiceFlowUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -218,6 +274,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0000000000000000000019 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		UT_RES01 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -239,16 +302,33 @@
 				BF09 /* ClientFormView.swift in Sources */,
 				BF10 /* ClientListView.swift in Sources */,
 				BF11 /* EmptyStateView.swift in Sources */,
-				BF12 /* StatusBadge.swift in Sources */,
 				BF13 /* InvoiceDetailView.swift in Sources */,
 				BF14 /* InvoiceFormView.swift in Sources */,
 				BF15 /* InvoiceListView.swift in Sources */,
 				BF16 /* SettingsView.swift in Sources */,
 				BF17 /* PDFGenerator.swift in Sources */,
+				BF18 /* PDFTemplate.swift in Sources */,
+				BF12 /* PDFExportView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		UT_SRC01 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				UT_BF01 /* InvoiceFlowUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		UT_DEP01 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0000000000000000000010 /* InvoiceFlow */;
+			targetProxy = UT_PROXY01 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AA0000000000000000000014 /* Debug */ = {
@@ -348,6 +428,42 @@
 			};
 			name = Release;
 		};
+		UT_BC01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.invoiceflow.app.UITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = InvoiceFlow;
+				USES_XCTRUNNER = YES;
+			};
+			name = Debug;
+		};
+		UT_BC02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.invoiceflow.app.UITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = InvoiceFlow;
+				USES_XCTRUNNER = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -365,6 +481,15 @@
 			buildConfigurations = (
 				AA0000000000000000000016 /* Debug */,
 				AA0000000000000000000017 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		UT_CL01 /* Build configuration list for PBXNativeTarget "InvoiceFlowUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				UT_BC01 /* Debug */,
+				UT_BC02 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

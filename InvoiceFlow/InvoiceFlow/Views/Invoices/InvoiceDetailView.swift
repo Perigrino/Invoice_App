@@ -4,6 +4,7 @@ import SwiftData
 struct InvoiceDetailView: View {
     let invoice: Invoice
     @Environment(\.modelContext) private var modelContext
+    @State private var showingExport = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,8 +18,9 @@ struct InvoiceDetailView: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                StatusBadge(status: invoice.status)
-                Button(action: exportPDF) {
+                Button {
+                    showingExport = true
+                } label: {
                     Label("Export PDF", systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.bordered)
@@ -104,19 +106,12 @@ struct InvoiceDetailView: View {
                 .padding()
             }
         }
-    }
-
-    private func exportPDF() {
-        let generator = PDFGenerator()
-        if let url = generator.generatePDF(for: invoice) {
-            NSWorkspace.shared.open(url)
+        .sheet(isPresented: $showingExport) {
+            PDFExportView(sourceInvoice: invoice)
         }
     }
 
     private func formatCurrency(_ amount: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        return formatter.string(from: NSNumber(value: amount)) ?? "$0.00"
+        CurrencyFormatter.shared.string(from: amount)
     }
 }

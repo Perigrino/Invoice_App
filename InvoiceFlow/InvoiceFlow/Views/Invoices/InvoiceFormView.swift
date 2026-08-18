@@ -10,7 +10,6 @@ struct InvoiceFormView: View {
     
     @State private var invoiceNumber = ""
     @State private var invoiceType = "invoice"
-    @State private var status = "draft"
     @State private var selectedClientIndex: Int = 0
     @State private var issueDate = Date()
     @State private var dueDate = Date()
@@ -81,17 +80,6 @@ struct InvoiceFormView: View {
                                     }
                                     .pickerStyle(.segmented)
                                 }
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Status")
-                                        .font(.caption.bold())
-                                        .foregroundColor(.secondary)
-                                    Picker("", selection: $status) {
-                                        ForEach(InvoiceStatus.allCases) { s in
-                                            Text(s.label).tag(s.key)
-                                        }
-                                    }
-                                    .pickerStyle(.segmented)
-                                }
                             }
                             
                             HStack(spacing: 16) {
@@ -106,6 +94,10 @@ struct InvoiceFormView: View {
                                         }
                                     }
                                     .labelsHidden()
+                                    .onChange(of: selectedClientIndex) { _, newIndex in
+                                        guard invoice == nil, newIndex > 0, newIndex <= clients.count else { return }
+                                        generateInvoiceNumber(for: clients[newIndex - 1])
+                                    }
                                 }
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Issue Date")
@@ -326,15 +318,21 @@ struct InvoiceFormView: View {
         .padding(.vertical, 10)
     }
     
+    private func generateInvoiceNumber(for client: Client) {
+        let trimmedName = client.fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefix = String(trimmedName.prefix(3)).uppercased()
+        let random = Int.random(in: 100000...999999)
+        let yearShort = Calendar.current.component(.year, from: Date()) % 100
+        invoiceNumber = "\(prefix)-\(random)-\(String(format: "%02d", yearShort))"
+    }
+
     private func loadInvoice() {
         guard let invoice = invoice else {
-            invoiceNumber = "INV-\(UUID().uuidString.prefix(6).uppercased())"
             addLineItem()
             return
         }
         invoiceNumber = invoice.invoiceNumber
         invoiceType = invoice.invoiceType
-        status = invoice.status
         if let client = invoice.client, let idx = clients.firstIndex(where: { $0.id == client.id }) {
             selectedClientIndex = idx + 1
         }
@@ -402,7 +400,6 @@ struct InvoiceFormView: View {
         if let existing = invoice {
             existing.invoiceNumber = invoiceNumber
             existing.invoiceType = invoiceType
-            existing.status = status
             existing.issueDate = issueDate
             existing.dueDate = hasDueDate ? dueDate : nil
             existing.notes = notes.isEmpty ? nil : notes
@@ -419,7 +416,6 @@ struct InvoiceFormView: View {
             let newInvoice = Invoice(
                 invoiceNumber: invoiceNumber,
                 invoiceType: invoiceType,
-                status: status,
                 subtotal: subtotal,
                 discount: discount,
                 tax: taxRate,

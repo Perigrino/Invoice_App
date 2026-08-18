@@ -11,7 +11,6 @@ struct ClientFormView: View {
     @State private var email = ""
     @State private var phone = ""
     @State private var address = ""
-    @State private var taxId = ""
     @State private var showValidationError = false
     @State private var validationError = ""
 
@@ -19,9 +18,15 @@ struct ClientFormView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // MARK: - Header
             HStack {
-                Text(isEditing ? "Edit Client" : "New Client")
-                    .font(.title2.bold())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(isEditing ? "Edit Client" : "New Client")
+                        .font(.title2.bold())
+                    Text(isEditing ? "Update client details" : "Add a new client to your directory")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 Spacer()
                 if showValidationError {
                     Text(validationError)
@@ -44,24 +49,78 @@ struct ClientFormView: View {
 
             Divider()
 
-            Form {
-                Section("Personal Info") {
-                    TextField("Full Name *", text: $fullName)
-                    TextField("Company", text: $company)
+            // MARK: - Form Content
+            ScrollView {
+                VStack(spacing: 24) {
+                    formSection(title: "Personal Info") {
+                        HStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Full Name *")
+                                    .font(.caption.bold())
+                                    .foregroundColor(.secondary)
+                                TextField("e.g. John Smith", text: $fullName)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Company")
+                                    .font(.caption.bold())
+                                    .foregroundColor(.secondary)
+                                TextField("e.g. Acme Corp", text: $company)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+                        }
+                    }
+
+                    formSection(title: "Contact") {
+                        HStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Email")
+                                    .font(.caption.bold())
+                                    .foregroundColor(.secondary)
+                                TextField("e.g. john@acme.com", text: $email)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Phone")
+                                    .font(.caption.bold())
+                                    .foregroundColor(.secondary)
+                                TextField("e.g. +1 (555) 123-4567", text: $phone)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+                        }
+                    }
+
+                    formSection(title: "Details") {
+                        VStack(alignment: .leading, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Address")
+                                    .font(.caption.bold())
+                                    .foregroundColor(.secondary)
+                                TextField("e.g. 123 Main St, City, Country", text: $address)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+                        }
+                    }
                 }
-                Section("Contact") {
-                    TextField("Email", text: $email)
-                    TextField("Phone", text: $phone)
-                }
-                Section("Details") {
-                    TextField("Address", text: $address)
-                    TextField("Tax ID", text: $taxId)
-                }
+                .padding(20)
             }
         }
-        .frame(minWidth: 500, minHeight: 450)
+        .frame(minWidth: 560, minHeight: 480)
         .onAppear { loadClient() }
         .animation(.default, value: showValidationError)
+    }
+
+    private func formSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.system(.body, weight: .semibold))
+                .foregroundColor(.primary)
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private func loadClient() {
@@ -71,7 +130,6 @@ struct ClientFormView: View {
         email = client.email ?? ""
         phone = client.phone ?? ""
         address = client.address ?? ""
-        taxId = client.taxId ?? ""
     }
 
     private func validateForm() -> Bool {
@@ -105,7 +163,6 @@ struct ClientFormView: View {
             existing.email = email.isEmpty ? nil : email
             existing.phone = phone.isEmpty ? nil : phone
             existing.address = address.isEmpty ? nil : address
-            existing.taxId = taxId.isEmpty ? nil : taxId
             existing.updatedAt = Date()
         } else {
             let newClient = Client(
@@ -113,8 +170,7 @@ struct ClientFormView: View {
                 company: company.isEmpty ? nil : company,
                 email: email.isEmpty ? nil : email,
                 phone: phone.isEmpty ? nil : phone,
-                address: address.isEmpty ? nil : address,
-                taxId: taxId.isEmpty ? nil : taxId
+                address: address.isEmpty ? nil : address
             )
             modelContext.insert(newClient)
         }

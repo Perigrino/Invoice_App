@@ -9,6 +9,8 @@ struct ClientListView: View {
     @State private var editingClient: Client? = nil
     @State private var selectedClient: Client? = nil
     @State private var selectedClients = Set<Client>()
+    @State private var clientToDelete: Client? = nil
+    @State private var showDeleteConfirmation = false
     
     private var filteredClients: [Client] {
         clients.filter { client in
@@ -20,48 +22,71 @@ struct ClientListView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // MARK: - Header
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Clients")
-                        .font(.title2.bold())
-                    Text("\(filteredClients.count) client\(filteredClients.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                TextField("Search clients...", text: $searchText)
+                    .textFieldStyle(.plain)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                Spacer()
-                Button(action: { showNewClient = true }) {
-                    Label("New Client", systemImage: "plus")
-                        .font(.system(.body, weight: .medium))
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.brandPrimary)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-            
-            Divider()
-            
-            // MARK: - Client List
-            if filteredClients.isEmpty {
-                EmptyStateView(
-                    icon: "person.2",
-                    title: "No Clients",
-                    message: searchText.isEmpty ? "Add your first client to get started." : "No clients match your search."
-                )
-            } else {
-                List(selection: $selectedClients) {
-                    ForEach(filteredClients) { client in
-                        ClientRow(client: client)
-                            .tag(client)
+            .padding(8)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .overlay(Divider(), alignment: .bottom)
+
+            Group {
+                if filteredClients.isEmpty {
+                    EmptyStateView(
+                        icon: "person.2",
+                        title: "No Clients",
+                        message: searchText.isEmpty ? "Add your first client to get started." : "No clients match your search."
+                    )
+                } else {
+                    List(selection: $selectedClients) {
+                        ForEach(filteredClients) { client in
+                            ClientRow(client: client)
+                                .tag(client)
+                                .contextMenu {
+                                    Button {
+                                        editingClient = client
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                    Divider()
+                                    Button(role: .destructive) {
+                                        clientToDelete = client
+                                        showDeleteConfirmation = true
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                        }
+                    }
+                    .listStyle(.inset(alternatesRowBackgrounds: true))
+                    .onChange(of: selectedClients) { _, newSelection in
+                        if let first = newSelection.first {
+                            editingClient = first
+                            selectedClients.removeAll()
+                        }
                     }
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
-                .onChange(of: selectedClients) { _, newSelection in
-                    if let first = newSelection.first {
-                        editingClient = first
-                        selectedClients.removeAll()
-                    }
+            }
+        }
+        .navigationTitle("Clients")
+        .navigationSubtitle("\(filteredClients.count) client\(filteredClients.count == 1 ? "" : "s")")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showNewClient = true
+                } label: {
+                    Label("New Client", systemImage: "plus")
                 }
             }
         }
@@ -71,6 +96,16 @@ struct ClientListView: View {
         }
         .sheet(item: $editingClient) { client in
             ClientFormView(client: client)
+        }
+        .alert("Delete Client", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let client = clientToDelete {
+                    deleteClient(client)
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this client? This will also affect any associated invoices.")
         }
     }
     

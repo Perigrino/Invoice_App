@@ -25,6 +25,11 @@ final class Setting {
     var darkMode: Bool
     var isActive: Bool
     var logoData: Data?
+    var companyName: String?
+    var companyEmail: String?
+    var companyPhone: String?
+    var companyAddress: String?
+    var companyWebsite: String?
 
     init(
         id: UUID = UUID(),
@@ -48,7 +53,12 @@ final class Setting {
         language: String = "en",
         darkMode: Bool = true,
         isActive: Bool = true,
-        logoData: Data? = nil
+        logoData: Data? = nil,
+        companyName: String? = nil,
+        companyEmail: String? = nil,
+        companyPhone: String? = nil,
+        companyAddress: String? = nil,
+        companyWebsite: String? = nil
     ) {
         self.id = id
         self.profileName = profileName
@@ -72,5 +82,10 @@ final class Setting {
         self.darkMode = darkMode
         self.isActive = isActive
         self.logoData = logoData
+        self.companyName = companyName
+        self.companyEmail = companyEmail
+        self.companyPhone = companyPhone
+        self.companyAddress = companyAddress
+        self.companyWebsite = companyWebsite
     }
 }

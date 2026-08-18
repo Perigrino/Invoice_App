@@ -9,7 +9,6 @@ final class Client {
     var email: String?
     var phone: String?
     var address: String?
-    var taxId: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -23,7 +22,6 @@ final class Client {
         email: String? = nil,
         phone: String? = nil,
         address: String? = nil,
-        taxId: String? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -33,7 +31,6 @@ final class Client {
         self.email = email
         self.phone = phone
         self.address = address
-        self.taxId = taxId
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

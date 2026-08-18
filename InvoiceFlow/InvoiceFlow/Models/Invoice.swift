@@ -6,7 +6,6 @@ final class Invoice {
     var id: UUID
     var invoiceNumber: String
     var invoiceType: String
-    var status: String
     var subtotal: Double
     var discount: Double
     var tax: Double
@@ -27,7 +26,6 @@ final class Invoice {
         id: UUID = UUID(),
         invoiceNumber: String = "",
         invoiceType: String = "invoice",
-        status: String = "draft",
         subtotal: Double = 0,
         discount: Double = 0,
         tax: Double = 0,
@@ -42,7 +40,6 @@ final class Invoice {
         self.id = id
         self.invoiceNumber = invoiceNumber
         self.invoiceType = invoiceType
-        self.status = status
         self.subtotal = subtotal
         self.discount = discount
         self.tax = tax

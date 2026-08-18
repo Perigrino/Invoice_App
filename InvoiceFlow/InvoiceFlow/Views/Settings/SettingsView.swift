@@ -6,17 +6,17 @@ struct SettingsView: View {
     @Query(filter: #Predicate<Setting> { $0.isActive }) private var activeSettings: [Setting]
     @Query(sort: \Setting.profileName) private var allSettings: [Setting]
     @State private var selectedTab = 0
+    @State private var setting: Setting?
+    @State private var isLoading = true
 
     private var currentSetting: Setting? {
-        activeSettings.first ?? allSettings.first
+        setting ?? activeSettings.first ?? allSettings.first
     }
 
     var body: some View {
         Group {
             if let setting = currentSetting {
                 VStack(spacing: 0) {
-                    header(setting)
-                    Divider()
                     TabView(selection: $selectedTab) {
                         ProfileSettingsView(setting: setting)
                             .tabItem { Label("Profile", systemImage: "person.circle") }
@@ -32,7 +32,7 @@ struct SettingsView: View {
                             .tag(3)
                     }
                 }
-            } else {
+            } else if isLoading {
                 VStack(spacing: 12) {
                     ProgressView()
                     Text("Loading settings...")
@@ -40,61 +40,52 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .onAppear { ensureDefaultSettings() }
             }
         }
-    }
-
-    private func header(_ setting: Setting) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Settings")
-                    .font(.title2.bold())
-                Text("Configure your invoice preferences")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-            Menu {
-                ForEach(allSettings) { s in
-                    Button {
-                        switchProfile(s)
-                    } label: {
-                        HStack {
-                            Text(s.profileName)
-                            if s.isActive {
-                                Image(systemName: "checkmark")
+        .navigationTitle("Settings")
+        .navigationSubtitle("Configure your invoice preferences")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    ForEach(allSettings) { s in
+                        Button {
+                            switchProfile(s)
+                        } label: {
+                            HStack {
+                                Text(s.profileName)
+                                if s.isActive {
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
                     }
-                }
-                Divider()
-                Button {
-                    createProfile()
+                    Divider()
+                    Button {
+                        createProfile()
+                    } label: {
+                        Label("New Profile", systemImage: "plus")
+                    }
                 } label: {
-                    Label("New Profile", systemImage: "plus")
+                    Label(setting?.profileName ?? "Default", systemImage: "person.circle")
                 }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.circle")
-                    Text(setting.profileName)
-                    Image(systemName: "chevron.down")
-                        .font(.caption)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .task { await loadSetting() }
     }
 
-    private func ensureDefaultSettings() {
-        guard activeSettings.isEmpty && allSettings.isEmpty else { return }
-        modelContext.insert(Setting())
+    private func loadSetting() async {
+        let existing = (try? modelContext.fetch(FetchDescriptor<Setting>())) ?? []
+        if let active = existing.first(where: { $0.isActive }) {
+            setting = active
+        } else if let first = existing.first {
+            setting = first
+        } else {
+            let newSetting = Setting()
+            modelContext.insert(newSetting)
+            try? modelContext.save()
+            setting = newSetting
+        }
+        isLoading = false
     }
 
     private func switchProfile(_ s: Setting) {
@@ -119,7 +110,6 @@ struct ProfileSettingsView: View {
     @State private var companyPhone = ""
     @State private var companyAddress = ""
     @State private var companyWebsite = ""
-    @State private var companyTaxId = ""
     @State private var saved = false
 
     var body: some View {
@@ -131,7 +121,6 @@ struct ProfileSettingsView: View {
                     row("Phone", text: $companyPhone, placeholder: "+1 (555) 123-4567")
                     row("Address", text: $companyAddress, placeholder: "123 Main St, City, Country")
                     row("Website", text: $companyWebsite, placeholder: "https://acme.com")
-                    row("Tax ID", text: $companyTaxId, placeholder: "12-3456789")
                 }
 
                 section("Logo") {
@@ -175,16 +164,20 @@ struct ProfileSettingsView: View {
     }
 
     private func loadProfile() {
-        companyName = setting.profileName
-        companyEmail = ""
-        companyPhone = ""
-        companyAddress = ""
-        companyWebsite = ""
-        companyTaxId = ""
+        companyName = (setting.companyName ?? "").isEmpty ? setting.profileName : setting.companyName ?? ""
+        companyEmail = setting.companyEmail ?? ""
+        companyPhone = setting.companyPhone ?? ""
+        companyAddress = setting.companyAddress ?? ""
+        companyWebsite = setting.companyWebsite ?? ""
     }
 
     private func saveProfile() {
         setting.profileName = companyName.isEmpty ? "Default" : companyName
+        setting.companyName = companyName
+        setting.companyEmail = companyEmail
+        setting.companyPhone = companyPhone
+        setting.companyAddress = companyAddress
+        setting.companyWebsite = companyWebsite
         saved = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             withAnimation { saved = false }
@@ -237,8 +230,8 @@ struct InvoiceSettingsView: View {
                     SettingsUI.toggle(label: "Show Notes", isOn: $setting.showNote)
                 }
 
-                section("Template") {
-                    SettingsUI.pickerRow(label: "Template", selection: $setting.template, options: [
+                section("PDF Template") {
+                    SettingsUI.pickerRow(label: "PDF Template", selection: $setting.template, options: [
                         ("modern","Modern"),("business","Business"),("minimal","Minimal"),
                         ("professional","Professional"),("elegant","Elegant")
                     ])

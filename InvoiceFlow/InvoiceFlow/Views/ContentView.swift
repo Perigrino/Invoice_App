@@ -60,48 +60,8 @@ struct Currency: Identifiable, CaseIterable {
     ]
 }
 
-struct InvoiceStatus: Identifiable, CaseIterable {
-    let id = UUID()
-    let key: String
-    let label: String
-    let color: Color
-    
-    static let allCases: [InvoiceStatus] = [
-        InvoiceStatus(key: "draft", label: "Draft", color: .gray),
-        InvoiceStatus(key: "pending", label: "Pending", color: .orange),
-        InvoiceStatus(key: "paid", label: "Paid", color: .green),
-        InvoiceStatus(key: "overdue", label: "Overdue", color: .red),
-        InvoiceStatus(key: "cancelled", label: "Cancelled", color: .red.opacity(0.6))
-    ]
-    
-    static func color(for key: String) -> Color {
-        allCases.first { $0.key == key }?.color ?? .gray
-    }
-    
-    static func label(for key: String) -> String {
-        allCases.first { $0.key == key }?.label ?? key.capitalized
-    }
-}
-
 func formatCurrency(_ amount: Double, currencyCode: String = "USD") -> String {
     CurrencyFormatter.shared.string(from: amount, currencyCode: currencyCode)
-}
-
-struct InvoiceStatusHelper {
-    static func color(for status: String) -> Color {
-        switch status {
-        case "draft": return .gray
-        case "pending": return .orange
-        case "paid": return .green
-        case "overdue": return .red
-        case "cancelled": return .red.opacity(0.6)
-        default: return .gray
-        }
-    }
-    
-    static func label(for status: String) -> String {
-        status.capitalized
-    }
 }
 
 struct SettingsUI {
@@ -157,20 +117,38 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var selectedTab: SidebarTab = .invoices
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
-    
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            List(SidebarTab.allCases, id: \.self, selection: $selectedTab) { tab in
-                Label {
-                    Text(tab.rawValue)
-                } icon: {
-                    Image(systemName: tab.icon)
-                        .foregroundColor(tab == selectedTab ? Color.brandPrimary : .secondary)
+            List(selection: $selectedTab) {
+                Section("Billing") {
+                    Label {
+                        Text(SidebarTab.invoices.rawValue)
+                    } icon: {
+                        Image(systemName: SidebarTab.invoices.icon)
+                    }
+                    .tag(SidebarTab.invoices)
+
+                    Label {
+                        Text(SidebarTab.clients.rawValue)
+                    } icon: {
+                        Image(systemName: SidebarTab.clients.icon)
+                    }
+                    .tag(SidebarTab.clients)
                 }
-                .tag(tab)
+
+                Section("General") {
+                    Label {
+                        Text(SidebarTab.settings.rawValue)
+                    } icon: {
+                        Image(systemName: SidebarTab.settings.icon)
+                    }
+                    .tag(SidebarTab.settings)
+                }
             }
             .listStyle(.sidebar)
             .navigationTitle("InvoiceFlow")
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 260)
         } detail: {
             switch selectedTab {
             case .invoices:
@@ -183,6 +161,14 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .preferredColorScheme(.dark)
+        .task { seedDefaultSettingIfNeeded() }
+    }
+
+    private func seedDefaultSettingIfNeeded() {
+        let descriptor = FetchDescriptor<Setting>()
+        guard let existing = try? modelContext.fetch(descriptor), existing.isEmpty else { return }
+        modelContext.insert(Setting())
+        try? modelContext.save()
     }
 }
 

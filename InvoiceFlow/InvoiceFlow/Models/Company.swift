@@ -10,7 +10,6 @@ final class Company {
     var email: String?
     var phone: String?
     var website: String?
-    var taxId: String?
 
     init(
         id: UUID = UUID(),
@@ -19,8 +18,7 @@ final class Company {
         address: String? = nil,
         email: String? = nil,
         phone: String? = nil,
-        website: String? = nil,
-        taxId: String? = nil
+        website: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -29,6 +27,5 @@ final class Company {
         self.email = email
         self.phone = phone
         self.website = website
-        self.taxId = taxId
     }
 }
