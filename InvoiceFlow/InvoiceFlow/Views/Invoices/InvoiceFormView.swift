@@ -77,7 +77,7 @@ struct InvoiceFormView: View {
                                         .foregroundColor(.secondary)
                                     Picker("", selection: $invoiceType) {
                                         Text("Invoice").tag("invoice")
-                                        Text("Proforma").tag("proforma")
+                                        Text("Proforma Invoice").tag("proforma")
                                     }
                                     .pickerStyle(.segmented)
                                 }
@@ -322,9 +322,29 @@ struct InvoiceFormView: View {
     private func generateInvoiceNumber(for client: Client) {
         let trimmedName = client.fullName.trimmingCharacters(in: .whitespacesAndNewlines)
         let prefix = String(trimmedName.prefix(3)).uppercased()
-        let random = Int.random(in: 100000...999999)
         let yearShort = Calendar.current.component(.year, from: Date()) % 100
-        invoiceNumber = "\(prefix)-\(random)-\(String(format: "%02d", yearShort))"
+        
+        // Fetch all existing invoice numbers to find the next sequential number
+        let descriptor = FetchDescriptor<Invoice>()
+        let allInvoices = (try? modelContext.fetch(descriptor)) ?? []
+        let existingNumbers = Set(allInvoices.map { $0.invoiceNumber })
+        
+        // Find the highest sequence number for this prefix+year
+        let prefixYearPattern = "\(prefix)-\(String(format: "%02d", yearShort))"
+        var maxSequence = 0
+        
+        for number in existingNumbers {
+            if number.hasPrefix(prefixYearPattern + "-") {
+                let suffix = String(number.dropFirst(prefixYearPattern.count + 1))
+                if let seq = Int(suffix), seq > maxSequence {
+                    maxSequence = seq
+                }
+            }
+        }
+        
+        // Generate next sequence number
+        let nextSequence = maxSequence + 1
+        invoiceNumber = "\(prefixYearPattern)-\(String(format: "%04d", nextSequence))"
     }
 
     private func loadInvoice() {
@@ -363,6 +383,19 @@ struct InvoiceFormView: View {
             showError("Invoice number is required")
             return false
         }
+        
+        // Check for duplicate invoice number
+        let descriptor = FetchDescriptor<Invoice>()
+        let allInvoices = (try? modelContext.fetch(descriptor)) ?? []
+        let trimmedNumber = invoiceNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isDuplicate = allInvoices.contains { existing in
+            existing.invoiceNumber == trimmedNumber && existing.id != invoice?.id
+        }
+        if isDuplicate {
+            showError("Invoice number already exists. Please use a different number.")
+            return false
+        }
+        
         guard !lineItems.isEmpty else {
             showError("At least one line item is required")
             return false

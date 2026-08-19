@@ -120,8 +120,9 @@ struct InvoiceListView: View {
     }
     
     private func duplicateInvoice(_ invoice: Invoice) {
+        let newNumber = generateUniqueInvoiceNumber()
         let newInvoice = Invoice(
-            invoiceNumber: "INV-\(UUID().uuidString.prefix(6).uppercased())",
+            invoiceNumber: newNumber,
             invoiceType: invoice.invoiceType,
             subtotal: invoice.subtotal,
             discount: invoice.discount,
@@ -134,6 +135,30 @@ struct InvoiceListView: View {
         )
         newInvoice.client = invoice.client
         modelContext.insert(newInvoice)
+    }
+    
+    private func generateUniqueInvoiceNumber() -> String {
+        let yearShort = Calendar.current.component(.year, from: Date()) % 100
+        let yearPrefix = "INV-\(String(format: "%02d", yearShort))"
+        
+        // Fetch all existing invoice numbers
+        let descriptor = FetchDescriptor<Invoice>()
+        let allInvoices = (try? modelContext.fetch(descriptor)) ?? []
+        let existingNumbers = Set(allInvoices.map { $0.invoiceNumber })
+        
+        // Find the highest sequence number for this year
+        var maxSequence = 0
+        for number in existingNumbers {
+            if number.hasPrefix(yearPrefix + "-") {
+                let suffix = String(number.dropFirst(yearPrefix.count + 1))
+                if let seq = Int(suffix), seq > maxSequence {
+                    maxSequence = seq
+                }
+            }
+        }
+        
+        let nextSequence = maxSequence + 1
+        return "\(yearPrefix)-\(String(format: "%04d", nextSequence))"
     }
     
     private func deleteInvoice(_ invoice: Invoice) {
@@ -158,7 +183,7 @@ struct InvoiceRow: View {
                 }
             }
             Spacer()
-            Text(invoice.invoiceType == "proforma" ? "Proforma" : "Invoice")
+            Text(invoice.invoiceType == "proforma" ? "Proforma Invoice" : "Invoice")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .frame(width: 70, alignment: .center)

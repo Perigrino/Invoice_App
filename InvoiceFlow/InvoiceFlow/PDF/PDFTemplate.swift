@@ -1,14 +1,15 @@
 import Foundation
 
 enum PDFTemplate: String, CaseIterable, Identifiable {
-    case modern
-    case business
-    case minimal
-    case professional
+    case dark
+    case light
 
     var id: String { rawValue }
 
     var displayName: String {
-        rawValue.capitalized
+        switch self {
+        case .dark: return "Dark"
+        case .light: return "Light"
+        }
     }
 }

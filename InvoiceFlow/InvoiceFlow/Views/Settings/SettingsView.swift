@@ -146,26 +146,50 @@ struct ProfileSettingsView: View {
                 }
 
                 section("Logo") {
-                    HStack(spacing: 16) {
+                    VStack(spacing: 16) {
                         if let data = setting.logoData, let nsImage = NSImage(data: data) {
                             Image(nsImage: nsImage)
                                 .resizable()
+                                .interpolation(.high)
                                 .scaledToFit()
-                                .frame(width: 180, height: 180)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 300)
+                                .background(Color(nsColor: .textBackgroundColor))
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                )
                         } else {
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.gray.opacity(0.1))
-                                .frame(width: 180, height: 180)
-                                .overlay(Image(systemName: "photo").foregroundColor(.secondary))
+                                .fill(Color.gray.opacity(0.08))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 300)
+                                .overlay(
+                                    VStack(spacing: 12) {
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 48))
+                                            .foregroundColor(.secondary)
+                                        Text("No logo uploaded")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                )
                         }
-                        VStack(alignment: .leading, spacing: 8) {
+                        
+                        HStack {
                             Button("Choose Logo") { pickLogo() }
-                            Text("PNG or JPG, recommended 512x512")
+                            if setting.logoData != nil {
+                                Button("Remove Logo") {
+                                    setting.logoData = nil
+                                }
+                                .foregroundColor(.red)
+                            }
+                            Spacer()
+                            Text("PNG or JPG, recommended 512×512")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        Spacer()
                     }
                 }
 
@@ -216,6 +240,7 @@ struct ProfileSettingsView: View {
         }
     }
 
+
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title).font(.system(.body, weight: .semibold))
@@ -255,8 +280,7 @@ struct InvoiceSettingsView: View {
 
                 section("PDF Template") {
                     SettingsUI.pickerRow(label: "PDF Template", selection: $setting.template, options: [
-                        ("modern","Modern"),("business","Business"),("minimal","Minimal"),
-                        ("professional","Professional")
+                        ("dark","Dark"),("light","Light")
                     ])
                     SettingsUI.pickerRow(label: "Paper Size", selection: $setting.paperSize, options: [
                         ("A3","A3"),("A4","A4"),("Letter","Letter"),("Legal","Legal")
@@ -441,3 +465,5 @@ struct GeneralSettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
+
+

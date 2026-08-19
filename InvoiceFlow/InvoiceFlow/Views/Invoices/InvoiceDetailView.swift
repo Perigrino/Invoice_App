@@ -15,7 +15,7 @@ struct InvoiceDetailView: View {
                 VStack(alignment: .leading) {
                     Text(invoice.invoiceNumber)
                         .font(.title.bold())
-                    Text(invoice.invoiceType.capitalized)
+                    Text(invoice.invoiceType == "proforma" ? "Proforma Invoice" : "Invoice")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
