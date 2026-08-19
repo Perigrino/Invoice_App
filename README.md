@@ -1,8 +1,39 @@
-# InvoiceFlow — Modern Invoice Generator
+# InvoiceFlow
 
-A no-fuss invoice app: pick a profile, create an invoice, and export it as a clean PDF — done. Built with Next.js.
+A native macOS invoice generator. Create clients, build invoices, and export clean PDFs from your desktop.
 
-**Live now:** [InvoiceFlow](https://invoiceflow-ivory-rho.vercel.app). Fully mobile-friendly.
+## Download
+
+[**InvoiceFlow-2.0.0-arm64.dmg**](dist/InvoiceFlow-2.0.0-arm64.dmg) — requires macOS 14.0+
+
+## What It Does
+
+**Clients** — Store client name, company, email, phone, and address. Search by any field.
+
+**Invoices** — Create and edit invoices with line items, notes, tax, and discount. Invoice numbers use a sequential format (e.g. `INV-26-0001`) based on client name prefix + year + sequence. Duplicates get the next number automatically.
+
+**PDF Export** — Two templates (Dark and Light) with live preview. Pick your accent color, secondary color, font family, and font size before exporting. Supports A3, A4, Letter, and Legal paper sizes.
+
+**Profiles** — Run multiple business identities. Each profile keeps its own company info, logo, default colors, currency, and PDF settings. Switch between profiles without losing anything.
+
+## Features
+
+- Dark and Light PDF templates with customizable accent and secondary colors
+- Font family and font size control for exported PDFs
+- Logo upload with live preview
+- Sequential invoice numbering (`INV-YY-NNNN`)
+- Invoice and Proforma Invoice types
+- Line items with description, quantity, unit price, and auto-calculated totals
+- Configurable currency (USD, EUR, GBP, GHS, CAD, NGN, ZAR)
+- Number formatting: comma/period separator, 0-4 decimal places, before/after symbol
+- Date format options: MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD, DD MMM YYYY
+- Paper sizes: A3, A4, Letter, Legal
+- Configurable export folder path
+- Context menus: Edit, Delete, Duplicate, Export PDF, View Details
+- Invoice detail view with close button and export shortcut
+- Client search by name, company, email, phone, or address
+- Onboarding flow on first launch
+- Local data storage via SwiftData (no cloud, no accounts)
 
 ## Screenshots
 
@@ -18,54 +49,57 @@ A no-fuss invoice app: pick a profile, create an invoice, and export it as a cle
 |---|
 | ![Generated PDF](screenshots/pdf-preview.png) |
 
-## Features
-
-- **Accounts** — Sign up, sign in, and sign out with your own account. Your clients, invoices, and settings are isolated per user.
-- **Invoices** — Create, edit, duplicate, and delete; line items, notes, and auto-generated invoice numbers.
-- **Clients** — Manage contacts with name, company, email, phone, and address.
-- **Multi-Profile** — Switch between business profiles with isolated data and per-profile logo, details, notes, and PDF colors.
-- **PDF Export** — 5 templates (Modern, Minimal, Business, Professional, Elegant) with A3/A4/Letter/Legal sizes and custom accent colors.
-- **Live Preview** — The editor renders the real PDF live as you type.
-- **Searchable Client Picker** — Find clients by name, company, email, phone, or address.
-- **Mobile-friendly** — Drawer navigation, card-based lists, a stacked line-item editor, and bottom-sheet dialogs. Works great on any screen.
-- **i18n** — English, Spanish, French, and Arabic.
-- **Dark Mode** — Full dark mode with multiple currencies and configurable formats.
-
-## Updates
-
-- **v1.8** — Mobile-friendly redesign: drawer navigation, card-based lists, a stacked line-item editor, and bottom-sheet dialogs on phones.
-- **v1.7** — Accounts & per-user data (Auth.js v5 sign up / sign in / sign out), deployed live to Vercel.
-- **v1.6** — PDF templates fully working, live PDF preview, searchable client picker, direct PDF download, centered notes, and i18n.
-- **v1.5** — Removed authentication; app opens straight to the dashboard.
-- **v1.4** — PDF layout polish: vertically centered table rows, centered notes.
-- **v1.3** — Export validation: require client, line items, and note before exporting.
-- **v1.2** — Per-profile PDF accent and secondary colors.
-
 ## Tech Stack
 
-- **Framework** — Next.js (App Router)
-- **Styling** — Tailwind CSS v4 + Shadcn/ui
-- **State** — Zustand with localStorage persistence + per-user server sync
-- **Database** — PostgreSQL + Prisma ORM (required for accounts)
-- **Auth** — Auth.js v5 (credentials + Prisma adapter)
-- **PDF** — @json-render/react-pdf
-- **Theming** — next-themes
+- **SwiftUI** — native macOS interface
+- **SwiftData** — local persistence
+- **PDFKit** — PDF rendering and export
+- **macOS 14.0+**
 
-## Getting Started
+## Development
 
 ```bash
-npm install
-cp .env.example .env   # set DATABASE_URL, DIRECT_URL, AUTH_SECRET
-npx prisma db push
-npm run dev
+# Clone
+git clone https://github.com/Perigrino/Invoice_App.git
+cd Invoice_App
+
+# Build
+xcodebuild build -scheme InvoiceFlow -destination 'platform=macOS'
+
+# Run tests
+xcodebuild test -scheme InvoiceFlow -destination 'platform=macOS'
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Sign up for an account. Your clients, invoices, and settings are stored per user in Postgres.
+## Changelog
 
-Or try the live app: [InvoiceFlow](https://invoiceflow-ivory-rho.vercel.app).
+### v2.0.0
 
-## Build
+- Dark and Light PDF templates replace the old 5-template system
+- Sequential invoice numbering (client prefix + year + 4-digit sequence)
+- Font family and font size customization in PDF export
+- Enlarged logo preview in settings
+- Configurable export folder path
+- Invoice detail view with close button
+- Bug fixes: PDF rendering now produces non-blank output on macOS 14+
 
-```bash
-npm run build
-```
+### v0.2.0
+
+- Initial native macOS release
+- Client and invoice management
+- PDF export with templates
+
+### v1.8 (Legacy Web)
+
+- Mobile-friendly redesign with drawer navigation and card-based lists
+
+### v1.7 (Legacy Web)
+
+- Currency configurability with comma/period separators and symbol placement
+
+### v1.6 (Legacy Web)
+
+- PDF invoice generation with professional templates
+
+## License
+
+MIT
