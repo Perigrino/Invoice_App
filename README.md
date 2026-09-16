@@ -4,7 +4,7 @@ A native macOS invoice generator. Create clients, build invoices, and export cle
 
 ## Download
 
-[**InvoiceFlow-2.0.0-arm64.dmg**](dist/InvoiceFlow-2.0.0-arm64.dmg) — requires macOS 14.0+
+[**InvoiceFlow-2.1.0.dmg**](dist/InvoiceFlow-2.1.0.dmg) — requires macOS 14.0+ (universal: Apple Silicon & Intel)
 
 ## What It Does
 
