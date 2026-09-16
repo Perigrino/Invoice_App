@@ -21,6 +21,10 @@ struct InvoiceFormView: View {
     @State private var taxRate = 0.0
     @State private var showValidationError = false
     @State private var validationError = ""
+    @State private var pendingInvoice: Invoice?
+    @State private var saveError: String?
+    @State private var hasLoaded = false
+    @State private var cancelAction: ((Invoice?) -> Void)?
     
     private var isEditing: Bool { invoice != nil }
     
@@ -42,7 +46,11 @@ struct InvoiceFormView: View {
                         .foregroundColor(.red)
                         .transition(.opacity)
                 }
-                Button("Cancel") { dismiss() }
+                Button("Cancel") {
+                    cancelAction?(pendingInvoice)
+                    cancelAction = nil
+                    dismiss()
+                }
                     .keyboardShortcut(.cancelAction)
                 Button(isEditing ? "Update" : "Create") { 
                     if validateForm() {
@@ -247,6 +255,14 @@ struct InvoiceFormView: View {
         .frame(minWidth: 800, minHeight: 650)
         .onAppear { loadInvoice() }
         .animation(.default, value: showValidationError)
+        .alert("Could Not Save Invoice", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK", role: .cancel) { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
+        }
     }
     
     // MARK: - Computed Properties
@@ -345,6 +361,9 @@ struct InvoiceFormView: View {
     }
 
     private func loadInvoice() {
+        guard !hasLoaded else { return }
+        hasLoaded = true
+        pendingInvoice = invoice
         guard let invoice = invoice else {
             addLineItem()
             notes = activeSettings.first?.notes ?? ""
@@ -386,7 +405,7 @@ struct InvoiceFormView: View {
         let allInvoices = (try? modelContext.fetch(descriptor)) ?? []
         let trimmedNumber = invoiceNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         let isDuplicate = allInvoices.contains { existing in
-            existing.invoiceNumber == trimmedNumber && existing.id != invoice?.id
+            existing.invoiceNumber == trimmedNumber && existing.id != (pendingInvoice ?? invoice)?.id
         }
         if isDuplicate {
             showError("Invoice number already exists. Please use a different number.")
@@ -427,63 +446,124 @@ struct InvoiceFormView: View {
     }
     
     private func saveInvoice() {
-        let client = selectedClientIndex > 0 ? clients[selectedClientIndex - 1] : nil
-        
-        if let existing = invoice {
-            existing.invoiceNumber = invoiceNumber
-            existing.invoiceType = invoiceType
-            existing.issueDate = issueDate
-            existing.dueDate = hasDueDate ? dueDate : nil
-            existing.notes = notes.isEmpty ? nil : notes
-            existing.discount = discount
-            existing.tax = taxRate
-            existing.total = total
-            existing.balanceDue = total
-            existing.updatedAt = Date()
-            existing.client = client
-            
-            existing.lineItems?.forEach { modelContext.delete($0) }
-            saveLineItems(to: existing)
-        } else {
-            let newInvoice = Invoice(
-                invoiceNumber: invoiceNumber,
-                invoiceType: invoiceType,
-                subtotal: subtotal,
-                discount: discount,
-                tax: taxRate,
-                total: total,
-                balanceDue: total,
-                notes: notes.isEmpty ? nil : notes,
-                issueDate: issueDate,
-                dueDate: hasDueDate ? dueDate : nil
-            )
-            newInvoice.client = client
-            saveLineItems(to: newInvoice)
-            modelContext.insert(newInvoice)
+        let client = selectedClientIndex > 0 && selectedClientIndex <= clients.count
+            ? clients[selectedClientIndex - 1] : nil
+        if cancelAction == nil {
+            cancelAction = Self.makeCancelAction(for: pendingInvoice, in: modelContext)
         }
-        
-        // Persist to disk immediately (including replaced line items);
-        // otherwise the invoice only lives in memory and is lost on quit.
-        modelContext.persist()
-        
-        dismiss()
+        if Self.saveInvoice(
+            in: modelContext, pending: &pendingInvoice, invoiceNumber: invoiceNumber,
+            invoiceType: invoiceType, client: client, issueDate: issueDate,
+            dueDate: hasDueDate ? dueDate : nil, notes: notes,
+            discount: discount, taxRate: taxRate, lineItems: lineItems,
+            onError: { saveError = "Your changes have not been saved. Keep this form open and try again.\n\n\($0.localizedDescription)" }
+        ) {
+            cancelAction = nil
+            dismiss()
+        }
     }
-    
-    private func saveLineItems(to invoice: Invoice) {
-        for (index, item) in lineItems.enumerated() {
-            let lineItem = InvoiceLineItem(
-                id: item.id,
-                itemDescription: item.itemDescription,
-                price: item.price,
-                quantity: item.quantity,
-                discount: item.discount,
-                tax: item.tax,
-                total: item.lineTotal,
-                sortOrder: index
-            )
-            lineItem.invoice = invoice
-            modelContext.insert(lineItem)
+
+    static func makeCancelAction(for invoice: Invoice?, in context: ModelContext) -> (Invoice?) -> Void {
+        guard let invoice else {
+            return { pending in
+                if let pending {
+                    (pending.lineItems ?? []).forEach { context.delete($0) }
+                    context.delete(pending)
+                }
+            }
         }
+        let client = invoice.client
+        let original = (
+            invoice.invoiceNumber, invoice.invoiceType, invoice.subtotal, invoice.discount,
+            invoice.tax, invoice.total, invoice.balanceDue, invoice.notes, invoice.issueDate,
+            invoice.dueDate, invoice.updatedAt
+        )
+        let originalItems: [(item: InvoiceLineItem, fields: (String, Double, Double, Double, Double, Double, Int))] = (invoice.lineItems ?? []).map { item in
+            (item, (item.itemDescription, item.price, item.quantity, item.discount, item.tax, item.total, item.sortOrder))
+        }
+        let originalIDs = Set(originalItems.map { $0.item.id })
+        return { pending in
+            invoice.invoiceNumber = original.0
+            invoice.invoiceType = original.1
+            invoice.subtotal = original.2
+            invoice.discount = original.3
+            invoice.tax = original.4
+            invoice.total = original.5
+            invoice.balanceDue = original.6
+            invoice.notes = original.7
+            invoice.issueDate = original.8
+            invoice.dueDate = original.9
+            invoice.updatedAt = original.10
+            invoice.client = client
+            let currentItems = (pending === invoice ? invoice.lineItems : []) ?? []
+            for current in currentItems where !originalIDs.contains(current.id) {
+                context.delete(current)
+            }
+            invoice.lineItems = []
+            for entry in originalItems {
+                let item = entry.item
+                if item.modelContext == nil { context.insert(item) }
+                item.itemDescription = entry.fields.0
+                item.price = entry.fields.1
+                item.quantity = entry.fields.2
+                item.discount = entry.fields.3
+                item.tax = entry.fields.4
+                item.total = entry.fields.5
+                item.sortOrder = entry.fields.6
+                item.invoice = invoice
+                invoice.lineItems?.append(item)
+            }
+        }
+    }
+
+    static func saveInvoice(
+        in context: ModelContext, pending: inout Invoice?, invoiceNumber: String,
+        invoiceType: String, client: Client?, issueDate: Date, dueDate: Date?, notes: String,
+        discount: Double, taxRate: Double, lineItems: [LineItemData],
+        onError: ((Error) -> Void)? = nil
+    ) -> Bool {
+        let record = pending ?? Invoice()
+        if pending == nil {
+            context.insert(record)
+            pending = record
+        }
+        let subtotal = lineItems.reduce(0) { $0 + $1.lineTotal }
+        let taxableAmount = subtotal - subtotal * discount / 100
+        let total = taxableAmount + taxableAmount * taxRate / 100
+        record.invoiceNumber = invoiceNumber
+        record.invoiceType = invoiceType
+        record.issueDate = issueDate
+        record.dueDate = dueDate
+        record.notes = notes.isEmpty ? nil : notes
+        record.subtotal = subtotal
+        record.discount = discount
+        record.tax = taxRate
+        record.total = total
+        record.balanceDue = total
+        record.updatedAt = Date()
+        record.client = client
+
+        let previousItems = (record.lineItems ?? []).filter { !$0.isDeleted }
+        let retainedIDs = Set(lineItems.map(\.id))
+        record.lineItems = previousItems.filter { retainedIDs.contains($0.id) }
+        for item in previousItems where !retainedIDs.contains(item.id) {
+            item.invoice = nil
+            context.delete(item)
+        }
+        record.lineItems = lineItems.enumerated().map { index, item in
+            let lineItem = previousItems.first { $0.id == item.id } ?? InvoiceLineItem(id: item.id)
+            if lineItem.modelContext == nil { context.insert(lineItem) }
+            lineItem.itemDescription = item.itemDescription
+            lineItem.price = item.price
+            lineItem.quantity = item.quantity
+            lineItem.discount = item.discount
+            lineItem.tax = item.tax
+            lineItem.total = item.lineTotal
+            lineItem.sortOrder = index
+            lineItem.invoice = record
+            return lineItem
+        }
+        return context.persist(onError: onError)
     }
     
     private func addLineItem() {

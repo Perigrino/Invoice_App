@@ -7,11 +7,67 @@ final class InvoiceFlowUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchEnvironment["INVOICEFLOW_UI_TEST_STORE_PATH"] = FileManager.default.temporaryDirectory
+            .appendingPathComponent("invoiceflow-ui-\(UUID().uuidString).store").path
+        app.launchArguments = ["-hasCompletedOnboarding", "YES"]
         app.launch()
     }
 
     override func tearDownWithError() throws {
+        app.terminate()
         app = nil
+    }
+
+    func testCreatedClientAndInvoiceSurviveRelaunch() {
+        let clientName = "Relaunch Regression Client"
+        let invoiceNumber = "INV-RELAUNCH-001"
+
+        navigateToClients()
+        XCTAssertTrue(app.staticTexts["No Clients"].waitForExistence(timeout: 5), "Each test must start with an empty client store")
+        let newClientButton = app.buttons["New Client"]
+        XCTAssertTrue(newClientButton.waitForExistence(timeout: 5))
+        newClientButton.click()
+
+        let fullNameField = findField("e.g. John Smith")
+        XCTAssertTrue(fullNameField.waitForExistence(timeout: 5))
+        fullNameField.click()
+        fullNameField.typeText(clientName)
+        app.buttons["Create"].click()
+        XCTAssertTrue(app.buttons["Create"].waitForNonExistence(timeout: 5), "Client form must dismiss after saving")
+        XCTAssertTrue(app.staticTexts[clientName].waitForExistence(timeout: 5), "Created client must appear before relaunch")
+
+        navigateToInvoices()
+        let newInvoiceButton = app.buttons["New Invoice"]
+        XCTAssertTrue(newInvoiceButton.waitForExistence(timeout: 5))
+        newInvoiceButton.click()
+
+        let numberField = findField("INV-001")
+        XCTAssertTrue(numberField.waitForExistence(timeout: 5))
+        numberField.click()
+        numberField.typeKey("a", modifierFlags: .command)
+        numberField.typeText(invoiceNumber)
+
+        let descriptionField = findField("Item description")
+        XCTAssertTrue(descriptionField.waitForExistence(timeout: 5))
+        descriptionField.click()
+        descriptionField.typeText("Relaunch regression service")
+
+        let priceField = findField("0.00")
+        XCTAssertTrue(priceField.waitForExistence(timeout: 5))
+        priceField.click()
+        priceField.typeKey("a", modifierFlags: .command)
+        priceField.typeText("125")
+        app.buttons["Create"].click()
+        XCTAssertTrue(app.buttons["Create"].waitForNonExistence(timeout: 5), "Invoice form must dismiss after saving")
+        XCTAssertTrue(app.staticTexts[invoiceNumber].waitForExistence(timeout: 5), "Created invoice must appear before relaunch")
+
+        app.terminate()
+        app.launch()
+
+        navigateToInvoices()
+        XCTAssertTrue(app.staticTexts[invoiceNumber].waitForExistence(timeout: 5), "Created invoice must survive relaunch")
+        navigateToClients()
+        XCTAssertTrue(app.staticTexts[clientName].waitForExistence(timeout: 5), "Created client must survive relaunch")
     }
 
     // MARK: - 1. Onboarding / Landing Page
@@ -595,7 +651,13 @@ final class InvoiceFlowUITests: XCTestCase {
             format: "identifier == %@ OR label == %@ OR placeholderValue == %@",
             labelOrPlaceholder, labelOrPlaceholder, labelOrPlaceholder
         )
-        return app.textFields.matching(predicate).firstMatch
+        let editable = NSPredicate(
+            format: "elementType == %d OR elementType == %d",
+            XCUIElement.ElementType.textField.rawValue,
+            XCUIElement.ElementType.textView.rawValue
+        )
+        return app.descendants(matching: .any)
+            .matching(NSCompoundPredicate(andPredicateWithSubpredicates: [editable, predicate])).firstMatch
     }
 
     private func settingsTab(_ title: String) -> XCUIElement {
@@ -642,22 +704,30 @@ final class InvoiceFlowUITests: XCTestCase {
         let table = invoiceList
         if !table.exists || table.cells.count == 0 {
             let newInvoiceButton = app.buttons["New Invoice"]
-            if newInvoiceButton.waitForExistence(timeout: 3) {
-                newInvoiceButton.click()
+            XCTAssertTrue(newInvoiceButton.waitForExistence(timeout: 3))
+            newInvoiceButton.click()
 
-                let descriptionField = findField("Item description")
-                descriptionField.waitForExistence(timeout: 3)
-                descriptionField.click()
-                descriptionField.typeText("Context Menu Test Item")
+            let invoiceNumber = "INV-\(UUID().uuidString)"
+            let numberField = findField("INV-001")
+            XCTAssertTrue(numberField.waitForExistence(timeout: 3))
+            numberField.click()
+            numberField.typeKey("a", modifierFlags: .command)
+            numberField.typeText(invoiceNumber)
 
-                let priceField = findField("0.00")
-                priceField.click()
-                priceField.typeText("100")
+            let descriptionField = findField("Item description")
+            XCTAssertTrue(descriptionField.waitForExistence(timeout: 3))
+            descriptionField.click()
+            descriptionField.typeText("Context Menu Test Item")
 
-                let createButton = app.buttons["Create"]
-                createButton.click()
-                sleep(2)
-            }
+            let priceField = findField("0.00")
+            priceField.click()
+            priceField.typeKey("a", modifierFlags: .command)
+            priceField.typeText("100")
+
+            let createButton = app.buttons["Create"]
+            createButton.click()
+            XCTAssertTrue(createButton.waitForNonExistence(timeout: 5), "Invoice form must dismiss after saving")
+            XCTAssertTrue(app.staticTexts[invoiceNumber].waitForExistence(timeout: 5), "Helper must create a visible invoice row")
         }
     }
 

@@ -95,17 +95,18 @@ func applySettingsGlobals(_ setting: Setting) {
 // MARK: - Persistence Helper
 
 extension ModelContext {
-    /// Writes any pending changes to disk immediately.
-    /// SwiftData autosave does not reliably flush mutations made through the
-    /// shared main context, which previously caused data loss when the app quit.
-    func persist() {
-        guard hasChanges else { return }
+    @discardableResult
+    func persist(onError: ((Error) -> Void)? = nil) -> Bool {
+        guard hasChanges else { return true }
         do {
             try save()
+            return true
         } catch {
+            onError?(error)
             #if DEBUG
-            print("⚠️ InvoiceFlow: failed to persist changes: \(error)")
+            print("InvoiceFlow: failed to persist changes: \(error)")
             #endif
+            return false
         }
     }
 }

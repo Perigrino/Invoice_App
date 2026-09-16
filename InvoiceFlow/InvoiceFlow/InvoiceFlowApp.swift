@@ -16,17 +16,43 @@ struct InvoiceFlowApp: App {
         return appSupport.appendingPathComponent("default.store")
     }
 
+    static var isRunningTests: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || ProcessInfo.processInfo.environment["INVOICEFLOW_UI_TEST_STORE_PATH"] != nil
+        #else
+        return false
+        #endif
+    }
+
     private let container: ModelContainer
 
     init() {
-        // Apply a staged backup restore (if the user requested one) BEFORE
-        // the container opens the store file.
-        RollingBackupService.applyStagedRestoreIfAny(liveStoreURL: Self.defaultStoreURL)
+        if !Self.isRunningTests {
+            // Apply a staged backup restore (if the user requested one) BEFORE
+            // the container opens the store file.
+            RollingBackupService.applyStagedRestoreIfAny(liveStoreURL: Self.defaultStoreURL)
+        }
 
         do {
+            #if DEBUG
+            var configuration: ModelConfiguration
+            if let uiTestPath = ProcessInfo.processInfo.environment["INVOICEFLOW_UI_TEST_STORE_PATH"] {
+                configuration = ModelConfiguration(url: URL(fileURLWithPath: uiTestPath))
+            } else if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+                configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+            } else {
+                configuration = ModelConfiguration()
+            }
+            let newContainer = try ModelContainer(
+                for: Invoice.self, InvoiceLineItem.self, Client.self, Company.self, Setting.self,
+                configurations: configuration
+            )
+            #else
             let newContainer = try ModelContainer(
                 for: Invoice.self, InvoiceLineItem.self, Client.self, Company.self, Setting.self
             )
+            #endif
             container = newContainer
             Self.sharedContainer = newContainer
         } catch {
@@ -79,7 +105,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // so data is never lost when the user closes the app.
         InvoiceFlowApp.sharedContainer?.mainContext.persist()
         // Rolling backup: snapshot the store trio, keeping the last 5.
-        if !Self.suppressNextSnapshot {
+        if !Self.suppressNextSnapshot && !InvoiceFlowApp.isRunningTests {
             RollingBackupService.takeSnapshot(storeURL: InvoiceFlowApp.defaultStoreURL)
         }
         Self.suppressNextSnapshot = false

@@ -13,6 +13,10 @@ struct ClientFormView: View {
     @State private var address = ""
     @State private var showValidationError = false
     @State private var validationError = ""
+    @State private var pendingClient: Client?
+    @State private var saveError: String?
+    @State private var hasLoaded = false
+    @State private var cancelAction: ((Client?) -> Void)?
 
     private var isEditing: Bool { client != nil }
 
@@ -34,7 +38,11 @@ struct ClientFormView: View {
                         .foregroundColor(.red)
                         .transition(.opacity)
                 }
-                Button("Cancel") { dismiss() }
+                Button("Cancel") {
+                    cancelAction?(pendingClient)
+                    cancelAction = nil
+                    dismiss()
+                }
                     .keyboardShortcut(.cancelAction)
                 Button(isEditing ? "Update" : "Create") {
                     if validateForm() {
@@ -111,6 +119,14 @@ struct ClientFormView: View {
         .frame(minWidth: 560, minHeight: 480)
         .onAppear { loadClient() }
         .animation(.default, value: showValidationError)
+        .alert("Could Not Save Client", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK", role: .cancel) { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
+        }
     }
 
     private func formSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -127,6 +143,9 @@ struct ClientFormView: View {
     }
 
     private func loadClient() {
+        guard !hasLoaded else { return }
+        hasLoaded = true
+        pendingClient = client
         guard let client = client else { return }
         fullName = client.fullName
         company = client.company ?? ""
@@ -160,26 +179,52 @@ struct ClientFormView: View {
     }
 
     private func saveClient() {
-        if let existing = client {
-            existing.fullName = fullName
-            existing.company = company.isEmpty ? nil : company
-            existing.email = email.isEmpty ? nil : email
-            existing.phone = phone.isEmpty ? nil : phone
-            existing.address = address.isEmpty ? nil : address
-            existing.updatedAt = Date()
-        } else {
-            let newClient = Client(
-                fullName: fullName,
-                company: company.isEmpty ? nil : company,
-                email: email.isEmpty ? nil : email,
-                phone: phone.isEmpty ? nil : phone,
-                address: address.isEmpty ? nil : address
-            )
-            modelContext.insert(newClient)
+        if cancelAction == nil {
+            cancelAction = Self.makeCancelAction(for: pendingClient, in: modelContext)
         }
-        // Persist to disk immediately; otherwise the record only lives in
-        // memory and is lost when the app quits.
-        modelContext.persist()
-        dismiss()
+        if Self.saveClient(
+            in: modelContext, pending: &pendingClient, fullName: fullName,
+            company: company, email: email, phone: phone, address: address,
+            onError: { saveError = "Your changes have not been saved. Keep this form open and try again.\n\n\($0.localizedDescription)" }
+        ) {
+            cancelAction = nil
+            dismiss()
+        }
+    }
+
+    static func makeCancelAction(for client: Client?, in context: ModelContext) -> (Client?) -> Void {
+        guard let client else {
+            return { pending in
+                if let pending { context.delete(pending) }
+            }
+        }
+        let original = (client.fullName, client.company, client.email, client.phone, client.address, client.updatedAt)
+        return { _ in
+            client.fullName = original.0
+            client.company = original.1
+            client.email = original.2
+            client.phone = original.3
+            client.address = original.4
+            client.updatedAt = original.5
+        }
+    }
+
+    static func saveClient(
+        in context: ModelContext, pending: inout Client?, fullName: String,
+        company: String, email: String, phone: String, address: String,
+        onError: ((Error) -> Void)? = nil
+    ) -> Bool {
+        let record = pending ?? Client()
+        if pending == nil {
+            context.insert(record)
+            pending = record
+        }
+        record.fullName = fullName
+        record.company = company.isEmpty ? nil : company
+        record.email = email.isEmpty ? nil : email
+        record.phone = phone.isEmpty ? nil : phone
+        record.address = address.isEmpty ? nil : address
+        record.updatedAt = Date()
+        return context.persist(onError: onError)
     }
 }

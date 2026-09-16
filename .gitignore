@@ -52,6 +52,10 @@ InvoiceFlow/InvoiceFlow-*/
 
 # built installer (source vs packaged artifact)
 InvoiceFlow/dist/
+
+# local Xcode derived data
+/tmp-derived/
+/tmp-derived-build/
 /prisma/*.db
 /prisma/*.db-journal
 /prisma/*.db-wal
