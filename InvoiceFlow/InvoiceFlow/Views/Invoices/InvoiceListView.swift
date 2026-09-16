@@ -135,6 +135,7 @@ struct InvoiceListView: View {
         )
         newInvoice.client = invoice.client
         modelContext.insert(newInvoice)
+        modelContext.persist()
     }
     
     private func generateUniqueInvoiceNumber() -> String {
@@ -163,6 +164,7 @@ struct InvoiceListView: View {
     
     private func deleteInvoice(_ invoice: Invoice) {
         modelContext.delete(invoice)
+        modelContext.persist()
     }
 }
 

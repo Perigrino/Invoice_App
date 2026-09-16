@@ -92,6 +92,24 @@ func applySettingsGlobals(_ setting: Setting) {
     DateFormatHelper.activeFormat = setting.dateFormat
 }
 
+// MARK: - Persistence Helper
+
+extension ModelContext {
+    /// Writes any pending changes to disk immediately.
+    /// SwiftData autosave does not reliably flush mutations made through the
+    /// shared main context, which previously caused data loss when the app quit.
+    func persist() {
+        guard hasChanges else { return }
+        do {
+            try save()
+        } catch {
+            #if DEBUG
+            print("⚠️ InvoiceFlow: failed to persist changes: \(error)")
+            #endif
+        }
+    }
+}
+
 struct Currency: Identifiable, CaseIterable {
     let id = UUID()
     let code: String
@@ -225,7 +243,7 @@ struct ContentView: View {
         }
         let setting = Setting()
         modelContext.insert(setting)
-        try? modelContext.save()
+        modelContext.persist()
         applySettingsGlobals(setting)
     }
 }

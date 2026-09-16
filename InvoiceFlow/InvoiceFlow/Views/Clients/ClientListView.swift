@@ -90,6 +90,7 @@ struct ClientListView: View {
     
     private func deleteClient(_ client: Client) {
         modelContext.delete(client)
+        modelContext.persist()
     }
 }
 

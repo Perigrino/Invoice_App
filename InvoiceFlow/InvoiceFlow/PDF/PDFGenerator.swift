@@ -332,9 +332,20 @@ private struct DarkTheme: View {
             .padding(.bottom, 24)
         }
         .frame(width: spec.width, height: data.dynamicHeight(for: paperSize))
-        .background(bgColor)
+        .background {
+            ZStack {
+                bgColor
+                NoiseTexture(
+                    dotColor: Color.white.opacity(0.06),
+                    opacity: 0.35,
+                    density: 8000,
+                    blendMode: .screen
+                )
+                .allowsHitTesting(false)
+            }
+        }
     }
-    
+
     private func refRow(_ label: String, _ value: String) -> some View {
         HStack(spacing: 8) {
             Text(label).font(dynamicFont(size: sz, family: family)).foregroundColor(textColor.opacity(0.5))
@@ -504,7 +515,18 @@ private struct LightTheme: View {
             .padding(.bottom, 24)
         }
         .frame(width: spec.width, height: data.dynamicHeight(for: paperSize))
-        .background(bgColor)
+        .background {
+            ZStack {
+                bgColor
+                NoiseTexture(
+                    dotColor: Color.black.opacity(0.05),
+                    opacity: 0.35,
+                    density: 8000,
+                    blendMode: .multiply
+                )
+                .allowsHitTesting(false)
+            }
+        }
     }
     
     private func refRow(_ label: String, _ value: String) -> some View {
@@ -589,5 +611,52 @@ private struct BracketLabel: View {
             Text(" \(text) ").foregroundColor(textColor)
             Text("]").foregroundColor(accent)
         }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MARK: - Paper Texture
+// ═══════════════════════════════════════════════════════════════
+
+private struct NoiseTexture: View {
+    let dotColor: Color
+    let opacity: Double
+    let density: Int
+    var blendMode: BlendMode = .normal
+
+    var body: some View {
+        if let tile = Self.tile(density: density, color: dotColor) {
+            Image(nsImage: tile)
+                .resizable(resizingMode: .tile)
+                .blendMode(blendMode)
+                .opacity(opacity)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private static func tile(density: Int, color: Color) -> NSImage? {
+        let side: CGFloat = 256
+        guard let context = CGContext(
+            data: nil,
+            width: Int(side),
+            height: Int(side),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+
+        let resolved = NSColor(color).usingColorSpace(.deviceRGB)?.cgColor
+            ?? CGColor(gray: 0, alpha: 0)
+        context.setFillColor(resolved)
+
+        for _ in 0..<density {
+            let x = CGFloat.random(in: 0..<side)
+            let y = CGFloat.random(in: 0..<side)
+            context.fill(CGRect(x: x, y: y, width: 1, height: 1))
+        }
+
+        guard let cgImage = context.makeImage() else { return nil }
+        return NSImage(cgImage: cgImage, size: NSSize(width: side, height: side))
     }
 }

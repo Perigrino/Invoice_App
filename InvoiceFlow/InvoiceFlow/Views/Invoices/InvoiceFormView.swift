@@ -235,14 +235,10 @@ struct InvoiceFormView: View {
                     
                     // Notes
                     formSection(title: "Notes") {
-                        TextEditor(text: $notes)
+                        TextField("Notes", text: $notes, axis: .vertical)
+                            .lineLimit(2...8)
+                            .textFieldStyle(.roundedBorder)
                             .font(.body)
-                            .frame(minHeight: 80)
-                            .padding(4)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                            )
                     }
                 }
                 .padding(20)
@@ -286,7 +282,8 @@ struct InvoiceFormView: View {
         )
         
         HStack(spacing: 0) {
-            TextField("Item description", text: binding.itemDescription)
+            TextField("Item description", text: binding.itemDescription, axis: .vertical)
+                .lineLimit(1...3)
                 .textFieldStyle(.plain)
                 .frame(maxWidth: .infinity, alignment: .leading)
             TextField("1", value: binding.quantity, format: .number)
@@ -464,6 +461,10 @@ struct InvoiceFormView: View {
             saveLineItems(to: newInvoice)
             modelContext.insert(newInvoice)
         }
+        
+        // Persist to disk immediately (including replaced line items);
+        // otherwise the invoice only lives in memory and is lost on quit.
+        modelContext.persist()
         
         dismiss()
     }

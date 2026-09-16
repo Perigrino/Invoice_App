@@ -58,14 +58,16 @@ struct ClientFormView: View {
                                 Text("Full Name *")
                                     .font(.caption.bold())
                                     .foregroundColor(.secondary)
-                                TextField("e.g. John Smith", text: $fullName)
+                                TextField("e.g. John Smith", text: $fullName, axis: .vertical)
+                                    .lineLimit(1...3)
                                     .textFieldStyle(.roundedBorder)
                             }
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Company")
                                     .font(.caption.bold())
                                     .foregroundColor(.secondary)
-                                TextField("e.g. Acme Corp", text: $company)
+                                TextField("e.g. Acme Corp", text: $company, axis: .vertical)
+                                    .lineLimit(1...3)
                                     .textFieldStyle(.roundedBorder)
                             }
                         }
@@ -96,7 +98,8 @@ struct ClientFormView: View {
                                 Text("Address")
                                     .font(.caption.bold())
                                     .foregroundColor(.secondary)
-                                TextField("e.g. 123 Main St, City, Country", text: $address)
+                                TextField("e.g. 123 Main St, City, Country", text: $address, axis: .vertical)
+                                    .lineLimit(1...4)
                                     .textFieldStyle(.roundedBorder)
                             }
                         }
@@ -174,6 +177,9 @@ struct ClientFormView: View {
             )
             modelContext.insert(newClient)
         }
+        // Persist to disk immediately; otherwise the record only lives in
+        // memory and is lost when the app quits.
+        modelContext.persist()
         dismiss()
     }
 }

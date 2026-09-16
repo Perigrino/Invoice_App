@@ -240,10 +240,10 @@ struct PDFExportView: View {
     
     private var notesSection: some View {
         section("Notes") {
-            TextEditor(text: $notes)
+            TextField("Notes", text: $notes, axis: .vertical)
+                .lineLimit(2...8)
+                .textFieldStyle(.roundedBorder)
                 .font(.body)
-                .frame(minHeight: 70)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.2), lineWidth: 1))
         }
     }
     
@@ -436,7 +436,8 @@ struct LineItemDraftRow: View {
     var body: some View {
         VStack(spacing: 6) {
             HStack {
-                TextField("Description", text: $item.description)
+                TextField("Description", text: $item.description, axis: .vertical)
+                    .lineLimit(1...3)
                 Spacer()
             }
             HStack(spacing: 6) {
