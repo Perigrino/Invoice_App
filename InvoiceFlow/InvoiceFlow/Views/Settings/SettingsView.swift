@@ -103,6 +103,7 @@ struct SettingsView: View {
         s.isActive = true
         setting = s
         applySettingsGlobals(s)
+        modelContext.persist()
     }
 
     private func createProfile() {
@@ -115,6 +116,7 @@ struct SettingsView: View {
     private func deleteProfile(_ s: Setting) {
         let remaining = allSettings.filter { $0.id != s.id }
         modelContext.delete(s)
+        modelContext.persist()
         if let next = remaining.first {
             switchProfile(next)
         }
@@ -138,10 +140,10 @@ struct ProfileSettingsView: View {
         ScrollView {
             VStack(spacing: 20) {
                 section("Company Information") {
-                    row("Company Name", text: $companyName, placeholder: "Acme Inc.")
+                    row("Company Name", text: $companyName, placeholder: "Acme Inc.", wraps: true)
                     row("Email", text: $companyEmail, placeholder: "billing@acme.com")
                     row("Phone", text: $companyPhone, placeholder: "+1 (555) 123-4567")
-                    row("Address", text: $companyAddress, placeholder: "123 Main St, City, Country")
+                    row("Address", text: $companyAddress, placeholder: "123 Main St, City, Country", wraps: true)
                     row("Website", text: $companyWebsite, placeholder: "https://acme.com")
                 }
 
@@ -182,6 +184,7 @@ struct ProfileSettingsView: View {
                             if setting.logoData != nil {
                                 Button("Remove Logo") {
                                     setting.logoData = nil
+                                    modelContext.persist()
                                 }
                                 .foregroundColor(.red)
                             }
@@ -225,6 +228,7 @@ struct ProfileSettingsView: View {
         setting.companyPhone = companyPhone
         setting.companyAddress = companyAddress
         setting.companyWebsite = companyWebsite
+        modelContext.persist()
         saved = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             withAnimation { saved = false }
@@ -237,6 +241,7 @@ struct ProfileSettingsView: View {
         panel.allowsMultipleSelection = false
         if panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) {
             setting.logoData = data
+            modelContext.persist()
         }
     }
 
@@ -252,10 +257,16 @@ struct ProfileSettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
-    private func row(_ label: String, text: Binding<String>, placeholder: String) -> some View {
-        HStack {
+    private func row(_ label: String, text: Binding<String>, placeholder: String, wraps: Bool = false) -> some View {
+        HStack(alignment: .top) {
             Text(label).frame(width: 120, alignment: .leading)
-            TextField(placeholder, text: text).textFieldStyle(.roundedBorder)
+            if wraps {
+                TextField(placeholder, text: text, axis: .vertical)
+                    .lineLimit(1...3)
+                    .textFieldStyle(.roundedBorder)
+            } else {
+                TextField(placeholder, text: text).textFieldStyle(.roundedBorder)
+            }
             Spacer()
         }
     }
@@ -265,6 +276,7 @@ struct ProfileSettingsView: View {
 
 struct InvoiceSettingsView: View {
     @Bindable var setting: Setting
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         ScrollView {
@@ -301,14 +313,25 @@ struct InvoiceSettingsView: View {
                 }
 
                 section("Default Notes") {
-                    TextEditor(text: $setting.notes)
+                    TextField("Notes", text: $setting.notes, axis: .vertical)
+                        .lineLimit(2...8)
+                        .textFieldStyle(.roundedBorder)
                         .font(.body)
-                        .frame(minHeight: 80)
-                        .padding(4)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.2), lineWidth: 1))
                 }
             }
             .padding(20)
+            // Persist settings edits as they happen; autosave is unreliable here.
+            .onChange(of: setting.showInvoiceId) { _, _ in modelContext.persist() }
+            .onChange(of: setting.showDueDate) { _, _ in modelContext.persist() }
+            .onChange(of: setting.showCurrency) { _, _ in modelContext.persist() }
+            .onChange(of: setting.showDiscount) { _, _ in modelContext.persist() }
+            .onChange(of: setting.showTax) { _, _ in modelContext.persist() }
+            .onChange(of: setting.showNote) { _, _ in modelContext.persist() }
+            .onChange(of: setting.template) { _, _ in modelContext.persist() }
+            .onChange(of: setting.paperSize) { _, _ in modelContext.persist() }
+            .onChange(of: setting.pdfAccentColor) { _, _ in modelContext.persist() }
+            .onChange(of: setting.pdfSecondaryColor) { _, _ in modelContext.persist() }
+            .onChange(of: setting.notes) { _, _ in modelContext.persist() }
         }
     }
 
@@ -356,6 +379,7 @@ struct InvoiceSettingsView: View {
 
 struct CurrencySettingsView: View {
     @Bindable var setting: Setting
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         ScrollView {
@@ -388,6 +412,11 @@ struct CurrencySettingsView: View {
                 }
             }
             .padding(20)
+            .onChange(of: setting.currency) { _, _ in modelContext.persist() }
+            .onChange(of: setting.separator) { _, _ in modelContext.persist() }
+            .onChange(of: setting.decimalPlaces) { _, _ in modelContext.persist() }
+            .onChange(of: setting.signPlacement) { _, _ in modelContext.persist() }
+            .onChange(of: setting.dateFormat) { _, _ in modelContext.persist() }
         }
     }
 
@@ -407,7 +436,10 @@ struct CurrencySettingsView: View {
 
 struct GeneralSettingsView: View {
     @Bindable var setting: Setting
+    @Environment(\.modelContext) private var modelContext
     @State private var exportPath: String = ""
+    @State private var snapshots: [URL] = []
+    @State private var pendingRestore = false
 
     var body: some View {
         ScrollView {
@@ -432,15 +464,128 @@ struct GeneralSettingsView: View {
                         ("en","English"),("fr","Français"),("es","Español"),("ar","العربية")
                     ])
                 }
+                section("Backup & Restore") {
+                    HStack(spacing: 12) {
+                        Button("Export Backup…") {
+                            BackupCoordinator.exportBackup(from: modelContext)
+                        }
+                        Button("Import Backup…") {
+                            BackupCoordinator.importBackup(into: modelContext)
+                        }
+                        Spacer()
+                    }
+                    Text("Export saves every client, invoice, and settings profile as a JSON file. Import restores from a backup — matching records are updated in place and nothing is deleted.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                section("Automatic Snapshots") {
+                    Text("A snapshot of your data is saved every time the app quits. The last \(RollingBackupService.keepCount) are kept.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    if pendingRestore {
+                        HStack {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundColor(.orange)
+                            Text("A restore is scheduled — it will apply the next time the app launches.")
+                                .font(.caption)
+                            Spacer()
+                            Button("Cancel Restore") {
+                                RollingBackupService.clearStagedRestore()
+                                refreshSnapshots()
+                            }
+                        }
+                    }
+
+                    if snapshots.isEmpty {
+                        Text("No snapshots yet — one will be created the next time you quit the app.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(snapshots.reversed(), id: \.absoluteString) { snapshot in
+                            HStack {
+                                Image(systemName: "externaldrive.badge.timemachine")
+                                    .foregroundColor(.secondary)
+                                Text(snapshotLabel(snapshot))
+                                Spacer()
+                                Button("Restore") { confirmRestore(snapshot) }
+                            }
+                        }
+                    }
+
+                    HStack {
+                        Button("Show in Finder") {
+                            NSWorkspace.shared.activateFileViewerSelecting([RollingBackupService.backupsDirectory])
+                        }
+                        Spacer()
+                    }
+                }
             }
             .padding(20)
+            .onChange(of: setting.darkMode) { _, _ in modelContext.persist() }
+            .onChange(of: setting.language) { _, _ in modelContext.persist() }
         }
         .onAppear {
             exportPath = setting.exportPath ?? ""
+            refreshSnapshots()
         }
         .onChange(of: exportPath) { _, newValue in
             setting.exportPath = newValue
+            modelContext.persist()
         }
+    }
+
+    // MARK: Automatic snapshots
+
+    private func refreshSnapshots() {
+        snapshots = RollingBackupService.snapshots()
+        pendingRestore = FileManager.default.fileExists(atPath: RollingBackupService.stagedRestoreURL.path)
+    }
+
+    private func snapshotLabel(_ snapshot: URL) -> String {
+        if let date = RollingBackupService.snapshotDate(snapshot) {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
+        }
+        return snapshot.lastPathComponent
+    }
+
+    private func confirmRestore(_ snapshot: URL) {
+        let alert = NSAlert()
+        alert.messageText = "Restore snapshot?"
+        alert.informativeText = """
+            Your current clients and invoices will be replaced by the snapshot from \(snapshotLabel(snapshot)) the next time InvoiceFlow launches.
+
+            Continue?
+            """
+        alert.addButton(withTitle: "Restore & Quit")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        do {
+            try RollingBackupService.stageRestore(snapshot: snapshot)
+            // Don't snapshot the doomed store over the backup set on the way out.
+            AppDelegate.suppressNextSnapshot = true
+            let confirm = NSAlert()
+            confirm.messageText = "Restore scheduled"
+            confirm.informativeText = "InvoiceFlow will now quit. Reopen it to complete the restore."
+            confirm.alertStyle = .informational
+            confirm.runModal()
+            NSApp.terminate(nil)
+        } catch {
+            presentRestoreError(error)
+        }
+    }
+
+    private func presentRestoreError(_ error: Error) {
+        let alert = NSAlert()
+        alert.messageText = "Restore failed"
+        alert.informativeText = error.localizedDescription
+        alert.alertStyle = .critical
+        alert.runModal()
     }
 
     private func chooseExportFolder() {

@@ -46,6 +46,12 @@ next-env.d.ts
 # desktop packaging
 /dist
 /release
+
+# Xcode DerivedData folders
+InvoiceFlow/InvoiceFlow-*/
+
+# built installer (source vs packaged artifact)
+InvoiceFlow/dist/
 /prisma/*.db
 /prisma/*.db-journal
 /prisma/*.db-wal

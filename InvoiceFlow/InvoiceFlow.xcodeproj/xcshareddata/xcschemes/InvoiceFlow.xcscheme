@@ -34,6 +34,20 @@
                ReferencedContainer = "container:InvoiceFlow.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "TB_TGT01"
+               BuildableName = "InvoiceFlowTests.xctest"
+               BlueprintName = "InvoiceFlowTests"
+               ReferencedContainer = "container:InvoiceFlow.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -45,6 +59,16 @@
       <Testables>
          <TestableReference
             skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "TB_TGT01"
+               BuildableName = "InvoiceFlowTests.xctest"
+               BlueprintName = "InvoiceFlowTests"
+               ReferencedContainer = "container:InvoiceFlow.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "UT_TGT01"

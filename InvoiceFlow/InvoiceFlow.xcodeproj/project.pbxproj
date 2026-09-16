@@ -24,13 +24,24 @@
 		BF16 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR16 /* SettingsView.swift */; };
 		BF17 /* PDFGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR17 /* PDFGenerator.swift */; };
 		BF18 /* PDFTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR18 /* PDFTemplate.swift */; };
+		BS01 /* BackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFR01 /* BackupService.swift */; };
+		BS02 /* RollingBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFR02 /* RollingBackupService.swift */; };
 		BF12 /* PDFExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR12 /* PDFExportView.swift */; };
 		AA0000000000000000000019 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000018 /* Assets.xcassets */; };
 		UT_BF01 /* InvoiceFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT_FR01 /* InvoiceFlowUITests.swift */; };
+		TB01 /* PersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR01 /* PersistenceTests.swift */; };
+		TB02 /* RollingBackupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR02 /* RollingBackupTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		UT_PROXY01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000000000000000000011 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0000000000000000000010;
+			remoteInfo = InvoiceFlow;
+		};
+		TB_PROXY01 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = AA0000000000000000000011 /* Project object */;
 			proxyType = 1;
@@ -58,10 +69,15 @@
 		FR17 /* PDFGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFGenerator.swift; sourceTree = "<group>"; };
 		FR18 /* PDFTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFTemplate.swift; sourceTree = "<group>"; };
 		FR12 /* PDFExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportView.swift; sourceTree = "<group>"; };
+		BFR01 /* BackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupService.swift; sourceTree = "<group>"; };
+		BFR02 /* RollingBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RollingBackupService.swift; sourceTree = "<group>"; };
 		AA0000000000000000000018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA000000000000000000000C /* InvoiceFlow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = InvoiceFlow.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		UT_FR01 /* InvoiceFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceFlowUITests.swift; sourceTree = "<group>"; };
 		UT_PR01 /* InvoiceFlowUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InvoiceFlowUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		TB_FR01 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
+		TB_FR02 /* RollingBackupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RollingBackupTests.swift; sourceTree = "<group>"; };
+		TB_PR01 /* InvoiceFlowTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InvoiceFlowTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,6 +89,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		UT_FP01 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		TB_FP01 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -147,6 +170,8 @@
 		AA0000000000000000000006 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				BFR01,
+				BFR02,
 				FR11,
 			);
 			path = Components;
@@ -165,6 +190,7 @@
 			children = (
 				AA000000000000000000000C,
 				UT_PR01,
+				TB_PR01,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -179,6 +205,7 @@
 				AA000000000000000000000A,
 				AA000000000000000000000B,
 				UT_GRP01,
+				TB_GRP01,
 			);
 			name = Root;
 			path = InvoiceFlow;
@@ -190,6 +217,15 @@
 				UT_FR01,
 			);
 			path = InvoiceFlowUITests;
+			sourceTree = "<group>";
+		};
+		TB_GRP01 /* InvoiceFlowTests */ = {
+			isa = PBXGroup;
+			children = (
+				TB_FR01,
+				TB_FR02,
+			);
+			path = InvoiceFlowTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -230,6 +266,24 @@
 			productReference = UT_PR01 /* InvoiceFlowUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		TB_TGT01 /* InvoiceFlowTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = TB_CL01 /* Build configuration list for PBXNativeTarget "InvoiceFlowTests" */;
+			buildPhases = (
+				TB_SRC01 /* Sources */,
+				TB_FP01 /* Frameworks */,
+				TB_RES01 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				TB_DEP01 /* PBXTargetDependency */,
+			);
+			name = InvoiceFlowTests;
+			productName = InvoiceFlowTests;
+			productReference = TB_PR01 /* InvoiceFlowTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -244,6 +298,10 @@
 						CreatedOnToolsVersion = 16.0;
 					};
 					UT_TGT01 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = AA0000000000000000000010;
+					};
+					TB_TGT01 = {
 						CreatedOnToolsVersion = 16.0;
 						TestTargetID = AA0000000000000000000010;
 					};
@@ -264,6 +322,7 @@
 			targets = (
 				AA0000000000000000000010 /* InvoiceFlow */,
 				UT_TGT01 /* InvoiceFlowUITests */,
+				TB_TGT01 /* InvoiceFlowTests */,
 			);
 		};
 /* End PBXProject section */
@@ -278,6 +337,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		UT_RES01 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		TB_RES01 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -309,6 +375,8 @@
 				BF17 /* PDFGenerator.swift in Sources */,
 				BF18 /* PDFTemplate.swift in Sources */,
 				BF12 /* PDFExportView.swift in Sources */,
+				BS01 /* BackupService.swift in Sources */,
+				BS02 /* RollingBackupService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -320,6 +388,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		TB_SRC01 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				TB01 /* PersistenceTests.swift in Sources */,
+				TB02 /* RollingBackupTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -327,6 +404,11 @@
 			isa = PBXTargetDependency;
 			target = AA0000000000000000000010 /* InvoiceFlow */;
 			targetProxy = UT_PROXY01 /* PBXContainerItemProxy */;
+		};
+		TB_DEP01 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0000000000000000000010 /* InvoiceFlow */;
+			targetProxy = TB_PROXY01 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -389,7 +471,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -397,7 +479,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 2.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.invoiceflow.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -412,7 +494,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -420,7 +502,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 2.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.invoiceflow.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -464,6 +546,42 @@
 			};
 			name = Release;
 		};
+		TB_BC01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.invoiceflow.app.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/InvoiceFlow.app/Contents/MacOS/InvoiceFlow";
+			};
+			name = Debug;
+		};
+		TB_BC02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.invoiceflow.app.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/InvoiceFlow.app/Contents/MacOS/InvoiceFlow";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -490,6 +608,15 @@
 			buildConfigurations = (
 				UT_BC01 /* Debug */,
 				UT_BC02 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		TB_CL01 /* Build configuration list for PBXNativeTarget "InvoiceFlowTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				TB_BC01 /* Debug */,
+				TB_BC02 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
