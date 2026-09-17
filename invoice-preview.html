@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Template Preview — v3 (Subtle Accents)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    background: #111;
+    color: #ccc;
+    padding: 40px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 18px;
+    color: #888;
+    margin-bottom: 8px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .subtitle {
+    text-align: center;
+    font-size: 11px;
+    color: #555;
+    margin-bottom: 8px;
+  }
+
+  .changes-list {
+    text-align: center;
+    font-size: 10px;
+    color: #6b8;
+    margin-bottom: 36px;
+    letter-spacing: 0.5px;
+  }
+
+  .preview-grid {
+    display: flex;
+    gap: 48px;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .preview-card { flex: 0 0 auto; }
+
+  .preview-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-left: 4px;
+  }
+  .preview-label.dark { color: #00ccff; }
+  .preview-label.light { color: #2563eb; }
+
+  /* ────────────────────────────────────────────────── */
+  /* INVOICE FRAME                                      */
+  /* ────────────────────────────────────────────────── */
+
+  .invoice-frame {
+    width: 680px;
+    padding: 32px 36px;
+    border: 1.5px dashed;
+    border-radius: 2px;
+    font-size: 11.5px;
+    line-height: 1.65;
+    position: relative;
+  }
+
+  /* ── DARK MODE ── */
+  .invoice-frame.dark {
+    background: #0d0d14;
+    border-color: #333;
+    color: #999;
+  }
+  .invoice-frame.dark .header-label { color: #60a5fa; }
+  .invoice-frame.dark .company-name { color: #ddd; }
+  .invoice-frame.dark .section-label { color: #666; }
+  .invoice-frame.dark .table-header { color: #666; border-color: #222; }
+  .invoice-frame.dark .table-row { color: #999; border-color: #1a1a1a; }
+  .invoice-frame.dark .table-row-bold { color: #ccc; }
+  .invoice-frame.dark .total-label { color: #666; }
+  .invoice-frame.dark .total-value { color: #ccc; }
+  .invoice-frame.dark .total-due { color: #fff; }
+  .invoice-frame.dark .separator { color: #222; }
+  .invoice-frame.dark .notes-text { color: #888; }
+  .invoice-frame.dark .ref-label { color: #555; }
+  .invoice-frame.dark .ref-value { color: #aaa; }
+  .invoice-frame.dark .logo-text { color: #ddd; }
+  .invoice-frame.dark .discount-value { color: #f87171; }
+  .invoice-frame.dark .logo-icon { border-color: #60a5fa; color: #60a5fa; }
+  .invoice-frame.dark .accent-line { background: #60a5fa; }
+  .invoice-frame.dark .section-bracket { color: #60a5fa; }
+  .invoice-frame.dark .total-due-accent { color: #60a5fa; }
+
+  /* ── LIGHT MODE ── */
+  .invoice-frame.light {
+    background: #fafafa;
+    border-color: #ccc;
+    color: #555;
+  }
+  .invoice-frame.light .header-label { color: #2563eb; }
+  .invoice-frame.light .company-name { color: #111; }
+  .invoice-frame.light .section-label { color: #888; }
+  .invoice-frame.light .table-header { color: #888; border-color: #ddd; }
+  .invoice-frame.light .table-row { color: #666; border-color: #eee; }
+  .invoice-frame.light .table-row-bold { color: #222; }
+  .invoice-frame.light .total-label { color: #888; }
+  .invoice-frame.light .total-value { color: #333; }
+  .invoice-frame.light .total-due { color: #000; }
+  .invoice-frame.light .separator { color: #ddd; }
+  .invoice-frame.light .notes-text { color: #666; }
+  .invoice-frame.light .ref-label { color: #999; }
+  .invoice-frame.light .ref-value { color: #444; }
+  .invoice-frame.light .logo-text { color: #111; }
+  .invoice-frame.light .discount-value { color: #dc2626; }
+  .invoice-frame.light .logo-icon { border-color: #2563eb; color: #2563eb; }
+  .invoice-frame.light .accent-line { background: #2563eb; }
+  .invoice-frame.light .section-bracket { color: #2563eb; }
+  .invoice-frame.light .total-due-accent { color: #2563eb; }
+
+  /* ── LAYOUT ── */
+
+  .header-center {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .header-label {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+
+  .top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+
+  .logo-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+
+  .logo-text {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .ref-section {
+    text-align: right;
+    font-size: 11px;
+    line-height: 1.7;
+  }
+
+  .ref-label {
+    display: inline-block;
+    width: 55px;
+    text-align: left;
+  }
+
+  .ref-value {
+    display: inline-block;
+    width: 180px;
+    text-align: right;
+    font-weight: 500;
+  }
+
+  .separator {
+    text-align: center;
+    margin: 4px 0 20px 0;
+    font-size: 10px;
+    letter-spacing: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .accent-line {
+    height: 1px;
+    width: 100%;
+    margin: 4px 0 20px 0;
+    opacity: 0.4;
+  }
+
+  .addresses-row {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 16px;
+  }
+
+  .address-block { flex: 1; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .section-bracket {
+    font-weight: 700;
+  }
+
+  .company-name {
+    font-weight: 700;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+
+  .address-line {
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  /* ── TABLE ── */
+
+  .table-section { margin-top: 8px; }
+
+  .table-header {
+    display: flex;
+    padding: 6px 0;
+    border-bottom: 1px dashed;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .table-header .col-desc { flex: 4; }
+  .table-header .col-qty { flex: 1; text-align: right; }
+  .table-header .col-price { flex: 1.2; text-align: right; }
+  .table-header .col-amount { flex: 1.2; text-align: right; }
+
+  .table-row {
+    display: flex;
+    padding: 10px 0;
+    border-bottom: 1px dashed;
+    font-size: 11px;
+    align-items: flex-start;
+  }
+
+  .table-row .col-desc { flex: 4; }
+  .table-row .col-qty { flex: 1; text-align: right; padding-top: 1px; }
+  .table-row .col-price { flex: 1.2; text-align: right; padding-top: 1px; }
+  .table-row .col-amount { flex: 1.2; text-align: right; padding-top: 1px; }
+
+  .table-row-bold { font-weight: 700; }
+
+  .item-sub {
+    font-size: 10px;
+    opacity: 0.65;
+    margin-top: 3px;
+    line-height: 1.5;
+  }
+
+  /* ── TOTALS ── */
+
+  .totals-section {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+    padding-top: 8px;
+    border-top: 1px dashed;
+  }
+
+  .totals-table {
+    font-size: 11px;
+    line-height: 1.8;
+  }
+
+  .totals-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 32px;
+  }
+
+  .totals-row.total-final {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed;
+  }
+
+  .total-label { text-align: left; }
+
+  .total-value {
+    text-align: right;
+    font-weight: 500;
+  }
+
+  .total-due {
+    font-weight: 700;
+    font-size: 12px;
+  }
+
+  .discount-value { color: #f87171; }
+
+  /* ── NOTES ── */
+
+  .notes-section {
+    margin-top: 60px;
+    font-size: 11px;
+    line-height: 1.7;
+  }
+
+  .notes-text {
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<h1>Invoice Template Preview — v3</h1>
+<p class="subtitle">Subtle accent colors added — logo icon, section brackets, total due, accent line</p>
+<div class="changes-list">
+  ✓ Blue accent on logo icon &nbsp;&nbsp;|&nbsp;&nbsp; ✓ Section brackets colored &nbsp;&nbsp;|&nbsp;&nbsp; ✓ Thin accent line separator &nbsp;&nbsp;|&nbsp;&nbsp; ✓ Total due highlighted
+</div>
+
+<div class="preview-grid">
+
+  <!-- ═══════════════ DARK MODE ═══════════════ -->
+  <div class="preview-card">
+    <div class="preview-label dark">■ Dark Mode</div>
+    <div class="invoice-frame dark">
+
+      <div class="header-center">
+        <span class="header-label">[ Invoice — $5,400.00 ]</span>
+      </div>
+
+      <div class="top-row">
+        <div class="logo-section">
+          <div class="logo-icon">⬡</div>
+          <span class="logo-text">YourCompany</span>
+        </div>
+        <div class="ref-section">
+          <div><span class="ref-label">Ref</span><span class="ref-value">INV-2026-0001</span></div>
+          <div><span class="ref-label">Issued</span><span class="ref-value">19 Aug 2026</span></div>
+          <div><span class="ref-label">Due</span><span class="ref-value">02 Sep 2026 · Net 14</span></div>
+        </div>
+      </div>
+
+      <div class="accent-line"></div>
+
+      <div class="addresses-row">
+        <div class="address-block">
+          <div class="section-label"><span class="section-bracket">[</span> From <span class="section-bracket">]</span></div>
+          <div class="company-name">Your Company LLC</div>
+          <div class="address-line">
+            123 Business Ave<br>
+            San Francisco, CA 94102<br>
+            United States
+          </div>
+        </div>
+        <div class="address-block">
+          <div class="section-label"><span class="section-bracket">[</span> Bill to <span class="section-bracket">]</span></div>
+          <div class="company-name">Client Corp</div>
+          <div class="address-line">
+            456 Client Street<br>
+            New York, NY 10001<br>
+            United States
+          </div>
+        </div>
+      </div>
+
+      <div class="accent-line"></div>
+
+      <div class="table-section">
+        <div class="table-header">
+          <div class="col-desc">Description</div>
+          <div class="col-qty">Qty</div>
+          <div class="col-price">Unit price</div>
+          <div class="col-amount">Amount</div>
+        </div>
+
+        <div class="table-row">
+          <div class="col-desc">
+            <div class="table-row-bold">Web Design Service</div>
+            <div class="item-sub">Homepage redesign, mobile responsive</div>
+          </div>
+          <div class="col-qty">1</div>
+          <div class="col-price">$3,500.00</div>
+          <div class="col-amount">$3,500.00</div>
+        </div>
+
+        <div class="table-row">
+          <div class="col-desc">
+            <div class="table-row-bold">SEO Optimization</div>
+            <div class="item-sub">Technical SEO audit and implementation</div>
+          </div>
+          <div class="col-qty">1</div>
+          <div class="col-price">$1,200.00</div>
+          <div class="col-amount">$1,200.00</div>
+        </div>
+
+        <div class="table-row">
+          <div class="col-desc">
+            <div class="table-row-bold">Monthly Hosting</div>
+            <div class="item-sub">Aug 2026 — Premium managed hosting</div>
+          </div>
+          <div class="col-qty">1</div>
+          <div class="col-price">$900.00</div>
+          <div class="col-amount">$900.00</div>
+        </div>
+      </div>
+
+      <div class="totals-section">
+        <div class="totals-table">
+          <div class="totals-row">
+            <span class="total-label">Subtotal</span>
+            <span class="total-value">$5,600.00</span>
+          </div>
+          <div class="totals-row">
+            <span class="total-label">Discount</span>
+            <span class="total-value discount-value">-$200.00</span>
+          </div>
+          <div class="totals-row total-final">
+            <span class="total-label total-due total-due-accent">Total due</span>
+            <span class="total-value total-due total-due-accent">$5,400.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes-section">
+        <div class="notes-text">
+          Thank you for your business! Payment is due within 14 days of invoice date.<br>
+          Please include the invoice reference number when making payment.<br>
+          For questions, contact billing@yourcompany.com
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════ LIGHT MODE ═══════════════ -->
+  <div class="preview-card">
+    <div class="preview-label light">■ Light Mode</div>
+    <div class="invoice-frame light">
+
+      <div class="header-center">
+        <span class="header-label">[ Invoice — $5,400.00 ]</span>
+      </div>
+
+      <div class="top-row">
+        <div class="logo-section">
+          <div class="logo-icon">⬡</div>
+          <span class="logo-text">YourCompany</span>
+        </div>
+        <div class="ref-section">
+          <div><span class="ref-label">Ref</span><span class="ref-value">INV-2026-0001</span></div>
+          <div><span class="ref-label">Issued</span><span class="ref-value">19 Aug 2026</span></div>
+          <div><span class="ref-label">Due</span><span class="ref-value">02 Sep 2026 · Net 14</span></div>
+        </div>
+      </div>
+
+      <div class="accent-line"></div>
+
+      <div class="addresses-row">
+        <div class="address-block">
+          <div class="section-label"><span class="section-bracket">[</span> From <span class="section-bracket">]</span></div>
+          <div class="company-name">Your Company LLC</div>
+          <div class="address-line">
+            123 Business Ave<br>
+            San Francisco, CA 94102<br>
+            United States
+          </div>
+        </div>
+        <div class="address-block">
+          <div class="section-label"><span class="section-bracket">[</span> Bill to <span class="section-bracket">]</span></div>
+          <div class="company-name">Client Corp</div>
+          <div class="address-line">
+            456 Client Street<br>
+            New York, NY 10001<br>
+            United States
+          </div>
+        </div>
+      </div>
+
+      <div class="accent-line"></div>
+
+      <div class="table-section">
+        <div class="table-header">
+          <div class="col-desc">Description</div>
+          <div class="col-qty">Qty</div>
+          <div class="col-price">Unit price</div>
+          <div class="col-amount">Amount</div>
+        </div>
+
+        <div class="table-row">
+          <div class="col-desc">
+            <div class="table-row-bold">Web Design Service</div>
+            <div class="item-sub">Homepage redesign, mobile responsive</div>
+          </div>
+          <div class="col-qty">1</div>
+          <div class="col-price">$3,500.00</div>
+          <div class="col-amount">$3,500.00</div>
+        </div>
+
+        <div class="table-row">
+          <div class="col-desc">
+            <div class="table-row-bold">SEO Optimization</div>
+            <div class="item-sub">Technical SEO audit and implementation</div>
+          </div>
+          <div class="col-qty">1</div>
+          <div class="col-price">$1,200.00</div>
+          <div class="col-amount">$1,200.00</div>
+        </div>
+
+        <div class="table-row">
+          <div class="col-desc">
+            <div class="table-row-bold">Monthly Hosting</div>
+            <div class="item-sub">Aug 2026 — Premium managed hosting</div>
+          </div>
+          <div class="col-qty">1</div>
+          <div class="col-price">$900.00</div>
+          <div class="col-amount">$900.00</div>
+        </div>
+      </div>
+
+      <div class="totals-section">
+        <div class="totals-table">
+          <div class="totals-row">
+            <span class="total-label">Subtotal</span>
+            <span class="total-value">$5,600.00</span>
+          </div>
+          <div class="totals-row">
+            <span class="total-label">Discount</span>
+            <span class="total-value discount-value">-$200.00</span>
+          </div>
+          <div class="totals-row total-final">
+            <span class="total-label total-due total-due-accent">Total due</span>
+            <span class="total-value total-due total-due-accent">$5,400.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes-section">
+        <div class="notes-text">
+          Thank you for your business! Payment is due within 14 days of invoice date.<br>
+          Please include the invoice reference number when making payment.<br>
+          For questions, contact billing@yourcompany.com
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

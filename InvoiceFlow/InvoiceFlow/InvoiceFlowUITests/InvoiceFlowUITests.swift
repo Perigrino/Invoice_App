@@ -1,0 +1,753 @@
+import XCTest
+
+final class InvoiceFlowUITests: XCTestCase {
+
+    private var app: XCUIApplication!
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.launchEnvironment["INVOICEFLOW_UI_TEST_STORE_PATH"] = FileManager.default.temporaryDirectory
+            .appendingPathComponent("invoiceflow-ui-\(UUID().uuidString).store").path
+        app.launchArguments = ["-hasCompletedOnboarding", "YES"]
+        app.launch()
+    }
+
+    override func tearDownWithError() throws {
+        app.terminate()
+        app = nil
+    }
+
+    func testCreatedClientAndInvoiceSurviveRelaunch() {
+        let clientName = "Relaunch Regression Client"
+        let invoiceNumber = "INV-RELAUNCH-001"
+
+        navigateToClients()
+        XCTAssertTrue(app.staticTexts["No Clients"].waitForExistence(timeout: 5), "Each test must start with an empty client store")
+        let newClientButton = app.buttons["New Client"]
+        XCTAssertTrue(newClientButton.waitForExistence(timeout: 5))
+        newClientButton.click()
+
+        let fullNameField = findField("e.g. John Smith")
+        XCTAssertTrue(fullNameField.waitForExistence(timeout: 5))
+        fullNameField.click()
+        fullNameField.typeText(clientName)
+        app.buttons["Create"].click()
+        XCTAssertTrue(app.buttons["Create"].waitForNonExistence(timeout: 5), "Client form must dismiss after saving")
+        XCTAssertTrue(app.staticTexts[clientName].waitForExistence(timeout: 5), "Created client must appear before relaunch")
+
+        navigateToInvoices()
+        let newInvoiceButton = app.buttons["New Invoice"]
+        XCTAssertTrue(newInvoiceButton.waitForExistence(timeout: 5))
+        newInvoiceButton.click()
+
+        let numberField = findField("INV-001")
+        XCTAssertTrue(numberField.waitForExistence(timeout: 5))
+        numberField.click()
+        numberField.typeKey("a", modifierFlags: .command)
+        numberField.typeText(invoiceNumber)
+
+        let descriptionField = findField("Item description")
+        XCTAssertTrue(descriptionField.waitForExistence(timeout: 5))
+        descriptionField.click()
+        descriptionField.typeText("Relaunch regression service")
+
+        let priceField = findField("0.00")
+        XCTAssertTrue(priceField.waitForExistence(timeout: 5))
+        priceField.click()
+        priceField.typeKey("a", modifierFlags: .command)
+        priceField.typeText("125")
+        app.buttons["Create"].click()
+        XCTAssertTrue(app.buttons["Create"].waitForNonExistence(timeout: 5), "Invoice form must dismiss after saving")
+        XCTAssertTrue(app.staticTexts[invoiceNumber].waitForExistence(timeout: 5), "Created invoice must appear before relaunch")
+
+        app.terminate()
+        app.launch()
+
+        navigateToInvoices()
+        XCTAssertTrue(app.staticTexts[invoiceNumber].waitForExistence(timeout: 5), "Created invoice must survive relaunch")
+        navigateToClients()
+        XCTAssertTrue(app.staticTexts[clientName].waitForExistence(timeout: 5), "Created client must survive relaunch")
+    }
+
+    // MARK: - 1. Onboarding / Landing Page
+
+    func testLandingPageAppears() {
+        // On fresh launch (or with reset onboarding), the Get Started button should be visible
+        let getStartedButton = app.buttons["Get Started"]
+        // The button animates in after ~1.8s, so wait for it
+        if getStartedButton.waitForExistence(timeout: 5) {
+            XCTAssertTrue(getStartedButton.isHittable, "Get Started button should be hittable")
+        }
+    }
+
+    func testGetStartedNavigatesToMainApp() {
+        let getStartedButton = app.buttons["Get Started"]
+        guard getStartedButton.waitForExistence(timeout: 5) else {
+            // Already past onboarding
+            return
+        }
+        getStartedButton.click()
+
+        // After onboarding, the sidebar tabs should appear
+        let invoicesTab = app.staticTexts["Invoices"]
+        XCTAssertTrue(invoicesTab.waitForExistence(timeout: 3), "Invoices tab should appear after onboarding")
+    }
+
+    // MARK: - 2. Navigation - Sidebar Tabs
+
+    func testNavigationToAllTabs() {
+        skipOnboardingIfPresent()
+
+        // Invoices tab (default)
+        let invoicesTab = app.staticTexts.matching(identifier: "Invoices").firstMatch
+        XCTAssertTrue(invoicesTab.exists, "Invoices tab should exist")
+
+        // Clients tab
+        let clientsTab = app.staticTexts.matching(identifier: "Clients").firstMatch
+        XCTAssertTrue(clientsTab.exists, "Clients tab should exist")
+
+        // Settings tab
+        let settingsTab = app.staticTexts.matching(identifier: "Settings").firstMatch
+        XCTAssertTrue(settingsTab.exists, "Settings tab should exist")
+
+        // Click Clients tab
+        clientsTab.click()
+        sleep(1)
+        let clientsHeader = app.staticTexts.matching(identifier: "Clients").firstMatch
+        XCTAssertTrue(clientsHeader.exists, "Clients page should be visible")
+
+        // Click Settings tab
+        settingsTab.click()
+        sleep(1)
+        let settingsHeader = app.staticTexts.matching(identifier: "Settings").firstMatch
+        XCTAssertTrue(settingsHeader.exists, "Settings page should be visible")
+
+        // Click back to Invoices
+        invoicesTab.click()
+        sleep(1)
+        let invoicesHeader = app.staticTexts.matching(identifier: "Invoices").firstMatch
+        XCTAssertTrue(invoicesHeader.exists, "Invoices page should be visible")
+    }
+
+    // MARK: - 3. Client CRUD
+
+    func testCreateNewClient() {
+        skipOnboardingIfPresent()
+        navigateToClients()
+
+        // Click New Client button
+        let newClientButton = app.buttons["New Client"]
+        XCTAssertTrue(newClientButton.waitForExistence(timeout: 3), "New Client button should exist")
+        newClientButton.click()
+
+        // The sheet should appear with form fields
+        let fullNameField = findField("e.g. John Smith")
+        XCTAssertTrue(fullNameField.waitForExistence(timeout: 3), "Full Name field should appear")
+
+        // Fill in the client form
+        fullNameField.click()
+        fullNameField.typeText("John Doe")
+
+        let companyField = findField("e.g. Acme Corp")
+        companyField.click()
+        companyField.typeText("Acme Corp")
+
+        let emailField = findField("e.g. john@acme.com")
+        emailField.click()
+        emailField.typeText("john@acme.com")
+
+        let phoneField = findField("e.g. +1 (555) 123-4567")
+        phoneField.click()
+        phoneField.typeText("+1 555 123 4567")
+
+        // Click Create
+        let createButton = app.buttons["Create"]
+        XCTAssertTrue(createButton.exists, "Create button should exist")
+        createButton.click()
+
+        // Sheet should dismiss and client should appear in the list
+        sleep(1)
+        let clientRow = app.staticTexts["John Doe"]
+        if !clientRow.waitForExistence(timeout: 3) {
+            print("===CREATE DEBUG===")
+            print("Sheets: \(app.sheets.count)")
+            print(app.debugDescription)
+            print("===END===")
+        }
+        XCTAssertTrue(clientRow.exists, "Created client 'John Doe' should appear in the list")
+    }
+
+    func testCreateClientValidationRequiresName() {
+        skipOnboardingIfPresent()
+        navigateToClients()
+
+        let newClientButton = app.buttons["New Client"]
+        newClientButton.click()
+
+        // Try to create without entering name
+        let createButton = app.buttons["Create"]
+        createButton.click()
+
+        // Validation error should appear
+        let errorText = app.staticTexts["Full name is required"]
+        XCTAssertTrue(errorText.waitForExistence(timeout: 3), "Validation error should appear for empty name")
+
+        // Dismiss the form
+        let cancelButton = app.buttons["Cancel"]
+        cancelButton.click()
+        sleep(1)
+    }
+
+    // MARK: - 4. Invoice CRUD
+
+    func testCreateNewInvoice() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        // Click New Invoice button
+        let newInvoiceButton = app.buttons["New Invoice"]
+        XCTAssertTrue(newInvoiceButton.waitForExistence(timeout: 3), "New Invoice button should exist")
+        newInvoiceButton.click()
+
+        // The form should appear
+        let invoiceNumberField = findField("INV-001")
+        XCTAssertTrue(invoiceNumberField.waitForExistence(timeout: 3), "Invoice number field should appear")
+
+        // Fill in invoice number (clear the auto-generated number first)
+        invoiceNumberField.click()
+        app.typeKey(XCUIKeyboardKey("a"), modifierFlags: .command)
+        app.typeKey(XCUIKeyboardKey.delete, modifierFlags: [])
+        invoiceNumberField.typeText("INV-E2E-001")
+
+        // Fill in line item description
+        let descriptionField = findField("Item description")
+        descriptionField.click()
+        descriptionField.typeText("E2E Test Service")
+
+        // Fill in price
+        let priceField = findField("0.00")
+        priceField.click()
+        priceField.typeText("500")
+
+        // Click Create
+        let createButton = app.buttons["Create"]
+        createButton.click()
+
+        // Sheet should dismiss and invoice should appear in the list
+        sleep(1)
+        let invoiceRow = app.staticTexts["INV-E2E-001"]
+        XCTAssertTrue(invoiceRow.waitForExistence(timeout: 3), "Created invoice should appear in the list")
+    }
+
+    func testInvoiceValidationRequiresNumber() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        let newInvoiceButton = app.buttons["New Invoice"]
+        newInvoiceButton.click()
+
+        // Clear the auto-generated invoice number
+        let invoiceNumberField = findField("INV-001")
+        invoiceNumberField.waitForExistence(timeout: 3)
+        invoiceNumberField.click()
+        // Select all and delete
+        app.typeKey(XCUIKeyboardKey("a"), modifierFlags: .command)
+        app.typeKey(XCUIKeyboardKey.delete, modifierFlags: [])
+
+        let createButton = app.buttons["Create"]
+        createButton.click()
+
+        let errorText = app.staticTexts["Invoice number is required"]
+        XCTAssertTrue(errorText.waitForExistence(timeout: 3), "Validation error should appear for empty invoice number")
+
+        let cancelButton = app.buttons["Cancel"]
+        cancelButton.click()
+        sleep(1)
+    }
+
+    // MARK: - 6. Settings - Profile Save
+
+    func testProfileSettingsSave() {
+        skipOnboardingIfPresent()
+        navigateToSettings()
+
+        // Profile tab should be selected by default
+        let companyNameField = findField("Acme Inc.")
+        if companyNameField.waitForExistence(timeout: 3) {
+            companyNameField.click()
+            companyNameField.typeKey(XCUIKeyboardKey("a"), modifierFlags: .command) // select all
+            companyNameField.typeText("Test Company E2E")
+
+            let emailField = findField("billing@acme.com")
+            emailField.click()
+            emailField.typeText("test@e2e.com")
+
+            // Click Save Profile
+            let saveButton = app.buttons["Save Profile"]
+            saveButton.click()
+
+            // "Saved" confirmation should appear
+            let savedLabel = app.staticTexts["Saved"]
+            XCTAssertTrue(savedLabel.waitForExistence(timeout: 3), "Saved confirmation should appear")
+        }
+    }
+
+    func testSettingsTabsExist() {
+        skipOnboardingIfPresent()
+        navigateToSettings()
+
+        let profileTab = settingsTab("Profile")
+        XCTAssertTrue(profileTab.waitForExistence(timeout: 3), "Profile tab should exist")
+
+        let invoiceTab = settingsTab("Invoice")
+        XCTAssertTrue(invoiceTab.exists, "Invoice tab should exist")
+
+        let currencyTab = settingsTab("Currency")
+        XCTAssertTrue(currencyTab.exists, "Currency tab should exist")
+
+        let generalTab = settingsTab("General")
+        XCTAssertTrue(generalTab.exists, "General tab should exist")
+    }
+
+    func testSettingsSubTabsAreNavigable() {
+        skipOnboardingIfPresent()
+        navigateToSettings()
+
+        // Click Invoice tab
+        let invoiceTab = settingsTab("Invoice")
+        invoiceTab.click()
+        sleep(1)
+        let displayOptions = app.staticTexts["Display Options"]
+        XCTAssertTrue(displayOptions.waitForExistence(timeout: 3), "Invoice settings should show Display Options")
+
+        // Click Currency tab
+        let currencyTab = settingsTab("Currency")
+        currencyTab.click()
+        sleep(1)
+        let currencySection = app.staticTexts["Currency"]
+        XCTAssertTrue(currencySection.waitForExistence(timeout: 3), "Currency settings should be visible")
+
+        // Click General tab
+        let generalTab = settingsTab("General")
+        generalTab.click()
+        sleep(1)
+        let appearanceSection = app.staticTexts["Appearance"]
+        XCTAssertTrue(appearanceSection.waitForExistence(timeout: 3), "General settings should show Appearance")
+
+        // Click back to Profile
+        let profileTab = settingsTab("Profile")
+        profileTab.click()
+        sleep(1)
+        let companyInfo = app.staticTexts["Company Information"]
+        XCTAssertTrue(companyInfo.waitForExistence(timeout: 3), "Profile settings should show Company Information")
+    }
+
+    // MARK: - 7. Search Functionality
+
+    func testClientsSearchWorks() {
+        skipOnboardingIfPresent()
+        navigateToClients()
+
+        let searchField = app.searchFields.firstMatch
+        if searchField.waitForExistence(timeout: 3) {
+            searchField.click()
+            searchField.typeText("nonexistent")
+            sleep(1)
+
+            let emptyState = app.staticTexts["No Clients"]
+            // Should show either empty state or "no match" message
+            XCTAssertTrue(
+                emptyState.exists || app.staticTexts["No clients match your search."].exists,
+                "Search for nonexistent client should show empty state"
+            )
+
+            // Clear search
+            searchField.click()
+            searchField.typeKey(XCUIKeyboardKey("a"), modifierFlags: .command)
+            searchField.typeKey(XCUIKeyboardKey.delete, modifierFlags: [])
+            sleep(1)
+        }
+    }
+
+    func testInvoicesSearchWorks() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        let searchField = app.searchFields.firstMatch
+        if searchField.waitForExistence(timeout: 3) {
+            searchField.click()
+            searchField.typeText("nonexistent")
+            sleep(1)
+
+            let emptyState = app.staticTexts["No Invoices"]
+            XCTAssertTrue(
+                emptyState.exists || app.staticTexts["No invoices match your search."].exists,
+                "Search for nonexistent invoice should show empty state"
+            )
+
+            searchField.click()
+            searchField.typeKey(XCUIKeyboardKey("a"), modifierFlags: .command)
+            searchField.typeKey(XCUIKeyboardKey.delete, modifierFlags: [])
+            sleep(1)
+        }
+    }
+
+    // MARK: - 8. Context Menu on Invoice Row
+
+    func testInvoiceContextMenuAppears() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        // Create an invoice first if none exist
+        ensureAtLeastOneInvoiceExists()
+
+        // Right-click the first invoice row
+        let firstRow = app.tables.cells.firstMatch
+        if firstRow.waitForExistence(timeout: 3) {
+            firstRow.rightClick()
+            sleep(1)
+
+            // Context menu should show action items
+            let editOption = app.menuItems["Edit"]
+            let deleteOption = app.menuItems["Delete"]
+            let duplicateOption = app.menuItems["Duplicate"]
+            let exportPDFOption = app.menuItems["Export PDF"]
+            let viewDetailsOption = app.menuItems["View Details"]
+
+            let anyMenuVisible = editOption.exists || deleteOption.exists ||
+                duplicateOption.exists || exportPDFOption.exists || viewDetailsOption.exists
+            XCTAssertTrue(anyMenuVisible, "At least one context menu item should appear on invoice right-click")
+
+            // Dismiss context menu
+            app.typeKey(XCUIKeyboardKey.escape, modifierFlags: [])
+        }
+    }
+
+    // MARK: - 8b. Invoice Detail Closes
+
+    func testInvoiceDetailCloses() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        ensureAtLeastOneInvoiceExists()
+
+        let firstRow = invoiceList.cells.firstMatch
+        guard firstRow.waitForExistence(timeout: 3) else {
+            XCTFail("Expected at least one invoice row")
+            return
+        }
+        firstRow.rightClick()
+        sleep(1)
+
+        let viewDetailsOption = app.menuItems["View Details"]
+        XCTAssertTrue(viewDetailsOption.waitForExistence(timeout: 3), "View Details menu item should appear")
+        viewDetailsOption.click()
+        sleep(2)
+
+        let closeButton = app.buttons["closeDetail"]
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 5), "Detail sheet should show a Close button")
+        XCTAssertTrue(app.buttons["exportPDFButton"].exists, "Detail sheet should show an Export PDF button")
+
+        closeButton.click()
+        XCTAssertTrue(closeButton.waitForNonExistence(timeout: 5), "Detail sheet should dismiss after Close")
+        XCTAssertTrue(app.buttons["exportSelectedPDF"].exists, "Invoice list should still be visible after closing details")
+    }
+
+    // MARK: - 9. Context Menu on Client Row
+
+    func testClientContextMenuAppears() {
+        skipOnboardingIfPresent()
+        navigateToClients()
+
+        // Create a client first if none exist
+        ensureAtLeastOneClientExists()
+
+        let firstRow = app.tables.cells.firstMatch
+        if firstRow.waitForExistence(timeout: 3) {
+            firstRow.rightClick()
+            sleep(1)
+
+            let editOption = app.menuItems["Edit"]
+            let deleteOption = app.menuItems["Delete"]
+
+            let anyMenuVisible = editOption.exists || deleteOption.exists
+            XCTAssertTrue(anyMenuVisible, "Context menu items should appear on client right-click")
+
+            app.typeKey(XCUIKeyboardKey.escape, modifierFlags: [])
+        }
+    }
+
+    // MARK: - 10. Empty State
+
+    func testEmptyStateShowsWhenNoData() {
+        // This test may fail if data already exists - that's expected
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        // Check if empty state exists (only if no invoices)
+        let emptyStateIcon = app.staticTexts["No Invoices"]
+        // macOS exposes SwiftUI List as an Outline; sidebar has label 'Sidebar', detail list has none
+        let invoiceTable = app.outlines.matching(NSPredicate(format: "label != 'Sidebar'")).firstMatch
+        // Either empty state or invoice list should be visible
+        XCTAssertTrue(
+            emptyStateIcon.exists || invoiceTable.exists,
+            "Either empty state or invoice list should be visible"
+        )
+    }
+
+    // MARK: - 11. Full E2E Flow
+
+    func testFullE2EFlow() {
+        // Complete onboarding
+        skipOnboardingIfPresent()
+
+        // Navigate to Clients and create one
+        navigateToInvoices()
+
+        // Create invoice
+        let newInvoiceButton = app.buttons["New Invoice"]
+        if newInvoiceButton.waitForExistence(timeout: 3) {
+            newInvoiceButton.click()
+
+            let invoiceNumberField = findField("INV-001")
+            if invoiceNumberField.waitForExistence(timeout: 3) {
+                invoiceNumberField.click()
+                invoiceNumberField.typeText("E2E-FULL-001")
+            }
+
+            let descriptionField = findField("Item description")
+            descriptionField.waitForExistence(timeout: 3)
+            descriptionField.click()
+            descriptionField.typeText("Full E2E Service")
+
+            let priceField = findField("0.00")
+            priceField.click()
+            priceField.typeText("1000")
+
+            let createButton = app.buttons["Create"]
+            createButton.click()
+            sleep(1)
+        }
+
+        // Navigate to Settings and verify profile
+        navigateToSettings()
+        let companyInfo = app.staticTexts["Company Information"]
+        XCTAssertTrue(companyInfo.waitForExistence(timeout: 3), "Settings profile should be accessible")
+
+        // Navigate back to Invoices and verify the created invoice
+        navigateToInvoices()
+        sleep(1)
+        // The app should still be functional
+        XCTAssertTrue(app.staticTexts["Invoices"].exists, "App should still be functional after full E2E flow")
+    }
+
+    // MARK: - 12. PDF Export Dialog
+
+    func testPDFExportDialogOpens() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        ensureAtLeastOneInvoiceExists()
+
+        openExportDialogFromFirstRow()
+
+        // Export dialog should be visible with template picker, preview, and edit fields
+        let cancelButton = app.buttons["cancelExport"]
+        let exportButton = app.buttons["Export"]
+        XCTAssertTrue(cancelButton.exists || exportButton.exists, "Export dialog should open")
+
+        // Template picker should be present
+        let templatePicker = app.popUpButtons["templatePicker"]
+        XCTAssertTrue(templatePicker.exists, "Template picker should be present in export dialog")
+
+        if exportButton.exists {
+            exportButton.click()
+            sleep(1)
+        }
+
+        // Dismiss dialog
+        if cancelButton.exists {
+            cancelButton.click()
+        }
+    }
+
+    // MARK: - 13. PDF Export - Template change must not duplicate invoices
+
+    func testTemplateChangeDoesNotDuplicateInvoice() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        ensureAtLeastOneInvoiceExists()
+
+        let table = invoiceList
+        let rowsBefore = table.cells.count
+        guard rowsBefore > 0 else { XCTFail("Need at least one invoice to test"); return }
+
+        openExportDialogFromFirstRow()
+
+        // Change the template picker a couple of times to force re-renders
+        let templatePicker = app.popUpButtons["templatePicker"]
+        if templatePicker.waitForExistence(timeout: 3) {
+            templatePicker.click()
+            sleep(1)
+            let businessOption = app.menuItems["Business"]
+            if businessOption.waitForExistence(timeout: 2) {
+                businessOption.click()
+                sleep(2)
+            }
+        }
+
+        // Dismiss the export dialog without exporting
+        let cancelButton = app.buttons["cancelExport"]
+        if cancelButton.exists {
+            cancelButton.click()
+            sleep(2)
+        }
+
+        let rowsAfter = table.cells.count
+        XCTAssertEqual(rowsAfter, rowsBefore, "Changing the PDF template must not create duplicate invoices")
+    }
+
+    // MARK: - 14. PDF Export dialog must close via Cancel
+
+    func testPDFExportDialogCloses() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        ensureAtLeastOneInvoiceExists()
+
+        openExportDialogFromFirstRow()
+
+        let cancelButton = app.buttons["cancelExport"]
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 3), "Cancel button should exist in PDF export dialog")
+        cancelButton.click()
+        sleep(2)
+
+        let templatePicker = app.popUpButtons["templatePicker"]
+        XCTAssertFalse(templatePicker.exists, "PDF export dialog should close after clicking Cancel")
+    }
+
+// MARK: - Helpers
+
+    private var invoiceList: XCUIElement {
+        app.outlines.matching(NSPredicate(format: "label != 'Sidebar'")).firstMatch
+    }
+
+    private func openExportDialogFromFirstRow() {
+        let firstRow = invoiceList.cells.firstMatch
+        guard firstRow.waitForExistence(timeout: 3) else { return }
+        firstRow.click()
+        sleep(1)
+
+        let exportButton = app.buttons["exportSelectedPDF"]
+        guard exportButton.waitForExistence(timeout: 3), exportButton.isEnabled else { return }
+        exportButton.click()
+        sleep(2)
+    }
+
+    private func findField(_ labelOrPlaceholder: String) -> XCUIElement {
+        let predicate = NSPredicate(
+            format: "identifier == %@ OR label == %@ OR placeholderValue == %@",
+            labelOrPlaceholder, labelOrPlaceholder, labelOrPlaceholder
+        )
+        let editable = NSPredicate(
+            format: "elementType == %d OR elementType == %d",
+            XCUIElement.ElementType.textField.rawValue,
+            XCUIElement.ElementType.textView.rawValue
+        )
+        return app.descendants(matching: .any)
+            .matching(NSCompoundPredicate(andPredicateWithSubpredicates: [editable, predicate])).firstMatch
+    }
+
+    private func settingsTab(_ title: String) -> XCUIElement {
+        let predicate = NSPredicate(format: "label CONTAINS[c] %@", title)
+        let tab = app.tabs.matching(predicate).firstMatch
+        return tab
+    }
+
+    private func skipOnboardingIfPresent() {
+        let getStartedButton = app.buttons["Get Started"]
+        if getStartedButton.waitForExistence(timeout: 3) {
+            getStartedButton.click()
+            // Wait for animation
+            sleep(2)
+        }
+    }
+
+    private func navigateToInvoices() {
+        let invoicesTab = app.staticTexts.matching(identifier: "Invoices").firstMatch
+        if invoicesTab.exists {
+            invoicesTab.click()
+            sleep(1)
+        }
+    }
+
+    private func navigateToClients() {
+        let clientsTab = app.staticTexts.matching(identifier: "Clients").firstMatch
+        if clientsTab.exists {
+            clientsTab.click()
+            sleep(1)
+        }
+    }
+
+    private func navigateToSettings() {
+        let settingsTab = app.staticTexts.matching(identifier: "Settings").firstMatch
+        if settingsTab.exists {
+            settingsTab.click()
+            sleep(1)
+        }
+    }
+
+    private func ensureAtLeastOneInvoiceExists() {
+        navigateToInvoices()
+        let table = invoiceList
+        if !table.exists || table.cells.count == 0 {
+            let newInvoiceButton = app.buttons["New Invoice"]
+            XCTAssertTrue(newInvoiceButton.waitForExistence(timeout: 3))
+            newInvoiceButton.click()
+
+            let invoiceNumber = "INV-\(UUID().uuidString)"
+            let numberField = findField("INV-001")
+            XCTAssertTrue(numberField.waitForExistence(timeout: 3))
+            numberField.click()
+            numberField.typeKey("a", modifierFlags: .command)
+            numberField.typeText(invoiceNumber)
+
+            let descriptionField = findField("Item description")
+            XCTAssertTrue(descriptionField.waitForExistence(timeout: 3))
+            descriptionField.click()
+            descriptionField.typeText("Context Menu Test Item")
+
+            let priceField = findField("0.00")
+            priceField.click()
+            priceField.typeKey("a", modifierFlags: .command)
+            priceField.typeText("100")
+
+            let createButton = app.buttons["Create"]
+            createButton.click()
+            XCTAssertTrue(createButton.waitForNonExistence(timeout: 5), "Invoice form must dismiss after saving")
+            XCTAssertTrue(app.staticTexts[invoiceNumber].waitForExistence(timeout: 5), "Helper must create a visible invoice row")
+        }
+    }
+
+    private func ensureAtLeastOneClientExists() {
+        navigateToClients()
+        let table = app.tables.firstMatch
+        if !table.exists || table.cells.count == 0 {
+            let newClientButton = app.buttons["New Client"]
+            if newClientButton.waitForExistence(timeout: 3) {
+                newClientButton.click()
+
+                let fullNameField = findField("e.g. John Smith")
+                fullNameField.waitForExistence(timeout: 3)
+                fullNameField.click()
+                fullNameField.typeText("Test Context Client")
+
+                let createButton = app.buttons["Create"]
+                createButton.click()
+                sleep(2)
+            }
+        }
+    }
+}

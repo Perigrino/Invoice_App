@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Template Showcase</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #fff; padding: 40px; }
+  h1 { text-align: center; font-size: 36px; margin-bottom: 10px; }
+  .subtitle { text-align: center; color: #888; margin-bottom: 40px; font-size: 16px; }
+  .template-section { margin-bottom: 60px; }
+  .template-section h2 { font-size: 28px; margin-bottom: 20px; padding-left: 20px; border-left: 4px solid; }
+  .modern h2 { border-color: #00BCD4; color: #00BCD4; }
+  .business h2 { border-color: #1E40AF; color: #60A5FA; }
+  .minimal h2 { border-color: #64748b; color: #94a3b8; }
+  .professional h2 { border-color: #8B5CF6; color: #A78BFA; }
+  .variants { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
+  .variant-card { background: #16213e; border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: 2px solid transparent; }
+  .variant-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); border-color: #4ade80; }
+  .variant-card.selected { border-color: #4ade80; box-shadow: 0 0 20px rgba(74,222,128,0.3); }
+  .variant-header { padding: 12px 16px; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .variant-num { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 12px; font-size: 12px; }
+  .variant-preview { padding: 0; position: relative; }
+  
+  /* Mini invoice mockups */
+  .invoice-mock { width: 100%; aspect-ratio: 0.707; background: #fff; color: #111; padding: 12px; font-size: 5px; line-height: 1.4; overflow: hidden; position: relative; }
+  
+  /* V1: Sidebar - vertical text */
+  .m-v1-sidebar { display: flex; }
+  .m-v1-sidebar .sidebar { width: 18%; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 900; letter-spacing: 1px; }
+  .m-v1-sidebar .content { flex: 1; padding: 8px; }
+  
+  /* V2: TopBar - dark header */
+  .m-v2-topbar .header { background: #1e1e23; color: #fff; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .m-v2-topbar .header .title { font-size: 16px; font-weight: 900; }
+  .m-v2-topbar .body { padding: 8px; }
+  
+  /* V3: Split - centered header */
+  .m-v3-split .header { text-align: center; padding: 10px; }
+  .m-v3-split .accent-bar { background: #00BCD4; color: #fff; padding: 4px 10px; font-weight: 700; font-size: 10px; display: flex; justify-content: space-between; }
+  .m-v3-split .body { padding: 8px; display: flex; gap: 8px; }
+  .m-v3-split .body .left { width: 35%; }
+  .m-v3-split .body .right { flex: 1; }
+  
+  /* V4: Card */
+  .m-v4-card { padding: 8px; }
+  .m-v4-card .card { background: #f8fafc; border-radius: 4px; padding: 6px; margin-bottom: 6px; }
+  
+  /* V5: Bold */
+  .m-v5-bold .top-bar { height: 4px; background: #00BCD4; }
+  .m-v5-bold .header { display: flex; justify-content: space-between; padding: 8px; }
+  .m-v5-bold .title { font-size: 18px; font-weight: 900; color: #00BCD4; }
+  .m-v5-bold .body { padding: 6px 8px; }
+  
+  /* Business variants */
+  .b-v1-corporate .header { background: #1E40AF; color: #fff; padding: 10px; display: flex; justify-content: space-between; }
+  .b-v1-corporate .body { padding: 8px; }
+  
+  .b-v2-navy { display: flex; }
+  .b-v2-navy .sidebar { width: 22%; background: #0c1222; color: #fff; padding: 8px 6px; font-size: 4px; }
+  .b-v2-navy .content { flex: 1; padding: 8px; }
+  
+  .b-v3-grid .header { display: flex; border-bottom: 2px solid #1E40AF; padding: 8px; }
+  .b-v3-grid .meta { display: flex; background: rgba(30,64,175,0.06); font-size: 4px; }
+  .b-v3-grid .meta span { flex: 1; padding: 4px 8px; border-right: 1px solid #eee; }
+  .b-v3-grid .body { padding: 8px; display: flex; }
+  .b-v3-grid .body .left { width: 30%; border-right: 1px solid #eee; padding-right: 8px; }
+  .b-v3-grid .body .right { flex: 1; padding-left: 8px; }
+  
+  .b-v4-letterhead { text-align: center; }
+  .b-v4-letterhead .logo-area { padding: 10px; }
+  .b-v4-letterhead .double-rule { height: 3px; background: linear-gradient(#1E40AF 50%, rgba(30,64,175,0.3) 50%); margin: 0 16px; }
+  .b-v4-letterhead .body { padding: 8px; text-align: left; }
+  
+  .b-v5-dark .header { background: #1a1a1e; color: #fff; padding: 10px; }
+  .b-v5-dark .title { color: #60A5FA; font-size: 16px; font-weight: 900; }
+  .b-v5-dark .body { padding: 8px; }
+  
+  /* Minimal variants */
+  .mi-v1-zen { text-align: center; padding: 12px; }
+  .mi-v1-zen .sep { height: 0.5px; background: #ccc; margin: 6px 12px; }
+  .mi-v1-zen .body { text-align: left; padding: 8px 12px; }
+  
+  .mi-v2-type { font-family: 'Courier New', monospace; padding: 10px; }
+  .mi-v2-type .dots { color: #ccc; letter-spacing: 2px; text-align: center; margin: 6px 0; }
+  
+  .mi-v3-left { padding: 10px; }
+  .mi-v3-left .sep { height: 0.5px; background: #ccc; margin: 6px 0; }
+  
+  .mi-v4-right .header { display: flex; justify-content: space-between; padding: 10px; }
+  .mi-v4-right .body { padding: 0 10px 10px; }
+  
+  .mi-v5-center { text-align: center; padding: 10px; }
+  .mi-v5-center .ornament { display: flex; align-items: center; justify-content: center; gap: 4px; margin: 6px 0; }
+  .mi-v5-center .ornament div:first-child, .mi-v5-center .ornament div:last-child { width: 24px; height: 0.5px; background: #999; }
+  .mi-v5-center .ornament div:nth-child(2) { width: 3px; height: 3px; border-radius: 50%; background: #999; }
+  .mi-v5-center .body { text-align: left; padding: 0 10px 10px; }
+  
+  /* Professional variants */
+  .p-v1-twotone { display: flex; }
+  .p-v1-twotone .sidebar { width: 22%; background: #8B5CF6; color: #fff; padding: 8px 6px; }
+  .p-v1-twotone .content { flex: 1; padding: 8px; }
+  .p-v1-twotone .secondary-bar { height: 3px; background: #059669; margin: 0 12px; }
+  
+  .p-v2-sidebar { display: flex; }
+  .p-v2-sidebar .sidebar { width: 22%; background: #8B5CF6; color: #fff; padding: 8px 6px; }
+  .p-v2-sidebar .content { flex: 1; padding: 8px; }
+  
+  .p-v3-accentbar .dual-bar { display: flex; height: 5px; }
+  .p-v3-accentbar .dual-bar .bar1 { flex: 2; background: #8B5CF6; }
+  .p-v3-accentbar .dual-bar .bar2 { flex: 1; background: #059669; }
+  .p-v3-accentbar .body { padding: 8px; }
+  
+  .p-v4-bordered { padding: 8px; }
+  .p-v4-bordered .card { border: 1px solid rgba(139,92,246,0.3); border-radius: 4px; padding: 6px; margin-bottom: 6px; }
+  
+  .p-v5-gradient .header { padding: 10px; background: linear-gradient(135deg, #8B5CF6, rgba(139,92,246,0.7), rgba(5,150,105,0.5)); color: #fff; }
+  .p-v5-gradient .body { padding: 8px; }
+  
+  /* Common elements */
+  .logo-placeholder { width: 32px; height: 32px; background: rgba(255,255,255,0.2); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 6px; font-weight: bold; }
+  .logo-placeholder-dark { background: rgba(0,0,0,0.15); }
+  .company-name { font-weight: 700; font-size: 7px; margin-bottom: 2px; }
+  .company-details { font-size: 4px; color: #888; }
+  .invoice-title { font-size: 12px; font-weight: 900; letter-spacing: 1px; }
+  .invoice-number { font-size: 5px; color: #888; }
+  .client-label { font-size: 4px; font-weight: 700; color: #888; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .client-name { font-weight: 600; font-size: 6px; }
+  .dates { font-size: 4px; color: #888; }
+  .dates span { display: block; margin-bottom: 2px; }
+  .table-header { background: #000; color: #fff; padding: 3px 6px; font-size: 4px; font-weight: 700; display: flex; margin-bottom: 1px; }
+  .table-header span { flex: 1; }
+  .table-header span:last-child { text-align: right; }
+  .table-row { padding: 3px 6px; font-size: 4px; display: flex; border-bottom: 0.5px solid #eee; }
+  .table-row span { flex: 1; }
+  .table-row span:last-child { text-align: right; }
+  .table-row:nth-child(odd) { background: #f9f9f9; }
+  .totals { text-align: right; padding: 6px; font-size: 5px; }
+  .totals .total-row { font-weight: 700; font-size: 8px; }
+  .footer-text { font-size: 3.5px; color: #888; text-align: center; padding: 4px; border-top: 0.5px solid #eee; margin-top: auto; }
+  .thank-you { font-size: 4px; font-weight: 700; letter-spacing: 0.5px; }
+  .terms { font-size: 3px; color: #888; margin-top: 2px; }
+  .accent-bar-thick { height: 3px; background: #00BCD4; margin: 6px 0; }
+  .accent-bar-thin { height: 1px; background: #ccc; margin: 6px 0; }
+  
+  /* Selection UI */
+  .selection-panel { position: fixed; bottom: 0; left: 0; right: 0; background: #16213e; border-top: 2px solid #4ade80; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+  .selected-info { font-size: 18px; }
+  .selected-info strong { color: #4ade80; }
+  .apply-btn { background: #4ade80; color: #000; border: none; padding: 12px 32px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .apply-btn:hover { background: #22c55e; }
+</style>
+</head>
+<body>
+
+<h1>🎨 Invoice Template Showcase</h1>
+<p class="subtitle">Click any template to select it — 20 unique designs across 4 styles</p>
+
+<div class="template-section modern">
+  <h2>MODERN</h2>
+  <div class="variants">
+    
+    <!-- Modern V1: Sidebar -->
+    <div class="variant-card" onclick="select('modern', 1, 'Sidebar')">
+      <div class="variant-header">Sidebar <span class="variant-num">V1</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock m-v1-sidebar">
+          <div class="sidebar">I N V O I C E</div>
+          <div class="content">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <div><div class="company-name">WEB DEV CO.</div><div class="company-details">123 Main St<br>hello@webdev.com</div></div>
+              <div class="logo-placeholder">LOGO</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+              <div><div class="client-label">INVOICE TO:</div><div class="client-name">Jimmy Doe</div><div class="client-name" style="font-weight:400;font-size:4px">Acme Corp</div></div>
+              <div class="dates"><span>Invoice No. #1234</span><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+            </div>
+            <div style="height:1.5px;background:#00BCD4;margin:4px 0"></div>
+            <div class="table-header" style="background:#00BCD4"><span>ITEM DESCRIPTION</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+            <div class="table-row"><span>Dev Service 1</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$800</span><span style="width:50px;text-align:right">$800</span></div>
+            <div class="table-row" style="background:#f0fdf4"><span>Dev Service 2</span><span style="width:30px;text-align:right">10</span><span style="width:50px;text-align:right">$350</span><span style="width:50px;text-align:right">$3,500</span></div>
+            <div class="table-row"><span>Dev Service 3</span><span style="width:30px;text-align:right">5</span><span style="width:50px;text-align:right">$200</span><span style="width:50px;text-align:right">$1,000</span></div>
+            <div style="text-align:right;padding:6px;font-size:8px;font-weight:900;color:#00BCD4">TOTAL $5,600</div>
+            <div class="footer-text"><span class="thank-you" style="color:#00BCD4">THANK YOU FOR YOUR BUSINESS!</span><br><span class="terms">Payment is due within 30 days</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modern V2: TopBar -->
+    <div class="variant-card" onclick="select('modern', 2, 'TopBar')">
+      <div class="variant-header">TopBar <span class="variant-num">V2</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock m-v2-topbar">
+          <div class="header" style="background:#1e1e23">
+            <div class="logo-placeholder" style="width:36px;height:24px">LOGO</div>
+            <div style="text-align:right"><div class="title" style="color:#fff;font-size:14px">INVOICE</div><div style="color:#fff;font-size:4px">#1234</div></div>
+          </div>
+          <div class="body">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+              <div><div class="company-name">WEB DEV CO.</div><div class="company-details">123 Main St, hello@webdev.com</div></div>
+              <div class="dates"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+            </div>
+            <div class="client-label">INVOICE TO:</div><div class="client-name">Jimmy Doe</div>
+            <div style="margin-top:6px">
+              <div class="table-header" style="background:#00BCD4"><span>ITEM DESCRIPTION</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+              <div class="table-row"><span>Web Design</span><span style="width:30px;text-align:right">3</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,500</span></div>
+              <div class="table-row" style="background:#f0fdf4"><span>SEO Service</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$300</span><span style="width:50px;text-align:right">$300</span></div>
+            </div>
+            <div style="text-align:right;padding:4px;font-size:7px;font-weight:900;color:#00BCD4">TOTAL $1,800</div>
+            <div class="footer-text"><span class="thank-you" style="color:#00BCD4">THANK YOU!</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modern V3: Split -->
+    <div class="variant-card" onclick="select('modern', 3, 'Split')">
+      <div class="variant-header">Split <span class="variant-num">V3</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock m-v3-split">
+          <div class="header">
+            <div class="logo-placeholder" style="margin:0 auto;width:36px;height:28px">LOGO</div>
+            <div class="company-name" style="text-align:center">WEB DEV CO.</div>
+          </div>
+          <div class="accent-bar"><span style="font-size:10px;font-weight:900">INVOICE</span><span>#1234</span></div>
+          <div class="body">
+            <div class="left">
+              <div class="client-label">INVOICE TO:</div>
+              <div class="client-name">Jimmy Doe</div>
+              <div style="font-size:4px;color:#888;margin-top:2px">Acme Corp<br>hello@acme.com</div>
+              <div style="margin-top:6px;font-size:4px;color:#888;font-weight:700">FROM</div>
+              <div style="font-size:4px;color:#888">123 Main St<br>hello@webdev.com</div>
+            </div>
+            <div class="right">
+              <div class="dates"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+            </div>
+          </div>
+          <div style="height:1px;background:#00BCD4;margin:0 8px"></div>
+          <div style="padding:6px">
+            <div class="table-header" style="background:#00BCD4"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:40px;text-align:right">PRICE</span><span style="width:45px;text-align:right">TOTAL</span></div>
+            <div class="table-row"><span>Design Work</span><span style="width:25px;text-align:right">2</span><span style="width:40px;text-align:right">$400</span><span style="width:45px;text-align:right">$800</span></div>
+            <div class="table-row" style="background:#f0fdf4"><span>Development</span><span style="width:25px;text-align:right">5</span><span style="width:40px;text-align:right">$200</span><span style="width:45px;text-align:right">$1,000</span></div>
+            <div style="text-align:right;font-size:7px;font-weight:900;color:#00BCD4;padding:4px">TOTAL $1,800</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modern V4: Card -->
+    <div class="variant-card" onclick="select('modern', 4, 'Card')">
+      <div class="variant-header">Card <span class="variant-num">V4</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock m-v4-card">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <div><div class="logo-placeholder" style="margin-bottom:4px">LOGO</div><div class="company-name">WEB DEV CO.</div></div>
+            <div style="text-align:right"><div style="font-size:14px;font-weight:900;color:#00BCD4">INVOICE</div><div class="invoice-number">#1234</div></div>
+          </div>
+          <div class="card">
+            <div style="display:flex;justify-content:space-between">
+              <div><div class="client-label">INVOICE TO:</div><div class="client-name">Jimmy Doe</div><div style="font-size:4px;color:#888">Acme Corp</div></div>
+              <div class="dates"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+            </div>
+          </div>
+          <div class="table-header" style="background:#00BCD4;border-radius:4px 4px 0 0"><span>ITEM DESCRIPTION</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+          <div class="table-row"><span>Web Design</span><span style="width:30px;text-align:right">3</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,500</span></div>
+          <div class="table-row" style="background:#f0fdf4"><span>SEO Service</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$300</span><span style="width:50px;text-align:right">$300</span></div>
+          <div class="card" style="text-align:right;font-size:7px;font-weight:900;color:#00BCD4">TOTAL $1,800</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modern V5: Bold -->
+    <div class="variant-card" onclick="select('modern', 5, 'Bold')">
+      <div class="variant-header">Bold <span class="variant-num">V5</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock m-v5-bold">
+          <div class="top-bar"></div>
+          <div class="header">
+            <div><div class="logo-placeholder" style="margin-bottom:4px">LOGO</div><div class="company-name">WEB DEV CO.</div></div>
+            <div style="text-align:right"><div class="title">INVOICE</div><div style="font-size:6px;font-weight:700">#1234</div></div>
+          </div>
+          <div class="body">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <div class="client-label">INVOICE TO:<br><span class="client-name">Jimmy Doe</span></div>
+              <div class="dates"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+            </div>
+            <div style="height:2px;background:#00BCD4;margin:4px 0"></div>
+            <div class="table-header" style="background:#000"><span>ITEM</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+            <div class="table-row"><span>Web Design</span><span style="width:30px;text-align:right">3</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,500</span></div>
+            <div class="table-row" style="background:#f0fdf4"><span>SEO Service</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$300</span><span style="width:50px;text-align:right">$300</span></div>
+            <div style="text-align:right;padding:4px"><span style="background:#00BCD4;color:#fff;padding:2px 8px;border-radius:2px;font-size:7px;font-weight:900">TOTAL $1,800</span></div>
+            <div class="footer-text"><span class="thank-you" style="color:#00BCD4">THANK YOU FOR YOUR BUSINESS!</span><br><span class="terms">Payment due within 30 days. Late payments may incur 5% fee.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="template-section business">
+  <h2>BUSINESS</h2>
+  <div class="variants">
+    <!-- Business V1: Corporate -->
+    <div class="variant-card" onclick="select('business', 1, 'Corporate')">
+      <div class="variant-header">Corporate <span class="variant-num">V1</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock b-v1-corporate">
+          <div class="header" style="background:#1E40AF">
+            <div class="logo-placeholder">LOGO</div>
+            <div style="text-align:right"><div style="font-size:14px;font-weight:900;color:#fff">INVOICE</div><div style="color:#fff;font-size:4px">Invoice #1234</div></div>
+          </div>
+          <div class="body">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+              <div><div class="company-name">STEELFORGE CONSTRUCTION</div><div class="company-details">123 Industrial Ave</div></div>
+              <div class="dates"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+            </div>
+            <div class="client-label">BILL TO:<br><span class="client-name">Customer Name</span></div>
+            <div style="margin-top:6px">
+              <div class="table-header" style="background:#1E40AF"><span>ITEM DESCRIPTION</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+              <div class="table-row"><span>Site Preparation</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$30</span><span style="width:50px;text-align:right">$30</span></div>
+              <div class="table-row" style="background:#eff6ff"><span>Foundation Work</span><span style="width:30px;text-align:right">2</span><span style="width:50px;text-align:right">$30</span><span style="width:50px;text-align:right">$60</span></div>
+            </div>
+            <div style="text-align:right;padding:4px;font-size:7px;font-weight:900;color:#1E40AF">TOTAL $90</div>
+            <div class="footer-text"><span class="thank-you" style="color:#1E40AF">THANK YOU FOR YOUR BUSINESS!</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Business V2: Navy -->
+    <div class="variant-card" onclick="select('business', 2, 'Navy')">
+      <div class="variant-header">Navy <span class="variant-num">V2</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock b-v2-navy">
+          <div class="sidebar">
+            <div class="logo-placeholder" style="width:28px;height:20px;margin-bottom:6px">LOGO</div>
+            <div style="font-weight:700;font-size:5px;margin-bottom:4px">STEELFORGE</div>
+            <div style="margin-top:auto;font-size:3px;color:rgba(255,255,255,0.6)">123 Industrial Ave<br>info@steel.com<br>+1 555-0123</div>
+          </div>
+          <div class="content">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <div class="client-label">BILL TO:<br><span class="client-name">Customer Name</span></div>
+              <div style="text-align:right"><div style="font-size:12px;font-weight:900;color:#1E40AF">INVOICE</div></div>
+            </div>
+            <div class="dates" style="margin-bottom:4px"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+            <div style="height:2px;background:#1E40AF;margin:4px 0"></div>
+            <div class="table-header" style="background:#1E40AF"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:40px;text-align:right">PRICE</span><span style="width:45px;text-align:right">TOTAL</span></div>
+            <div class="table-row"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:40px;text-align:right">$500</span><span style="width:45px;text-align:right">$1,000</span></div>
+            <div class="table-row" style="background:#eff6ff"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:40px;text-align:right">$200</span><span style="width:45px;text-align:right">$200</span></div>
+            <div style="text-align:right;padding:4px"><span style="background:#1E40AF;color:#fff;padding:2px 6px;border-radius:2px;font-size:6px;font-weight:900">TOTAL $1,200</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Business V3: Grid -->
+    <div class="variant-card" onclick="select('business', 3, 'Grid')">
+      <div class="variant-header">Grid <span class="variant-num">V3</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock">
+          <div style="display:flex;border-bottom:2px solid #1E40AF;padding:6px">
+            <div style="flex:1"><div class="logo-placeholder" style="margin-bottom:3px;width:28px;height:20px">LOGO</div><div class="company-name">STEELFORGE</div></div>
+            <div style="flex:1;text-align:right"><div style="font-size:12px;font-weight:900;color:#1E40AF">INVOICE</div><div class="invoice-number">#1234</div></div>
+          </div>
+          <div style="display:flex;background:rgba(30,64,175,0.06);font-size:3.5px;padding:4px 6px">
+            <span style="flex:1;border-right:1px solid #ddd;padding-right:4px"><strong>INVOICE NO</strong><br>1234</span>
+            <span style="flex:1;border-right:1px solid #ddd;padding:0 4px"><strong>ISSUE DATE</strong><br>08/18/2026</span>
+            <span style="flex:1;padding-left:4px"><strong>DUE DATE</strong><br>09/17/2026</span>
+          </div>
+          <div style="display:flex;padding:6px">
+            <div style="width:30%;border-right:1px solid #eee;padding-right:6px">
+              <div class="client-label">BILL TO:</div>
+              <div class="client-name">Customer Name</div>
+              <div style="font-size:3.5px;color:#888;margin-top:2px">City, State<br>hello@email.com</div>
+              <div style="margin-top:4px;font-size:3.5px;color:#888"><strong>CONTACT</strong><br>info@steel.com</div>
+            </div>
+            <div style="flex:1;padding-left:6px">
+              <div class="table-header" style="background:#1E40AF"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:40px;text-align:right">PRICE</span><span style="width:45px;text-align:right">TOTAL</span></div>
+              <div class="table-row"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:40px;text-align:right">$500</span><span style="width:45px;text-align:right">$1,000</span></div>
+              <div class="table-row" style="background:#eff6ff"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:40px;text-align:right">$200</span><span style="width:45px;text-align:right">$200</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Business V4: Letterhead -->
+    <div class="variant-card" onclick="select('business', 4, 'Letterhead')">
+      <div class="variant-header">Letterhead <span class="variant-num">V4</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock b-v4-letterhead">
+          <div class="logo-area">
+            <div class="logo-placeholder" style="width:40px;height:32px;margin:0 auto 4px">LOGO</div>
+            <div class="company-name" style="text-align:center;font-size:8px">STEELFORGE CONSTRUCTION</div>
+            <div style="font-size:3.5px;color:#888;text-align:center">123 Industrial Ave | info@steel.com</div>
+          </div>
+          <div class="double-rule"></div>
+          <div style="text-align:center;padding:8px 0"><div style="font-size:12px;font-weight:900;color:#1E40AF;letter-spacing:3px">INVOICE</div></div>
+          <div style="font-size:4px;color:#888;text-align:center;margin-bottom:4px">Invoice #1234 | Issued: 08/18/2026 | Due: 09/17/2026</div>
+          <div style="text-align:center;font-size:4px;color:#888;margin-bottom:4px"><strong>BILL TO:</strong><br><span style="font-size:6px;color:#000;font-weight:600">Customer Name</span></div>
+          <div style="height:0.5px;background:#ccc;margin:4px 12px"></div>
+          <div style="padding:0 12px">
+            <div class="table-header" style="background:#1E40AF"><span>ITEM</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+            <div class="table-row"><span>Construction</span><span style="width:30px;text-align:right">2</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,000</span></div>
+            <div class="table-row" style="background:#eff6ff"><span>Materials</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$200</span><span style="width:50px;text-align:right">$200</span></div>
+          </div>
+          <div style="text-align:right;padding:4px 12px;font-size:7px;font-weight:900;color:#1E40AF">TOTAL $1,200</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Business V5: Dark -->
+    <div class="variant-card" onclick="select('business', 5, 'Dark')">
+      <div class="variant-header">Dark <span class="variant-num">V5</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock b-v5-dark">
+          <div class="header" style="background:#1a1a1e">
+            <div><div class="logo-placeholder" style="margin-bottom:4px">LOGO</div><div style="font-weight:700;font-size:6px;color:#fff">STEELFORGE</div></div>
+            <div style="text-align:right"><div class="title" style="color:#60A5FA;font-size:16px;font-weight:900">INVOICE</div><div class="dates" style="color:rgba(255,255,255,0.6)"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+          </div>
+          <div class="body">
+            <div class="client-label">INVOICE TO:<br><span class="client-name">Customer Name</span></div>
+            <div style="margin-top:6px">
+              <div class="table-header" style="background:#60A5FA"><span>ITEM</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+              <div class="table-row"><span>Construction</span><span style="width:30px;text-align:right">2</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,000</span></div>
+              <div class="table-row" style="background:#eff6ff"><span>Materials</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$200</span><span style="width:50px;text-align:right">$200</span></div>
+            </div>
+            <div style="text-align:right;padding:4px"><span style="background:#60A5FA;color:#fff;padding:2px 6px;border-radius:2px;font-size:6px;font-weight:900">TOTAL $1,200</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="template-section minimal">
+  <h2>MINIMAL</h2>
+  <div class="variants">
+    <!-- Minimal V1: Zen -->
+    <div class="variant-card" onclick="select('minimal', 1, 'Zen')">
+      <div class="variant-header">Zen <span class="variant-num">V1</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock mi-v1-zen">
+          <div class="logo-placeholder" style="width:40px;height:32px;margin:0 auto 4px">LOGO</div>
+          <div class="company-name" style="text-align:center;font-size:7px">STEELFORGE</div>
+          <div style="font-size:8px;font-weight:500;letter-spacing:3px;text-align:center;margin:6px 0">INVOICE</div>
+          <div class="invoice-number" style="text-align:center;margin-bottom:4px">#1234</div>
+          <div class="sep"></div>
+          <div class="body">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+              <div><div class="client-label">INVOICE TO:</div><div class="client-name">Customer Name</div></div>
+              <div class="dates" style="text-align:right"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+            </div>
+            <div style="border:0.5px solid #eee">
+              <div style="padding:3px 6px;font-size:4px;font-weight:700;color:#888;display:flex"><span style="flex:1">DESCRIPTION</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+              <div style="padding:3px 6px;font-size:4px;display:flex;border-top:0.5px solid #eee"><span style="flex:1">Construction</span><span style="width:30px;text-align:right">2</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,000</span></div>
+              <div style="padding:3px 6px;font-size:4px;display:flex;border-top:0.5px solid #eee"><span style="flex:1">Materials</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$200</span><span style="width:50px;text-align:right">$200</span></div>
+            </div>
+            <div style="text-align:right;padding:6px 0;font-size:7px;font-weight:900">TOTAL $1,200</div>
+          </div>
+          <div class="footer-text">Page 1 of 1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Minimal V2: Typewriter -->
+    <div class="variant-card" onclick="select('minimal', 2, 'Typewriter')">
+      <div class="variant-header">Typewriter <span class="variant-num">V2</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock mi-v2-type">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <div><div class="logo-placeholder" style="margin-bottom:3px;width:28px;height:20px">LOGO</div><div class="company-name" style="font-family:monospace">STEELFORGE</div></div>
+            <div style="text-align:right;font-family:monospace"><div style="font-size:10px;font-weight:900">INVOICE</div><div style="font-size:4px;color:#888">#1234</div></div>
+          </div>
+          <div class="dots">· · · · · · · · · · · · · · · · · · · · · · · ·</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-family:monospace">
+            <div><div class="client-label" style="font-family:monospace">BILL TO:<br><span class="client-name" style="font-family:monospace">Customer Name</span></div></div>
+            <div class="dates" style="font-family:monospace;text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+          </div>
+          <div style="border:0.5px solid #eee;font-family:monospace">
+            <div style="padding:3px 6px;font-size:4px;font-weight:700;color:#888;display:flex"><span style="flex:1">DESCRIPTION</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+            <div style="padding:3px 6px;font-size:4px;display:flex;border-top:0.5px solid #eee"><span style="flex:1">Construction</span><span style="width:30px;text-align:right">2</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,000</span></div>
+            <div style="padding:3px 6px;font-size:4px;display:flex;border-top:0.5px solid #eee"><span style="flex:1">Materials</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$200</span><span style="width:50px;text-align:right">$200</span></div>
+          </div>
+          <div style="text-align:right;padding:4px;font-size:7px;font-weight:900">TOTAL $1,200</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Minimal V3: LeftAlign -->
+    <div class="variant-card" onclick="select('minimal', 3, 'LeftAlign')">
+      <div class="variant-header">LeftAlign <span class="variant-num">V3</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock mi-v3-left">
+          <div class="logo-placeholder" style="width:36px;height:28px;margin-bottom:4px">LOGO</div>
+          <div class="company-name" style="font-size:8px">STEELFORGE CONSTRUCTION</div>
+          <div class="company-details">123 Industrial Ave</div>
+          <div class="sep"></div>
+          <div style="display:flex;justify-content:space-between;margin:4px 0">
+            <div style="font-size:8px;font-weight:900;letter-spacing:2px">INVOICE</div>
+            <div class="dates" style="text-align:right"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+          </div>
+          <div class="client-label">INVOICE TO:<br><span class="client-name">Customer Name</span></div>
+          <div style="margin-top:6px;border:0.5px solid #eee">
+            <div style="padding:3px 6px;font-size:4px;font-weight:700;color:#888;display:flex"><span style="flex:1">DESCRIPTION</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+            <div style="padding:3px 6px;font-size:4px;display:flex;border-top:0.5px solid #eee"><span style="flex:1">Construction</span><span style="width:30px;text-align:right">2</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,000</span></div>
+            <div style="padding:3px 6px;font-size:4px;display:flex;border-top:0.5px solid #eee"><span style="flex:1">Materials</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$200</span><span style="width:50px;text-align:right">$200</span></div>
+          </div>
+          <div style="text-align:right;padding:4px 0;font-size:7px;font-weight:900">TOTAL $1,200</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Minimal V4: RightAlign -->
+    <div class="variant-card" onclick="select('minimal', 4, 'RightAlign')">
+      <div class="variant-header">RightAlign <span class="variant-num">V4</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock mi-v4-right">
+          <div class="header">
+            <div><div class="logo-placeholder" style="margin-bottom:3px;width:28px;height:20px">LOGO</div><div class="company-name">STEELFORGE</div></div>
+            <div style="text-align:right"><div style="font-size:10px;font-weight:900">INVOICE</div><div class="dates"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+          </div>
+          <div style="height:0.5px;background:#ccc;margin:4px 0"></div>
+          <div class="client-label">INVOICE TO:<br><span class="client-name">Customer Name</span></div>
+          <div style="margin-top:6px;border:0.5px solid #eee">
+            <div style="padding:3px 6px;font-size:4px;font-weight:700;color:#888;display:flex"><span style="flex:1">DESCRIPTION</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+            <div style="padding:3px 6px;font-size:4px;display:flex;border-top:0.5px solid #eee"><span style="flex:1">Construction</span><span style="width:30px;text-align:right">2</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,000</span></div>
+            <div style="padding:3px 6px;font-size:4px;display:flex;border-top:0.5px solid #eee"><span style="flex:1">Materials</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$200</span><span style="width:50px;text-align:right">$200</span></div>
+          </div>
+          <div style="text-align:right;padding:6px 0;font-size:7px;font-weight:900">TOTAL $1,200</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Minimal V5: Centered -->
+    <div class="variant-card" onclick="select('minimal', 5, 'Centered')">
+      <div class="variant-header">Centered <span class="variant-num">V5</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock mi-v5-center">
+          <div class="logo-placeholder" style="width:40px;height:32px;margin:0 auto 4px">LOGO</div>
+          <div class="company-name" style="font-size:8px">STEELFORGE</div>
+          <div style="font-size:3.5px;color:#888">123 Industrial Ave</div>
+          <div class="ornament"><div></div><div></div><div></div></div>
+          <div style="font-size:10px;font-weight:900;letter-spacing:3px">INVOICE</div>
+          <div style="font-size:4px;color:#888;margin-top:2px">#1234</div>
+          <div style="font-size:3.5px;color:#888;margin-top:4px">Issued: 08/18/2026 • Due: 09/17/2026</div>
+          <div style="margin-top:6px;font-size:3.5px;color:#888"><strong>BILL TO:</strong></div>
+          <div style="font-size:6px;font-weight:700">Customer Name</div>
+          <div style="height:0.5px;background:#ccc;margin:6px 12px"></div>
+          <div class="body">
+            <div style="border:0.5px solid #eee">
+              <div style="padding:3px 6px;font-size:4px;font-weight:700;color:#888;display:flex"><span style="flex:1">DESCRIPTION</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+              <div style="padding:3px 6px;font-size:4px;display:flex;border-top:0.5px solid #eee"><span style="flex:1">Construction</span><span style="width:30px;text-align:right">2</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,000</span></div>
+              <div style="padding:3px 6px;font-size:4px;display:flex;border-top:0.5px solid #eee"><span style="flex:1">Materials</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$200</span><span style="width:50px;text-align:right">$200</span></div>
+            </div>
+            <div style="text-align:right;padding:4px 0;font-size:7px;font-weight:900">TOTAL $1,200</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="template-section professional">
+  <h2>PROFESSIONAL</h2>
+  <div class="variants">
+    <!-- Pro V1: TwoTone -->
+    <div class="variant-card" onclick="select('professional', 1, 'TwoTone')">
+      <div class="variant-header">TwoTone <span class="variant-num">V1</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock p-v1-twotone">
+          <div class="sidebar">
+            <div class="logo-placeholder" style="width:28px;height:20px;margin-bottom:4px">LOGO</div>
+            <div style="font-weight:700;font-size:5px;margin-bottom:2px">STEELFORGE</div>
+            <div style="margin-top:auto;font-size:3px;color:rgba(255,255,255,0.7)">📍 123 Industrial Ave<br>✉ info@steel.com<br>📞 +1 555-0123</div>
+          </div>
+          <div class="content">
+            <div style="text-align:right;margin-bottom:6px"><div style="font-size:14px;font-weight:900;color:#059669">INVOICE</div><div class="dates" style="text-align:right"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+            <div class="secondary-bar"></div>
+            <div class="client-label" style="margin-top:6px">INVOICE TO:<br><span class="client-name">Customer Name</span></div>
+            <div style="margin-top:4px">
+              <div class="table-header" style="background:#059669"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:40px;text-align:right">PRICE</span><span style="width:45px;text-align:right">TOTAL</span></div>
+              <div class="table-row"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:40px;text-align:right">$500</span><span style="width:45px;text-align:right">$1,000</span></div>
+              <div class="table-row" style="background:#f0fdf4"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:40px;text-align:right">$200</span><span style="width:45px;text-align:right">$200</span></div>
+            </div>
+            <div style="text-align:right;padding:4px"><span style="background:#059669;color:#fff;padding:2px 6px;border-radius:2px;font-size:6px;font-weight:900">TOTAL $1,200</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pro V2: Sidebar -->
+    <div class="variant-card" onclick="select('professional', 2, 'Sidebar')">
+      <div class="variant-header">Sidebar <span class="variant-num">V2</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock p-v2-sidebar">
+          <div class="sidebar">
+            <div class="logo-placeholder" style="width:28px;height:20px;margin-bottom:4px">LOGO</div>
+            <div style="font-weight:700;font-size:5px;margin-bottom:2px">STEELFORGE</div>
+            <div style="margin-top:auto;font-size:12px;font-weight:900;color:#fff">INVOICE</div>
+            <div style="margin-top:auto;font-size:3px;color:rgba(255,255,255,0.7)">123 Industrial Ave<br>info@steel.com</div>
+          </div>
+          <div class="content">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <div class="client-label">BILL TO:<br><span class="client-name">Customer Name</span></div>
+              <div class="dates" style="text-align:right"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+            </div>
+            <div style="height:2px;background:#8B5CF6;margin:4px 0"></div>
+            <div class="table-header" style="background:#8B5CF6"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:40px;text-align:right">PRICE</span><span style="width:45px;text-align:right">TOTAL</span></div>
+            <div class="table-row"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:40px;text-align:right">$500</span><span style="width:45px;text-align:right">$1,000</span></div>
+            <div class="table-row" style="background:#f5f3ff"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:40px;text-align:right">$200</span><span style="width:45px;text-align:right">$200</span></div>
+            <div style="text-align:right;padding:4px;font-size:7px;font-weight:900;color:#059669">TOTAL $1,200</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pro V3: AccentBar -->
+    <div class="variant-card" onclick="select('professional', 3, 'AccentBar')">
+      <div class="variant-header">AccentBar <span class="variant-num">V3</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock p-v3-accentbar">
+          <div class="dual-bar"><div class="bar1"></div><div class="bar2"></div></div>
+          <div class="body">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+              <div><div class="logo-placeholder" style="margin-bottom:3px;width:32px;height:24px">LOGO</div><div class="company-name">STEELFORGE</div></div>
+              <div style="text-align:right"><div style="font-size:14px;font-weight:900;color:#8B5CF6">INVOICE</div><div style="font-size:5px;font-weight:700">#1234</div></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <div class="client-label">INVOICE TO:<br><span class="client-name">Customer Name</span></div>
+              <div class="dates" style="text-align:right"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+            </div>
+            <div class="table-header" style="background:#8B5CF6"><span>ITEM</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+            <div class="table-row"><span>Construction</span><span style="width:30px;text-align:right">2</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,000</span></div>
+            <div class="table-row" style="background:#f5f3ff"><span>Materials</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$200</span><span style="width:50px;text-align:right">$200</span></div>
+            <div style="text-align:right;padding:4px"><span style="background:#059669;color:#fff;padding:2px 6px;border-radius:2px;font-size:6px;font-weight:900">TOTAL $1,200</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pro V4: Bordered -->
+    <div class="variant-card" onclick="select('professional', 4, 'Bordered')">
+      <div class="variant-header">Bordered <span class="variant-num">V4</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock p-v4-bordered">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <div class="logo-placeholder" style="width:36px;height:28px">LOGO</div>
+            <div style="text-align:right"><div style="font-size:14px;font-weight:900;color:#8B5CF6">INVOICE</div></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:6px">
+            <div class="card" style="flex:1"><div class="client-label">INVOICE TO:</div><div class="client-name">Customer Name</div></div>
+            <div class="card" style="flex:1"><div class="dates"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+          </div>
+          <div class="table-header" style="background:#8B5CF6"><span>ITEM</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+          <div class="table-row"><span>Construction</span><span style="width:30px;text-align:right">2</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,000</span></div>
+          <div class="table-row" style="background:#f5f3ff"><span>Materials</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$200</span><span style="width:50px;text-align:right">$200</span></div>
+          <div style="text-align:right;padding:4px;font-size:7px;font-weight:900;color:#059669">TOTAL $1,200</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pro V5: Gradient -->
+    <div class="variant-card" onclick="select('professional', 5, 'Gradient')">
+      <div class="variant-header">Gradient <span class="variant-num">V5</span></div>
+      <div class="variant-preview">
+        <div class="invoice-mock p-v5-gradient">
+          <div class="header" style="padding:10px;background:linear-gradient(135deg, #8B5CF6, rgba(139,92,246,0.7), rgba(5,150,105,0.5));color:#fff">
+            <div><div class="logo-placeholder" style="margin-bottom:3px;width:28px;height:20px">LOGO</div><div style="font-weight:700;font-size:5px">STEELFORGE</div></div>
+            <div style="text-align:right"><div style="font-size:14px;font-weight:900">INVOICE</div><div class="dates" style="color:rgba(255,255,255,0.7)"><span>Issue: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+          </div>
+          <div class="body">
+            <div class="client-label" style="margin-top:6px">INVOICE TO:<br><span class="client-name">Customer Name</span></div>
+            <div style="margin-top:6px">
+              <div class="table-header" style="background:#8B5CF6"><span>ITEM</span><span style="width:30px;text-align:right">QTY</span><span style="width:50px;text-align:right">PRICE</span><span style="width:50px;text-align:right">TOTAL</span></div>
+              <div class="table-row"><span>Construction</span><span style="width:30px;text-align:right">2</span><span style="width:50px;text-align:right">$500</span><span style="width:50px;text-align:right">$1,000</span></div>
+              <div class="table-row" style="background:#f5f3ff"><span>Materials</span><span style="width:30px;text-align:right">1</span><span style="width:50px;text-align:right">$200</span><span style="width:50px;text-align:right">$200</span></div>
+            </div>
+            <div style="text-align:right;padding:4px"><span style="background:#059669;color:#fff;padding:2px 6px;border-radius:2px;font-size:6px;font-weight:900">TOTAL $1,200</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="selection-panel" id="selectionPanel" style="display:none">
+  <div class="selected-info">Selected: <strong id="selectedName">—</strong></div>
+  <button class="apply-btn" onclick="applySelection()">✓ Apply This Template</button>
+</div>
+
+<script>
+let selected = null;
+function select(template, variant, name) {
+  document.querySelectorAll('.variant-card').forEach(c => c.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  selected = { template, variant, name };
+  document.getElementById('selectedName').textContent = `${template.toUpperCase()} — Variant ${variant}: ${name}`;
+  document.getElementById('selectionPanel').style.display = 'flex';
+}
+function applySelection() {
+  if (!selected) return;
+  alert(`Template: ${selected.template}\nVariant: ${selected.variant}\nName: ${selected.name}\n\nUse these values in the Template and Style pickers in the app.`);
+}
+</script>
+
+</body>
+</html>

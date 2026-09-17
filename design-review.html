@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Design Variations Review</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; padding: 40px 20px; }
+  h1 { text-align: center; font-size: 28px; margin-bottom: 6px; color: #fff; }
+  .subtitle { text-align: center; color: #64748b; margin-bottom: 36px; font-size: 14px; }
+  
+  .section { margin-bottom: 56px; max-width: 1200px; margin-left: auto; margin-right: auto; }
+  .section-hdr { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .section-hdr h2 { font-size: 22px; font-weight: 700; }
+  .badge { padding: 3px 10px; border-radius: 16px; font-size: 11px; font-weight: 600; }
+  
+  .modern .section-hdr h2 { color: #22d3ee; }
+  .modern .badge { background: #22d3ee20; color: #22d3ee; }
+  .business .section-hdr h2 { color: #60a5fa; }
+  .business .badge { background: #60a5fa20; color: #60a5fa; }
+  .minimal .section-hdr h2 { color: #94a3b8; }
+  .minimal .badge { background: #94a3b820; color: #94a3b8; }
+  .professional .section-hdr h2 { color: #a78bfa; }
+  .professional .badge { background: #a78bfa20; color: #a78bfa; }
+  
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  
+  .card { background: #1e293b; border-radius: 10px; overflow: hidden; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; position: relative; }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .card.sel { border-color: #4ade80; }
+  .card.sel::after { content: "✓"; position: absolute; top: 8px; right: 8px; background: #4ade80; color: #000; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; z-index: 10; }
+  
+  .card-hdr { padding: 8px 12px; font-size: 12px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+  .card-hdr .num { background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 8px; font-size: 10px; }
+  
+  .mock { background: #fff; aspect-ratio: 0.707; padding: 10px; font-size: 5px; line-height: 1.4; color: #111; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+  
+  /* Shared */
+  .logo { width: 36px; height: 36px; background: #f1f5f9; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 6px; font-weight: 700; color: #64748b; border: 1px solid #e2e8f0; flex-shrink: 0; }
+  .logo-lg { width: 48px; height: 48px; font-size: 7px; }
+  .co-name { font-weight: 700; font-size: 7px; }
+  .co-detail { font-size: 4px; color: #64748b; }
+  .inv-title { font-size: 16px; font-weight: 900; letter-spacing: 1px; }
+  .inv-num { font-size: 4.5px; color: #64748b; }
+  .sec-label { font-size: 4px; font-weight: 700; color: #94a3b8; letter-spacing: 0.8px; margin-bottom: 2px; }
+  .client { font-weight: 600; font-size: 6px; }
+  .dates { font-size: 4px; color: #64748b; }
+  .dates span { display: block; margin-bottom: 1px; }
+  
+  .th { display: flex; padding: 3px 6px; font-size: 4px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+  .th span { flex: 1; } .th span:last-child { text-align: right; }
+  .tr { display: flex; padding: 3px 6px; font-size: 4px; border-bottom: 0.5px solid #f1f5f9; }
+  .tr span { flex: 1; } .tr span:last-child { text-align: right; }
+  .tr:nth-child(even) { background: #f8fafc; }
+  
+  .total { text-align: right; padding: 4px 6px; font-size: 4.5px; }
+  .total .amt { font-size: 9px; font-weight: 900; }
+  .notes-box { font-size: 3.5px; color: #64748b; border: 0.5px solid #e2e8f0; border-radius: 3px; padding: 4px 6px; margin-top: auto; }
+  .notes-box strong { color: #111; font-size: 4px; }
+  .thanks { font-size: 4px; font-weight: 700; letter-spacing: 0.5px; }
+  .terms { font-size: 3px; color: #94a3b8; margin-top: 2px; }
+  .footer-txt { font-size: 3px; color: #94a3b8; text-align: center; padding-top: 4px; border-top: 0.5px solid #e2e8f0; margin-top: auto; }
+  .pay-info { font-size: 3.5px; color: #64748b; }
+  .pay-info strong { color: #111; font-size: 4px; }
+  
+  /* Panel */
+  .panel { position: fixed; bottom: 0; left: 0; right: 0; background: #1e293be6; backdrop-filter: blur(12px); border-top: 2px solid #4ade80; padding: 14px 32px; display: none; justify-content: space-between; align-items: center; z-index: 100; }
+  .panel.show { display: flex; }
+  .panel .info { font-size: 14px; }
+  .panel .info strong { color: #4ade80; }
+  .panel .btn { background: #4ade80; color: #000; border: none; padding: 8px 24px; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>🎨 Design Variations Review</h1>
+<p class="subtitle">Pick your favorite variation for each template. Click to select.</p>
+
+<!-- ═══════════════ MODERN ═══════════════ -->
+<div class="section modern">
+  <div class="section-hdr"><h2>MODERN</h2><span class="badge">Pick 1 of 5</span></div>
+  <div class="grid">
+
+    <!-- M1: Vertical sidebar -->
+    <div class="card" onclick="pick('modern','m1','Sidebar')">
+      <div class="card-hdr">M1 — Sidebar <span class="num">Vertical text</span></div>
+      <div class="mock" style="flex-direction:row;padding:0">
+        <div style="width:20%;background:#0ea5e9;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:6px">
+          <div style="writing-mode:vertical-rl;text-orientation:mixed;font-size:14px;font-weight:900;letter-spacing:2px;transform:rotate(180deg)">INVOICE</div>
+        </div>
+        <div style="flex:1;padding:8px;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <div><div class="co-name">WEB DEV CO.</div><div class="co-detail">123 Main St</div></div>
+            <div class="logo">LOGO</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <div><div class="sec-label">TO:</div><div class="client">Jimmy Doe</div></div>
+            <div class="dates"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+          </div>
+          <div style="height:1.5px;background:#0ea5e9;margin:3px 0"></div>
+          <div class="th" style="background:#0ea5e9"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Web Design</span><span style="width:25px;text-align:right">3</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,500</span></div>
+          <div class="tr"><span>SEO</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$300</span><span style="width:40px;text-align:right">$300</span></div>
+          <div class="total"><span class="amt" style="color:#0ea5e9">TOTAL $1,800</span></div>
+          <div class="notes-box"><strong>*NOTES:</strong> Thank you for your business!</div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px"><span class="thanks" style="color:#0ea5e9">THANK YOU!</span><span class="terms">Payment due in 30 days</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- M2: Dark header -->
+    <div class="card" onclick="pick('modern','m2','DarkHeader')">
+      <div class="card-hdr">M2 — Dark Header <span class="num">Dark bar</span></div>
+      <div class="mock" style="padding:0">
+        <div style="background:#18181b;color:#fff;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
+          <div class="logo" style="background:#27272a;border-color:#3f3f46;color:#a1a1aa">LOGO</div>
+          <div style="text-align:right"><div class="inv-title" style="font-size:14px">INVOICE</div><div style="color:#a1a1aa;font-size:4px">#INV-1234</div></div>
+        </div>
+        <div style="padding:8px 10px;flex:1;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <div><div class="co-name">WEB DEV CO.</div><div class="co-detail">123 Main St</div></div>
+            <div class="dates" style="text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+          </div>
+          <div class="sec-label">TO:</div><div class="client">Jimmy Doe</div>
+          <div style="margin-top:4px"><div class="th" style="background:#0ea5e9"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Web Design</span><span style="width:25px;text-align:right">3</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,500</span></div>
+          <div class="tr"><span>SEO</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$300</span><span style="width:40px;text-align:right">$300</span></div></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt" style="color:#0ea5e9">TOTAL $1,800</span></div>
+          <div class="notes-box"><strong>*NOTES:</strong> Thank you for your business!</div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px"><span class="thanks" style="color:#0ea5e9">THANK YOU!</span><span class="terms">Payment due in 30 days</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- M3: Center accent -->
+    <div class="card" onclick="pick('modern','m3','CenterAccent')">
+      <div class="card-hdr">M3 — Center Accent <span class="num">Centered logo</span></div>
+      <div class="mock" style="padding:0">
+        <div style="text-align:center;padding:8px"><div class="logo logo-lg" style="margin:0 auto 4px">LOGO</div><div class="co-name">WEB DEV CO.</div></div>
+        <div style="background:#0ea5e9;color:#fff;padding:3px 10px;font-weight:700;font-size:9px;display:flex;justify-content:space-between"><span>INVOICE</span><span>#INV-1234</span></div>
+        <div style="padding:6px 10px;flex:1;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div><div class="sec-label">TO:</div><div class="client">Jimmy Doe</div></div><div class="dates" style="text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+          <div class="th" style="background:#0ea5e9"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Web Design</span><span style="width:25px;text-align:right">3</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,500</span></div>
+          <div class="tr"><span>SEO</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$300</span><span style="width:40px;text-align:right">$300</span></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt" style="color:#0ea5e9">TOTAL $1,800</span></div>
+          <div class="notes-box"><strong>*NOTES:</strong> Thank you for your business!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- M4: Bold bar -->
+    <div class="card" onclick="pick('modern','m4','BoldBar')">
+      <div class="card-hdr">M4 — Bold Bar <span class="num">Thick accent</span></div>
+      <div class="mock" style="padding:0">
+        <div style="height:4px;background:#0ea5e9"></div>
+        <div style="padding:8px 10px;display:flex;justify-content:space-between;margin-bottom:4px">
+          <div><div class="logo" style="margin-bottom:3px">LOGO</div><div class="co-name">WEB DEV CO.</div></div>
+          <div style="text-align:right"><div class="inv-title" style="color:#0ea5e9;font-size:16px">INVOICE</div><div style="font-size:5px;font-weight:700">#INV-1234</div></div>
+        </div>
+        <div style="padding:0 10px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><div class="sec-label">TO:<br><span class="client">Jimmy Doe</span></div><div class="dates" style="text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+        <div style="height:2px;background:#0ea5e9;margin:3px 0"></div>
+        <div class="th" style="background:#000"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+        <div class="tr"><span>Web Design</span><span style="width:25px;text-align:right">3</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,500</span></div>
+        <div class="tr"><span>SEO</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$300</span><span style="width:40px;text-align:right">$300</span></div>
+        <div style="text-align:right;padding:3px"><span style="background:#0ea5e9;color:#fff;padding:2px 6px;border-radius:2px;font-size:5px;font-weight:900">TOTAL $1,800</span></div>
+        <div class="notes-box"><strong>*NOTES:</strong> Thank you for your business!</div></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 10px"><span class="thanks" style="color:#0ea5e9">THANK YOU!</span><span class="terms">Payment due in 30 days</span></div>
+      </div>
+    </div>
+
+    <!-- M5: Gradient -->
+    <div class="card" onclick="pick('modern','m5','Gradient')">
+      <div class="card-hdr">M5 — Gradient <span class="num">Subtle gradient</span></div>
+      <div class="mock" style="padding:0;background:linear-gradient(180deg,#f0fdfc,#fff)">
+        <div style="padding:8px 10px;display:flex;justify-content:space-between;margin-bottom:4px">
+          <div><div class="co-name" style="color:#0ea5e9">WEB DEV CO.</div><div class="co-detail">123 Main St</div></div>
+          <div class="logo" style="border-color:#0ea5e930">LOGO</div>
+        </div>
+        <div style="text-align:center;padding:4px 0"><div class="inv-title" style="color:#0ea5e9">INVOICE</div><div class="inv-num">#INV-1234</div></div>
+        <div style="padding:0 10px;flex:1;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div class="sec-label">TO:<br><span class="client">Jimmy Doe</span></div><div class="dates" style="text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+          <div class="th" style="background:#0ea5e9"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Web Design</span><span style="width:25px;text-align:right">3</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,500</span></div>
+          <div class="tr"><span>SEO</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$300</span><span style="width:40px;text-align:right">$300</span></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt" style="color:#0ea5e9">TOTAL $1,800</span></div>
+          <div class="notes-box"><strong>*NOTES:</strong> Thank you for your business!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ BUSINESS ═══════════════ -->
+<div class="section business">
+  <div class="section-hdr"><h2>BUSINESS</h2><span class="badge">Pick 1 of 5</span></div>
+  <div class="grid">
+
+    <!-- B1: Corporate -->
+    <div class="card" onclick="pick('business','b1','Corporate')">
+      <div class="card-hdr">B1 — Corporate <span class="num">Full header</span></div>
+      <div class="mock" style="padding:0">
+        <div style="padding:10px;display:flex;justify-content:space-between;align-items:center;background:#1e40af;color:#fff">
+          <div class="logo" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.2);color:#fff">LOGO</div>
+          <div style="text-align:right"><div class="inv-title" style="font-size:14px;color:#fff">INVOICE</div><div style="color:rgba(255,255,255,0.8);font-size:4px">#INV-1234</div></div>
+        </div>
+        <div style="padding:8px 10px;flex:1;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div><div class="co-name">STEELFORGE</div><div class="co-detail">123 Industrial Ave</div></div><div class="dates" style="text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+          <div class="sec-label">BILL TO:</div><div class="client">Customer Name</div>
+          <div style="margin-top:4px"><div class="th" style="background:#1e40af"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+          <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt" style="color:#1e40af">TOTAL $1,200</span></div>
+          <div class="notes-box"><strong>*NOTES:</strong> Payment due within 30 days</div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px"><span class="thanks" style="color:#1e40af">THANK YOU!</span><span class="terms">Late payments incur 5% fee</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B2: Navy sidebar -->
+    <div class="card" onclick="pick('business','b2','NavySidebar')">
+      <div class="card-hdr">B2 — Navy Sidebar <span class="num">Dark sidebar</span></div>
+      <div class="mock" style="padding:0;flex-direction:row">
+        <div style="width:24%;background:#0c1929;color:#fff;padding:8px 6px;display:flex;flex-direction:column">
+          <div class="logo" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.15);color:#fff;width:28px;height:28px;font-size:5px;margin-bottom:4px">LOGO</div>
+          <div style="font-weight:700;font-size:5px;margin-bottom:2px">STEELFORGE</div>
+          <div style="flex:1"></div>
+          <div style="font-size:3px;color:rgba(255,255,255,0.6)">📍 123 Industrial Ave<br>✉ info@steel.com</div>
+        </div>
+        <div style="flex:1;padding:8px;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div class="sec-label">BILL TO:<br><span class="client">Customer Name</span></div><div style="text-align:right"><div class="inv-title" style="font-size:12px;color:#1e40af">INVOICE</div></div></div>
+          <div class="dates" style="margin-bottom:4px"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div>
+          <div style="height:1.5px;background:#1e40af;margin:3px 0"></div>
+          <div class="th" style="background:#1e40af"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+          <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt" style="color:#1e40af">TOTAL $1,200</span></div>
+          <div class="notes-box"><strong>*NOTES:</strong> Payment due within 30 days</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B3: Grid -->
+    <div class="card" onclick="pick('business','b3','Grid')">
+      <div class="card-hdr">B3 — Grid <span class="num">Structured grid</span></div>
+      <div class="mock" style="padding:0">
+        <div style="display:flex;border-bottom:2px solid #1e40af;padding:6px 10px">
+          <div style="flex:1"><div class="logo" style="width:28px;height:28px;font-size:5px;margin-bottom:2px">LOGO</div><div class="co-name">STEELFORGE</div></div>
+          <div style="flex:1;text-align:right"><div class="inv-title" style="font-size:12px;color:#1e40af">INVOICE</div><div class="inv-num">#INV-1234</div></div>
+        </div>
+        <div style="display:flex;background:rgba(30,64,175,0.05);font-size:3px;padding:4px 10px">
+          <span style="flex:1;border-right:1px solid #ddd;padding-right:3px"><strong>INVOICE NO</strong><br>1234</span>
+          <span style="flex:1;border-right:1px solid #ddd;padding:0 3px"><strong>ISSUED</strong><br>08/18/2026</span>
+          <span style="flex:1;padding-left:3px"><strong>DUE</strong><br>09/17/2026</span>
+        </div>
+        <div style="display:flex;padding:6px 10px;flex:1">
+          <div style="width:30%;border-right:1px solid #eee;padding-right:6px"><div class="sec-label">BILL TO:</div><div class="client">Customer Name</div><div style="font-size:3px;color:#888;margin-top:2px">123 Client St</div></div>
+          <div style="flex:1;padding-left:6px;display:flex;flex-direction:column">
+            <div class="th" style="background:#1e40af"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+            <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+            <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div>
+            <div style="flex:1"></div>
+            <div class="total"><span class="amt" style="color:#1e40af">TOTAL $1,200</span></div>
+          </div>
+        </div>
+        <div class="notes-box" style="margin:0 10px"><strong>*NOTES:</strong> Payment due within 30 days</div>
+      </div>
+    </div>
+
+    <!-- B4: Letterhead -->
+    <div class="card" onclick="pick('business','b4','Letterhead')">
+      <div class="card-hdr">B4 — Letterhead <span class="num">Formal centered</span></div>
+      <div class="mock" style="text-align:center;padding:0">
+        <div style="padding:10px"><div class="logo logo-lg" style="margin:0 auto 4px">LOGO</div><div class="co-name" style="font-size:7px">STEELFORGE CONSTRUCTION</div><div class="co-detail">123 Industrial Ave | info@steel.com</div></div>
+        <div style="height:3px;background:linear-gradient(#1e40af 50%,rgba(30,64,175,0.3) 50%);margin:0 12px"></div>
+        <div style="padding:6px 0"><div class="inv-title" style="color:#1e40af;font-size:14px;letter-spacing:3px">INVOICE</div></div>
+        <div style="font-size:3.5px;color:#64748b;margin-bottom:4px">#INV-1234 • Issued: 08/18/2026 • Due: 09/17/2026</div>
+        <div style="margin-bottom:6px"><div class="sec-label" style="text-align:center">BILL TO:</div><div class="client" style="font-size:7px">Customer Name</div></div>
+        <div style="height:0.5px;background:#e2e8f0;margin:0 12px 4px"></div>
+        <div style="padding:0 12px;text-align:left;flex:1;display:flex;flex-direction:column">
+          <div class="th" style="background:#1e40af"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+          <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt" style="color:#1e40af">TOTAL $1,200</span></div>
+        </div>
+        <div class="notes-box" style="margin:4px 12px;text-align:left"><strong>*NOTES:</strong> Payment due within 30 days</div>
+      </div>
+    </div>
+
+    <!-- B5: Dark -->
+    <div class="card" onclick="pick('business','b5','Dark')">
+      <div class="card-hdr">B5 — Dark <span class="num">Dark header</span></div>
+      <div class="mock" style="padding:0">
+        <div style="background:#1a1a1e;color:#fff;padding:8px 10px;display:flex;justify-content:space-between">
+          <div><div class="logo" style="background:#27272a;border-color:#3f3f46;color:#a1a1aa;width:32px;height:32px;font-size:5px;margin-bottom:3px">LOGO</div><div style="font-weight:700;font-size:5px">STEELFORGE</div></div>
+          <div style="text-align:right"><div class="inv-title" style="color:#60a5fa;font-size:14px">INVOICE</div><div class="dates" style="color:rgba(255,255,255,0.6)"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+        </div>
+        <div style="padding:8px 10px;flex:1;display:flex;flex-direction:column">
+          <div class="sec-label">INVOICE TO:<br><span class="client">Customer Name</span></div>
+          <div style="margin-top:4px"><div class="th" style="background:#60a5fa"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+          <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt" style="color:#60a5fa">TOTAL $1,200</span></div>
+          <div class="notes-box"><strong>*NOTES:</strong> Payment due within 30 days</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MINIMAL ═══════════════ -->
+<div class="section minimal">
+  <div class="section-hdr"><h2>MINIMAL</h2><span class="badge">Pick 1 of 5</span></div>
+  <div class="grid">
+
+    <!-- Mi1: Zen -->
+    <div class="card" onclick="pick('minimal','mi1','Zen')">
+      <div class="card-hdr">Mi1 — Zen <span class="num">Centered clean</span></div>
+      <div class="mock" style="text-align:center">
+        <div class="logo logo-lg" style="margin:0 auto 4px">LOGO</div>
+        <div class="co-name" style="font-size:7px">STEELFORGE</div>
+        <div style="font-size:8px;font-weight:500;letter-spacing:3px;margin:6px 0">INVOICE</div>
+        <div class="inv-num">#INV-1234</div>
+        <div style="height:0.5px;background:#e2e8f0;margin:6px 12px"></div>
+        <div style="text-align:left;flex:1;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div><div class="sec-label">INVOICE TO:</div><div class="client">Customer Name</div></div><div class="dates" style="text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+          <div style="border:0.5px solid #e2e8f0"><div class="th" style="background:transparent;color:#64748b;border-bottom:0.5px solid #e2e8f0"><span>DESCRIPTION</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+          <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt">TOTAL $1,200</span></div>
+          <div class="notes-box" style="text-align:left"><strong>*NOTES:</strong> Payment due within 30 days</div>
+          <div style="text-align:center;margin-top:3px"><span class="thanks">THANK YOU!</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mi2: Typewriter -->
+    <div class="card" onclick="pick('minimal','mi2','Typewriter')">
+      <div class="card-hdr">Mi2 — Typewriter <span class="num">Monospace</span></div>
+      <div class="mock" style="font-family:'Courier New',monospace">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><div><div class="logo" style="width:28px;height:28px;font-size:5px;margin-bottom:3px">LOGO</div><div class="co-name" style="font-family:monospace">STEELFORGE</div></div><div style="text-align:right"><div style="font-size:10px;font-weight:900">INVOICE</div><div class="inv-num">#INV-1234</div></div></div>
+        <div style="color:#cbd5e1;text-align:center;margin:4px 0;letter-spacing:1px;font-size:3.5px">· · · · · · · · · · · · · · · · · · · ·</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div><div class="sec-label" style="font-family:monospace">BILL TO:</div><div class="client" style="font-family:monospace">Customer Name</div></div><div class="dates" style="font-family:monospace;text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+        <div style="border:0.5px solid #e2e8f0;font-family:monospace"><div class="th" style="background:transparent;color:#64748b;border-bottom:0.5px solid #e2e8f0"><span>DESCRIPTION</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+        <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+        <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div></div>
+        <div style="flex:1"></div>
+        <div class="total"><span class="amt">TOTAL $1,200</span></div>
+        <div class="notes-box" style="font-family:monospace;text-align:left"><strong>*NOTES:</strong> Payment due within 30 days</div>
+      </div>
+    </div>
+
+    <!-- Mi3: Left Bold -->
+    <div class="card" onclick="pick('minimal','mi3','LeftBold')">
+      <div class="card-hdr">Mi3 — Left Bold <span class="num">Strong hierarchy</span></div>
+      <div class="mock">
+        <div class="logo logo-lg" style="margin-bottom:4px">LOGO</div>
+        <div class="co-name" style="font-size:8px">STEELFORGE CONSTRUCTION</div>
+        <div class="co-detail">123 Industrial Ave</div>
+        <div style="height:0.5px;background:#e2e8f0;margin:6px 0"></div>
+        <div style="display:flex;justify-content:space-between;margin:4px 0"><div style="font-size:9px;font-weight:900;letter-spacing:2px">INVOICE</div><div class="dates" style="text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+        <div class="sec-label">INVOICE TO:</div><div class="client">Customer Name</div>
+        <div style="margin-top:4px;border:0.5px solid #e2e8f0"><div class="th" style="background:transparent;color:#64748b;border-bottom:0.5px solid #e2e8f0"><span>DESCRIPTION</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+        <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+        <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div></div>
+        <div style="flex:1"></div>
+        <div class="total"><span class="amt">TOTAL $1,200</span></div>
+        <div class="notes-box" style="text-align:left"><strong>*NOTES:</strong> Payment due within 30 days</div>
+      </div>
+    </div>
+
+    <!-- Mi4: Right Align -->
+    <div class="card" onclick="pick('minimal','mi4','RightAlign')">
+      <div class="card-hdr">Mi4 — Right Align <span class="num">Right emphasis</span></div>
+      <div class="mock">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><div><div class="logo" style="width:32px;height:32px;font-size:5px;margin-bottom:3px">LOGO</div><div class="co-name">STEELFORGE</div></div><div style="text-align:right"><div style="font-size:10px;font-weight:900">INVOICE</div><div class="dates" style="text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div></div>
+        <div style="height:0.5px;background:#e2e8f0;margin:4px 0"></div>
+        <div class="sec-label">INVOICE TO:</div><div class="client">Customer Name</div>
+        <div style="margin-top:4px;border:0.5px solid #e2e8f0"><div class="th" style="background:transparent;color:#64748b;border-bottom:0.5px solid #e2e8f0"><span>DESCRIPTION</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+        <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+        <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div></div>
+        <div style="flex:1"></div>
+        <div class="total"><span class="amt">TOTAL $1,200</span></div>
+        <div class="notes-box" style="text-align:left"><strong>*NOTES:</strong> Payment due within 30 days</div>
+      </div>
+    </div>
+
+    <!-- Mi5: Centered Ornament -->
+    <div class="card" onclick="pick('minimal','mi5','CenterOrnament')">
+      <div class="card-hdr">Mi5 — Centered <span class="num">Ornamental</span></div>
+      <div class="mock" style="text-align:center">
+        <div class="logo logo-lg" style="margin:0 auto 4px">LOGO</div>
+        <div class="co-name" style="font-size:7px">STEELFORGE</div>
+        <div style="font-size:3.5px;color:#94a3b8">123 Industrial Ave</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin:6px 0"><div style="width:24px;height:0.5px;background:#999"></div><div style="width:3px;height:3px;border-radius:50%;background:#999"></div><div style="width:24px;height:0.5px;background:#999"></div></div>
+        <div style="font-size:9px;font-weight:900;letter-spacing:3px">INVOICE</div>
+        <div class="inv-num" style="margin-top:2px">#INV-1234</div>
+        <div style="font-size:3.5px;color:#94a3b8;margin-top:4px">Issued: 08/18/2026 • Due: 09/17/2026</div>
+        <div style="margin-top:6px"><div class="sec-label" style="text-align:center">INVOICE TO:</div><div class="client" style="font-size:7px">Customer Name</div></div>
+        <div style="height:0.5px;background:#e2e8f0;margin:6px 12px"></div>
+        <div style="text-align:left;flex:1;display:flex;flex-direction:column">
+          <div style="border:0.5px solid #e2e8f0"><div class="th" style="background:transparent;color:#64748b;border-bottom:0.5px solid #e2e8f0"><span>DESCRIPTION</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+          <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt">TOTAL $1,200</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PROFESSIONAL ═══════════════ -->
+<div class="section professional">
+  <div class="section-hdr"><h2>PROFESSIONAL</h2><span class="badge">Pick 1 of 5</span></div>
+  <div class="grid">
+
+    <!-- P1: Two Tone -->
+    <div class="card" onclick="pick('professional','p1','TwoTone')">
+      <div class="card-hdr">P1 — Two Tone <span class="num">Accent sidebar</span></div>
+      <div class="mock" style="padding:0;flex-direction:row">
+        <div style="width:24%;background:#7c3aed;color:#fff;padding:8px 6px;display:flex;flex-direction:column">
+          <div class="logo" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.2);color:#fff;width:28px;height:28px;font-size:5px;margin-bottom:4px">LOGO</div>
+          <div style="font-weight:700;font-size:5px">STEELFORGE</div>
+          <div style="flex:1"></div>
+          <div style="font-size:3px;color:rgba(255,255,255,0.7)">📍 123 Industrial Ave<br>✉ info@steel.com</div>
+        </div>
+        <div style="flex:1;padding:8px;display:flex;flex-direction:column">
+          <div style="text-align:right;margin-bottom:4px"><div class="inv-title" style="font-size:12px;color:#059669">INVOICE</div><div class="dates" style="text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+          <div style="height:2px;background:#059669;margin:3px 0"></div>
+          <div class="sec-label">INVOICE TO:</div><div class="client">Customer Name</div>
+          <div style="margin-top:4px"><div class="th" style="background:#059669"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+          <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt" style="color:#059669">TOTAL $1,200</span></div>
+          <div class="notes-box"><strong>*NOTES:</strong> Payment due within 30 days</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P2: Gradient -->
+    <div class="card" onclick="pick('professional','p2','Gradient')">
+      <div class="card-hdr">P2 — Gradient <span class="num">Gradient header</span></div>
+      <div class="mock" style="padding:0">
+        <div style="padding:8px 10px;background:linear-gradient(135deg,#7c3aed,rgba(124,58,237,0.7),rgba(5,150,105,0.5));color:#fff;display:flex;justify-content:space-between">
+          <div><div class="logo" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.2);color:#fff;width:32px;height:32px;font-size:5px;margin-bottom:3px">LOGO</div><div style="font-weight:700;font-size:5px">STEELFORGE</div></div>
+          <div style="text-align:right"><div class="inv-title" style="font-size:14px">INVOICE</div><div class="dates" style="color:rgba(255,255,255,0.7)"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+        </div>
+        <div style="padding:6px 10px;flex:1;display:flex;flex-direction:column">
+          <div class="sec-label" style="margin-top:4px">INVOICE TO:</div><div class="client">Customer Name</div>
+          <div style="margin-top:4px"><div class="th" style="background:#7c3aed"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+          <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt" style="color:#059669">TOTAL $1,200</span></div>
+          <div class="notes-box"><strong>*NOTES:</strong> Payment due within 30 days</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P3: Accent Bars -->
+    <div class="card" onclick="pick('professional','p3','AccentBars')">
+      <div class="card-hdr">P3 — Accent Bars <span class="num">Dual bars</span></div>
+      <div class="mock" style="padding:0">
+        <div style="display:flex;height:5px"><div style="flex:2;background:#7c3aed"></div><div style="flex:1;background:#059669"></div></div>
+        <div style="padding:8px 10px;flex:1;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px"><div><div class="logo" style="margin-bottom:3px">LOGO</div><div class="co-name">STEELFORGE</div></div><div style="text-align:right"><div class="inv-title" style="color:#7c3aed;font-size:14px">INVOICE</div><div style="font-size:5px;font-weight:700">#INV-1234</div></div></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div class="sec-label">INVOICE TO:<br><span class="client">Customer Name</span></div><div class="dates" style="text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+          <div class="th" style="background:#7c3aed"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+          <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt" style="color:#059669">TOTAL $1,200</span></div>
+          <div class="notes-box"><strong>*NOTES:</strong> Payment due within 30 days</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P4: Bordered -->
+    <div class="card" onclick="pick('professional','p4','Bordered')">
+      <div class="card-hdr">P4 — Bordered <span class="num">Card sections</span></div>
+      <div class="mock">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="logo logo-lg">LOGO</div><div style="text-align:right"><div class="inv-title" style="color:#7c3aed;font-size:14px">INVOICE</div></div></div>
+        <div style="display:flex;gap:4px;margin-bottom:6px">
+          <div style="flex:1;border:1px solid rgba(124,58,237,0.3);border-radius:3px;padding:4px"><div class="sec-label">INVOICE TO:</div><div class="client">Customer Name</div></div>
+          <div style="flex:1;border:1px solid rgba(124,58,237,0.3);border-radius:3px;padding:4px"><div class="dates"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+        </div>
+        <div class="th" style="background:#7c3aed"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+        <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+        <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div>
+        <div style="flex:1"></div>
+        <div class="total"><span class="amt" style="color:#059669">TOTAL $1,200</span></div>
+        <div class="notes-box"><strong>*NOTES:</strong> Payment due within 30 days</div>
+      </div>
+    </div>
+
+    <!-- P5: Sidebar -->
+    <div class="card" onclick="pick('professional','p5','Sidebar')">
+      <div class="card-hdr">P5 — Sidebar <span class="num">Colored sidebar</span></div>
+      <div class="mock" style="padding:0;flex-direction:row">
+        <div style="width:24%;background:#7c3aed;color:#fff;padding:8px 6px;display:flex;flex-direction:column">
+          <div class="logo" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.2);color:#fff;width:28px;height:28px;font-size:5px;margin-bottom:4px">LOGO</div>
+          <div style="font-weight:700;font-size:5px;margin-bottom:2px">STEELFORGE</div>
+          <div style="flex:1"></div>
+          <div class="inv-title" style="font-size:12px;color:#fff">INVOICE</div>
+          <div style="margin-top:auto;font-size:3px;color:rgba(255,255,255,0.7)">📍 123 Industrial Ave<br>✉ info@steel.com</div>
+        </div>
+        <div style="flex:1;padding:8px;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><div class="sec-label">BILL TO:<br><span class="client">Customer Name</span></div><div class="dates" style="text-align:right"><span>Issued: 08/18/2026</span><span>Due: 09/17/2026</span></div></div>
+          <div style="height:1.5px;background:#7c3aed;margin:3px 0"></div>
+          <div class="th" style="background:#7c3aed"><span>ITEM</span><span style="width:25px;text-align:right">QTY</span><span style="width:35px;text-align:right">PRICE</span><span style="width:40px;text-align:right">TOTAL</span></div>
+          <div class="tr"><span>Construction</span><span style="width:25px;text-align:right">2</span><span style="width:35px;text-align:right">$500</span><span style="width:40px;text-align:right">$1,000</span></div>
+          <div class="tr"><span>Materials</span><span style="width:25px;text-align:right">1</span><span style="width:35px;text-align:right">$200</span><span style="width:40px;text-align:right">$200</span></div>
+          <div style="flex:1"></div>
+          <div class="total"><span class="amt" style="color:#059669">TOTAL $1,200</span></div>
+          <div class="notes-box"><strong>*NOTES:</strong> Payment due within 30 days</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Panel -->
+<div class="panel" id="panel">
+  <div class="info"><span id="sel"></span></div>
+  <button class="btn" onclick="confirm()">✓ Confirm</button>
+</div>
+
+<script>
+const picks = {};
+function pick(cat, id, name) {
+  document.querySelectorAll(`.${cat} .card`).forEach(c => c.classList.remove('sel'));
+  event.currentTarget.classList.add('sel');
+  picks[cat] = { id, name };
+  const p = document.getElementById('panel');
+  p.classList.add('show');
+  document.getElementById('sel').innerHTML = Object.entries(picks).map(([c, i]) => `<strong>${c.toUpperCase()}: ${i.name}</strong>`).join(' &nbsp;•&nbsp; ');
+}
+function confirm() {
+  const s = Object.entries(picks).map(([c, i]) => `${c.toUpperCase()}: ${i.id} (${i.name})`).join('\n');
+  alert('Your picks:\n\n' + s + '\n\nTell me and I\'ll implement them!');
+}
+</script>
+</body>
+</html>
