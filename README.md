@@ -4,7 +4,7 @@ A native macOS invoice generator. Create clients, build invoices, and export cle
 
 ## Download
 
-[**InvoiceFlow-2.1.0.dmg**](dist/InvoiceFlow-2.1.0.dmg) — requires macOS 14.0+ (universal: Apple Silicon & Intel)
+[**InvoiceFlow-2.1.1.dmg**](dist/InvoiceFlow-2.1.1.dmg) — requires macOS 14.0+ (universal: Apple Silicon & Intel)
 
 ## What It Does
 
@@ -71,6 +71,12 @@ xcodebuild test -scheme InvoiceFlow -destination 'platform=macOS'
 ```
 
 ## Changelog
+
+### v2.1.1
+
+- **Fixed a data-loss bug**: the app stored its data in a generic `default.store` file that other SwiftData apps on the same Mac also use; when one of them rewrote that file, all InvoiceFlow data was wiped. The app now keeps its data in a dedicated, app-owned store (`~/Library/Application Support/InvoiceFlow/InvoiceFlow.store`) that nothing else can touch. Data written after installing this version reliably survives relaunches.
+- Snapshots taken on quit keep working with the new store, and older snapshots remain restorable.
+- Rebuilt the DMG with a proper release script (`npm run dist`) and removed the obsolete Electron packaging.
 
 ### v2.0.0
 
