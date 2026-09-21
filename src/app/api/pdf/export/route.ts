@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import { assemblePdfData } from "@/lib/pdf/assemble";
 import { generateInvoicePdfBuffer } from "@/lib/pdf/generate-pdf";
+import { getUserId } from "@/lib/user";
 
 export async function POST(request: Request) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await request.json();
     const invoice = body?.invoice;
     if (

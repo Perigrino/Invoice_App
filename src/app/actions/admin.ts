@@ -52,6 +52,27 @@ export async function deleteUserAction(
   if (userId === actorId) {
     return { error: "You can't delete your own account." };
   }
+  const linked = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      invoices: { take: 1 },
+      clients: { take: 1 },
+      settings: { take: 1 },
+    },
+  });
+  if (linked) {
+    const counts = [
+      linked.invoices.length > 0 ? "invoices" : null,
+      linked.clients.length > 0 ? "clients" : null,
+      linked.settings ? "settings" : null,
+    ].filter(Boolean) as string[];
+    if (counts.length > 0) {
+      return {
+        error: `Account has linked data (${counts.join(", ")}). Confirm deletion to cascade all linked records.`,
+        note: "cascade-confirm-required",
+      };
+    }
+  }
   await prisma.user.delete({ where: { id: userId } });
   return {};
 }
