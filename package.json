@@ -6,15 +6,12 @@
   "author": {
     "name": "InvoiceFlow"
   },
-  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "electron:dev": "electron .",
-    "dist": "npm run build && node scripts/electron-stage.cjs && electron-builder --mac",
-    "dist:arm64": "npm run build && node scripts/electron-stage.cjs && electron-builder --mac --arm64"
+    "dist": "bash scripts/build-dmg.sh"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
@@ -67,8 +64,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "electron": "^37.2.3",
-    "electron-builder": "^26.0.12",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "playwright": "^1.62.1",
