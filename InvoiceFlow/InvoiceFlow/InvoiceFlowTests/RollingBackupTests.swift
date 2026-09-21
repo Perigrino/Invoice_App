@@ -52,6 +52,27 @@ final class RollingBackupTests: XCTestCase {
         XCTAssertEqual(try readStore(snapshot.appendingPathComponent("default.store"), suffix: "-shm"), "important-data-shm")
     }
 
+    /// The live store file is named `InvoiceFlow.store` these days; snapshots
+    /// must keep the canonical `default.store` layout either way, so older
+    /// snapshots stay restorable and restore code stays name-agnostic.
+    func testSnapshotNormalizesNonDefaultStoreName() throws {
+        let renamedStore = tempDir.appendingPathComponent("InvoiceFlow.store")
+        defer {
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(at: URL(fileURLWithPath: renamedStore.path + suffix))
+            }
+        }
+        try "renamed-live-data".write(to: renamedStore, atomically: true, encoding: .utf8)
+        try "renamed-live-data-wal".write(to: URL(fileURLWithPath: renamedStore.path + "-wal"), atomically: true, encoding: .utf8)
+        try "renamed-live-data-shm".write(to: URL(fileURLWithPath: renamedStore.path + "-shm"), atomically: true, encoding: .utf8)
+
+        let snapshot = try XCTUnwrap(RollingBackupService.takeSnapshot(storeURL: renamedStore))
+
+        XCTAssertEqual(try readStore(snapshot.appendingPathComponent("default.store")), "renamed-live-data")
+        XCTAssertEqual(try readStore(snapshot.appendingPathComponent("default.store"), suffix: "-wal"), "renamed-live-data-wal")
+        XCTAssertEqual(try readStore(snapshot.appendingPathComponent("default.store"), suffix: "-shm"), "renamed-live-data-shm")
+    }
+
     func testSnapshotWithoutStoreReturnsNil() {
         XCTAssertNil(RollingBackupService.takeSnapshot(storeURL: liveStore))
         XCTAssertTrue(RollingBackupService.snapshots().isEmpty)

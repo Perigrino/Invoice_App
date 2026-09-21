@@ -25,6 +25,10 @@ enum RollingBackupService {
         return appSupport.appendingPathComponent("InvoiceFlow/Backups", isDirectory: true)
     }()
 
+    /// Store file name inside a snapshot. Snapshots keep the historical name
+    /// `default.store` for compatibility with pre-existing snapshot folders.
+    static let snapshotStoreFileName = "default.store"
+
     /// The staged-restore marker file path (inside the snapshots directory).
     static var stagedRestoreURL: URL {
         backupsDirectory.appendingPathComponent("RESTORE_PENDING")
@@ -59,7 +63,11 @@ enum RollingBackupService {
             try fm.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
 
             for path in trio where fm.fileExists(atPath: path) {
-                let dest = snapshotDir.appendingPathComponent((path as NSString).lastPathComponent)
+                // Store files are renamed inside the snapshot so the snapshot
+                // layout is stable regardless of the live store's file name.
+                let isBase = path == base.path
+                let fileName = isBase ? snapshotStoreFileName : snapshotStoreFileName + snapshotSuffix(of: path)
+                let dest = snapshotDir.appendingPathComponent(fileName)
                 try fm.copyItem(atPath: path, toPath: dest.path)
             }
 
@@ -114,7 +122,7 @@ enum RollingBackupService {
     /// touched until the next launch applies it before opening the store.
     static func stageRestore(snapshot: URL) throws {
         let fm = FileManager.default
-        guard fm.fileExists(atPath: snapshot.appendingPathComponent("default.store").path) else {
+        guard fm.fileExists(atPath: snapshot.appendingPathComponent(snapshotStoreFileName).path) else {
             throw RollingBackupError.snapshotIncomplete(snapshot)
         }
         try fm.createDirectory(at: backupsDirectory, withIntermediateDirectories: true)
@@ -134,7 +142,7 @@ enum RollingBackupService {
         try? fm.removeItem(at: stagedRestoreURL)
 
         let snapshotBase = URL(fileURLWithPath: stagedPath.trimmingCharacters(in: .whitespacesAndNewlines))
-            .appendingPathComponent("default.store")
+            .appendingPathComponent(snapshotStoreFileName)
 
         guard fm.fileExists(atPath: snapshotBase.path) else { return false }
 
@@ -208,4 +216,12 @@ private extension String {
     func deletingSuffix(_ suffix: String) -> String {
         hasSuffix(suffix) ? String(dropLast(suffix.count)) : self
     }
+}
+
+/// "" for the base file, "-wal"/"-shm" for the journal companions — used to
+/// rename snapshot copies to the canonical `default.store*` names.
+private func snapshotSuffix(of path: String) -> String {
+    if path.hasSuffix("-wal") { return "-wal" }
+    if path.hasSuffix("-shm") { return "-shm" }
+    return ""
 }

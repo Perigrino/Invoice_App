@@ -461,6 +461,21 @@ final class PersistenceTests: XCTestCase {
         }
     }
 
+    // MARK: - Store location
+
+    /// Guards the "data vanished on relaunch" fix, round two: the store must
+    /// live in the app-owned InvoiceFlow folder under a dedicated name. The
+    /// generic `~/Library/Application Support/default.store` is shared by every
+    /// SwiftData app on the machine — one of them overwrote the file's schema
+    /// and wiped all InvoiceFlow data (P0, 2026-09).
+    func testStoreLivesInAppOwnedPathNotGenericDefaultStore() {
+        let path = InvoiceFlowApp.defaultStoreURL.path
+        XCTAssertTrue(path.contains("/InvoiceFlow/InvoiceFlow.store"),
+                      "store must be the app-owned InvoiceFlow.store inside its own folder, got: \(path)")
+        XCTAssertFalse(path.hasSuffix("/default.store"),
+                       "store must never use the generic default.store name shared with other apps")
+    }
+
     // MARK: - Negative controls (document the original bug)
 
     func testUnsavedChangesVanishAfterTeardown() throws {

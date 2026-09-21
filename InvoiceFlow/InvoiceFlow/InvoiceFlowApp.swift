@@ -9,11 +9,16 @@ struct InvoiceFlowApp: App {
     /// Kept so the app can flush pending changes to disk when it quits.
     static var sharedContainer: ModelContainer?
 
-    /// The on-disk location of the SwiftData store (non-sandboxed default).
-    /// Used by the rolling-backup service for snapshots and restores.
+    /// The on-disk location of the SwiftData store. InvoiceFlow owns this
+    /// dedicated file — never use the generic `default.store` name, which is
+    /// shared by every SwiftData app and gets its schema overwritten by them
+    /// (that collision wiped user data once; see PersistenceTests for the
+    /// regression guard). Also used by the rolling-backup service.
     static var defaultStoreURL: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return appSupport.appendingPathComponent("default.store")
+        return appSupport
+            .appendingPathComponent("InvoiceFlow", isDirectory: true)
+            .appendingPathComponent("InvoiceFlow.store")
     }
 
     static var isRunningTests: Bool {
@@ -42,7 +47,7 @@ struct InvoiceFlowApp: App {
             } else if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
                 configuration = ModelConfiguration(isStoredInMemoryOnly: true)
             } else {
-                configuration = ModelConfiguration()
+                configuration = ModelConfiguration(url: Self.defaultStoreURL)
             }
             let newContainer = try ModelContainer(
                 for: Invoice.self, InvoiceLineItem.self, Client.self, Company.self, Setting.self,
@@ -50,7 +55,8 @@ struct InvoiceFlowApp: App {
             )
             #else
             let newContainer = try ModelContainer(
-                for: Invoice.self, InvoiceLineItem.self, Client.self, Company.self, Setting.self
+                for: Invoice.self, InvoiceLineItem.self, Client.self, Company.self, Setting.self,
+                configurations: ModelConfiguration(url: Self.defaultStoreURL)
             )
             #endif
             container = newContainer
