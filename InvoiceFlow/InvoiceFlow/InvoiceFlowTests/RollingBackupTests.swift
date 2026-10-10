@@ -83,16 +83,19 @@ final class RollingBackupTests: XCTestCase {
         let keep = RollingBackupService.keepCount
 
         // One more snapshot than the cap, spaced a second apart for unique names.
+        var created: [URL] = []
         for offset in 0..<(keep + 2) {
             let date = Calendar.current.date(byAdding: .second, value: offset, to: Date())!
-            _ = RollingBackupService.takeSnapshot(storeURL: liveStore, now: date)
+            let snap = try XCTUnwrap(RollingBackupService.takeSnapshot(storeURL: liveStore, now: date))
+            created.append(snap)
         }
 
-        let remaining = RollingBackupService.snapshots()
-        XCTAssertEqual(remaining.count, keep, "only the newest \(keep) snapshots should survive")
-        // The two oldest must be gone.
-        let oldestName = remaining.first!.lastPathComponent
-        XCTAssertFalse(oldestName.contains(String(format: "%02d", 0)), "oldest snapshots should have been pruned")
+        let remainingNames = Set(RollingBackupService.snapshots().map(\.lastPathComponent))
+        XCTAssertEqual(remainingNames.count, keep, "only the newest \(keep) snapshots should survive")
+        // The two oldest must be gone; the newest must have survived.
+        XCTAssertFalse(remainingNames.contains(created[0].lastPathComponent), "oldest snapshot should have been pruned")
+        XCTAssertFalse(remainingNames.contains(created[1].lastPathComponent), "second-oldest snapshot should have been pruned")
+        XCTAssertTrue(remainingNames.contains(created[keep + 1].lastPathComponent), "newest snapshot should survive")
     }
 
     // MARK: - Staged restore
