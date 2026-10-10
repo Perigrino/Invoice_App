@@ -31,6 +31,7 @@
 		UT_BF01 /* InvoiceFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT_FR01 /* InvoiceFlowUITests.swift */; };
 		TB01 /* PersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR01 /* PersistenceTests.swift */; };
 		TB02 /* RollingBackupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR02 /* RollingBackupTests.swift */; };
+		TB03 /* ListLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR03 /* ListLayoutTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,6 +78,7 @@
 		UT_PR01 /* InvoiceFlowUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InvoiceFlowUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		TB_FR01 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
 		TB_FR02 /* RollingBackupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RollingBackupTests.swift; sourceTree = "<group>"; };
+		TB_FR03 /* ListLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListLayoutTests.swift; sourceTree = "<group>"; };
 		TB_PR01 /* InvoiceFlowTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InvoiceFlowTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -224,6 +226,7 @@
 			children = (
 				TB_FR01,
 				TB_FR02,
+				TB_FR03,
 			);
 			path = InvoiceFlowTests;
 			sourceTree = "<group>";
@@ -394,6 +397,7 @@
 			files = (
 				TB01 /* PersistenceTests.swift in Sources */,
 				TB02 /* RollingBackupTests.swift in Sources */,
+				TB03 /* ListLayoutTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -97,8 +97,11 @@ struct ClientListView: View {
 // MARK: - Client Row
 
 struct ClientRow: View {
+    /// Fixed height — see `InvoiceRow.rowHeight` for why rows need one.
+    static let rowHeight: CGFloat = 48
+
     let client: Client
-    
+
     var body: some View {
         HStack(spacing: 12) {
             Circle()
@@ -112,9 +115,11 @@ struct ClientRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(client.fullName)
                     .font(.system(.body, weight: .medium))
+                    .lineLimit(1)
                 if let company = client.company, !company.isEmpty {
                     Text(company)
                         .font(.caption)
+                        .lineLimit(1)
                         .foregroundColor(.secondary)
                 }
             }
@@ -122,9 +127,11 @@ struct ClientRow: View {
             if let email = client.email {
                 Text(email)
                     .font(.caption)
+                    .lineLimit(1)
                     .foregroundColor(.secondary)
             }
         }
         .padding(.vertical, 4)
+        .frame(height: Self.rowHeight)
     }
 }

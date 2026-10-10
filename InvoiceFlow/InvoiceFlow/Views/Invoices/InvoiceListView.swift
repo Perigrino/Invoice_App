@@ -171,16 +171,23 @@ struct InvoiceListView: View {
 // MARK: - Invoice Row
 
 struct InvoiceRow: View {
+    /// Fixed height: SwiftUI's `List` only re-measures a row when it lays it
+    /// out, and rows created while a sheet is on screen keep the table's
+    /// default 24pt height — their second line then spills over the next row.
+    static let rowHeight: CGFloat = 48
+
     let invoice: Invoice
-    
+
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(invoice.invoiceNumber.isEmpty ? "New Invoice" : invoice.invoiceNumber)
                     .font(.system(.body, weight: .semibold))
+                    .lineLimit(1)
                 if let client = invoice.client {
                     Text(client.fullName)
                         .font(.caption)
+                        .lineLimit(1)
                         .foregroundColor(.secondary)
                 }
             }
@@ -191,12 +198,15 @@ struct InvoiceRow: View {
                 .frame(width: 70, alignment: .center)
             Text(DateFormatHelper.string(from: invoice.issueDate))
                 .font(.caption)
+                .lineLimit(1)
                 .foregroundColor(.secondary)
             Text(formatCurrency(invoice.total))
                 .font(.system(.body, design: .monospaced).weight(.medium))
+                .lineLimit(1)
                 .frame(width: 100, alignment: .trailing)
         }
         .padding(.vertical, 4)
+        .frame(height: Self.rowHeight)
     }
     
     private func formatCurrency(_ amount: Double) -> String {
