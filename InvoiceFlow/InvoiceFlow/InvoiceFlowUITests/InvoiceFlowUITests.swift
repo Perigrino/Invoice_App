@@ -628,7 +628,173 @@ final class InvoiceFlowUITests: XCTestCase {
         XCTAssertFalse(templatePicker.exists, "PDF export dialog should close after clicking Cancel")
     }
 
-// MARK: - Helpers
+// MARK: - 15. Row-overlap regression (rows created behind sheets / via Duplicate)
+
+    /// Reproduces the user-reported bug: after creating an invoice behind the
+    /// create sheet, and after duplicating an existing invoice, the new row
+    /// must not be overlapped by its neighbour.
+    func testNewAndDuplicatedInvoiceRowsDoNotOverlap() {
+        skipOnboardingIfPresent()
+        navigateToInvoices()
+
+        createInvoiceThroughForm(number: "INV-OVL-001", description: "Overlap probe one", price: "10")
+        createInvoiceThroughForm(number: "INV-OVL-002", description: "Overlap probe two", price: "20")
+
+        saveScreenshot(named: "1-after-two-creates")
+        dumpListGeometry(context: "after two creates")
+        assertRowsDoNotOverlap(context: "after two creates")
+
+        // Duplicate the top row via the context menu — the second path the
+        // user reported as overlapping.
+        let firstRow = invoiceList.cells.firstMatch
+        XCTAssertTrue(firstRow.waitForExistence(timeout: 5), "Expected an invoice row to duplicate")
+        firstRow.rightClick()
+        sleep(1)
+        let duplicate = app.menuItems["Duplicate"]
+        XCTAssertTrue(duplicate.waitForExistence(timeout: 5), "Duplicate menu item should appear")
+        duplicate.click()
+
+        // Let the insert and any animation settle.
+        sleep(2)
+        saveScreenshot(named: "2-after-duplicate")
+        dumpListGeometry(context: "after duplicate")
+        assertRowsDoNotOverlap(context: "after duplicate")
+    }
+
+    /// Same regression for the client list: create a client behind the sheet
+    /// and assert the new row is not overlapped.
+    func testNewClientRowDoesNotOverlap() {
+        skipOnboardingIfPresent()
+        navigateToClients()
+
+        for name in ["Overlap Client One", "Overlap Client Two"] {
+            let newClientButton = app.buttons["New Client"]
+            XCTAssertTrue(newClientButton.waitForExistence(timeout: 5))
+            newClientButton.click()
+            let fullNameField = findField("e.g. John Smith")
+            XCTAssertTrue(fullNameField.waitForExistence(timeout: 5))
+            fullNameField.click()
+            fullNameField.typeText(name)
+            let createButton = app.buttons["Create"]
+            createButton.click()
+            XCTAssertTrue(createButton.waitForNonExistence(timeout: 5), "Client form must dismiss after saving")
+            XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 5), "Created client must appear")
+        }
+
+        saveScreenshot(named: "3-clients-after-two-creates")
+        dumpListGeometry(context: "client list after two creates")
+        assertRowsDoNotOverlap(context: "client list after two creates")
+    }
+
+    // MARK: - Helpers
+
+    private func createInvoiceThroughForm(number: String, description: String, price: String) {
+        let newInvoiceButton = app.buttons["New Invoice"]
+        XCTAssertTrue(newInvoiceButton.waitForExistence(timeout: 5), "New Invoice button should exist")
+        newInvoiceButton.click()
+
+        let numberField = findField("INV-001")
+        XCTAssertTrue(numberField.waitForExistence(timeout: 5), "Invoice number field should appear")
+        numberField.click()
+        numberField.typeKey("a", modifierFlags: .command)
+        numberField.typeText(number)
+
+        let descriptionField = findField("Item description")
+        XCTAssertTrue(descriptionField.waitForExistence(timeout: 5), "Line item description field should appear")
+        descriptionField.click()
+        descriptionField.typeText(description)
+
+        let priceField = findField("0.00")
+        XCTAssertTrue(priceField.waitForExistence(timeout: 5), "Price field should appear")
+        priceField.click()
+        priceField.typeKey("a", modifierFlags: .command)
+        priceField.typeText(price)
+
+        let createButton = app.buttons["Create"]
+        createButton.click()
+        XCTAssertTrue(createButton.waitForNonExistence(timeout: 5), "Invoice form must dismiss after saving")
+        XCTAssertTrue(app.staticTexts[number].waitForExistence(timeout: 5), "Created invoice must appear in the list")
+    }
+
+    /// Asserts no two adjacent visible rows in `table` overlap vertically.
+    private func assertRowsDoNotOverlap(
+        context: String,
+        in table: XCUIElement? = nil,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let list = table ?? invoiceList
+        XCTAssertTrue(list.waitForExistence(timeout: 5), "\(context): expected a list to inspect")
+        let listFrame = list.frame
+        let cells = list.cells.allElementsBoundByIndex.filter { $0.frame.height > 0 }
+        guard cells.count >= 2 else { return }
+        let frames = cells.map { $0.frame }.sorted { $0.minY < $1.minY }
+        var issues: [String] = []
+
+        // 1. Adjacent rows must not intersect.
+        for i in 0..<(frames.count - 1) {
+            let a = frames[i]
+            let b = frames[i + 1]
+            let overlap = a.maxY - b.minY
+            if overlap > 1.0 {
+                issues.append(
+                    "row \(i) (y=\(Int(a.minY)), h=\(Int(a.height))) overlaps row \(i + 1) (y=\(Int(b.minY))) by \(Int(overlap))pt"
+                )
+            }
+        }
+
+        // 2. Every row must be tall enough to show both lines (~48pt + insets).
+        for (i, f) in frames.enumerated() where f.height < 40 {
+            issues.append("row \(i) is clipped to height \(Int(f.height)) (y=\(Int(f.minY))) — expected ~48-56pt")
+        }
+
+        // 3. No row text may stick out above the list's visible top (clipped row).
+        for cell in cells {
+            for text in cell.staticTexts.allElementsBoundByIndex {
+                let tf = text.frame
+                guard tf.height > 0, !tf.isNull else { continue }
+                if tf.minY < listFrame.minY - 2 {
+                    issues.append(
+                        "text \"\(text.label)\" (y=\(Int(tf.minY))) is clipped above the list top (y=\(Int(listFrame.minY)))"
+                    )
+                }
+            }
+        }
+
+        XCTAssertTrue(
+            issues.isEmpty,
+            "\(context): row layout issues — \(issues.joined(separator: "; "))",
+            file: file,
+            line: line
+        )
+    }
+
+    /// Prints exact geometry of the invoice list for debugging.
+    private func dumpListGeometry(context: String) {
+        let list = invoiceList
+        guard list.exists else {
+            print("[GEOM] \(context): no list found")
+            return
+        }
+        let lf = list.frame
+        print("[GEOM] \(context): outline frame x=\(Int(lf.minX)) y=\(Int(lf.minY)) w=\(Int(lf.width)) h=\(Int(lf.height))")
+        for (i, cell) in list.cells.allElementsBoundByIndex.enumerated() {
+            let f = cell.frame
+            let labels = cell.staticTexts.allElementsBoundByIndex
+                .map { "\($0.label)@y=\(Int($0.frame.minY))" }
+                .joined(separator: ", ")
+            print("[GEOM]   cell[\(i)] y=\(Int(f.minY)) h=\(Int(f.height)) texts: \(labels)")
+        }
+    }
+
+    private func saveScreenshot(named name: String) {
+        let dir = ProcessInfo.processInfo.environment["INVOICEFLOW_UI_SHOT_DIR"]
+            ?? NSTemporaryDirectory().appending("invoiceflow-ui-shots")
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        let url = URL(fileURLWithPath: dir).appendingPathComponent("\(name).png")
+        try? XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        print("[UI-SHOT] wrote \(url.path)")
+    }
 
     private var invoiceList: XCUIElement {
         app.outlines.matching(NSPredicate(format: "label != 'Sidebar'")).firstMatch

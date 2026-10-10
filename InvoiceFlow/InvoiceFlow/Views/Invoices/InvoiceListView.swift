@@ -67,6 +67,16 @@ struct InvoiceListView: View {
                     }
                 }
                 .listStyle(.inset(alternatesRowBackgrounds: true))
+                // Keep the table's row height in sync with the fixed row
+                // content — rows inserted while a sheet covers the window are
+                // otherwise stuck at the table's 24pt default (overlapping
+                // the next row). See TableRowHeightFix.
+                .overlay {
+                    TableRowHeightFix(
+                        height: InvoiceRow.tableRowHeight,
+                        dataCount: filteredInvoices.count
+                    )
+                }
             }
         }
         .navigationTitle("Invoices")
@@ -175,6 +185,9 @@ struct InvoiceRow: View {
     /// out, and rows created while a sheet is on screen keep the table's
     /// default 24pt height — their second line then spills over the next row.
     static let rowHeight: CGFloat = 48
+    /// Full row pitch inside the table: content height + the list's vertical
+    /// row insets (measured at 8pt on the `.inset` list style).
+    static let tableRowHeight: CGFloat = rowHeight + 8
 
     let invoice: Invoice
 

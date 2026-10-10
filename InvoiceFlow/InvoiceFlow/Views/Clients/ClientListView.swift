@@ -50,6 +50,14 @@ struct ClientListView: View {
                     }
                 }
                 .listStyle(.inset(alternatesRowBackgrounds: true))
+                // See TableRowHeightFix — guards against rows inserted behind
+                // the Create sheet keeping the table's 24pt default height.
+                .overlay {
+                    TableRowHeightFix(
+                        height: ClientRow.tableRowHeight,
+                        dataCount: filteredClients.count
+                    )
+                }
                 .onChange(of: selectedClients) { _, newSelection in
                     if let first = newSelection.first {
                         editingClient = first
@@ -99,6 +107,8 @@ struct ClientListView: View {
 struct ClientRow: View {
     /// Fixed height — see `InvoiceRow.rowHeight` for why rows need one.
     static let rowHeight: CGFloat = 48
+    /// Full row pitch inside the table — see `InvoiceRow.tableRowHeight`.
+    static let tableRowHeight: CGFloat = rowHeight + 8
 
     let client: Client
 

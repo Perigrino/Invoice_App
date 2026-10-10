@@ -24,6 +24,7 @@
 		BF16 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR16 /* SettingsView.swift */; };
 		BF17 /* PDFGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR17 /* PDFGenerator.swift */; };
 		BF18 /* PDFTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR18 /* PDFTemplate.swift */; };
+		BF19 /* TableRowHeightFix.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR19 /* TableRowHeightFix.swift */; };
 		BS01 /* BackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFR01 /* BackupService.swift */; };
 		BS02 /* RollingBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFR02 /* RollingBackupService.swift */; };
 		BF12 /* PDFExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR12 /* PDFExportView.swift */; };
@@ -69,6 +70,7 @@
 		FR16 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FR17 /* PDFGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFGenerator.swift; sourceTree = "<group>"; };
 		FR18 /* PDFTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFTemplate.swift; sourceTree = "<group>"; };
+		FR19 /* TableRowHeightFix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableRowHeightFix.swift; sourceTree = "<group>"; };
 		FR12 /* PDFExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportView.swift; sourceTree = "<group>"; };
 		BFR01 /* BackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupService.swift; sourceTree = "<group>"; };
 		BFR02 /* RollingBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RollingBackupService.swift; sourceTree = "<group>"; };
@@ -175,6 +177,7 @@
 				BFR01,
 				BFR02,
 				FR11,
+				FR19,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -377,6 +380,7 @@
 				BF16 /* SettingsView.swift in Sources */,
 				BF17 /* PDFGenerator.swift in Sources */,
 				BF18 /* PDFTemplate.swift in Sources */,
+				BF19 /* TableRowHeightFix.swift in Sources */,
 				BF12 /* PDFExportView.swift in Sources */,
 				BS01 /* BackupService.swift in Sources */,
 				BS02 /* RollingBackupService.swift in Sources */,
