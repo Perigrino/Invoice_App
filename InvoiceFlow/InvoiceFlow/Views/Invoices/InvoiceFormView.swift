@@ -31,19 +31,14 @@ struct InvoiceFormView: View {
     var body: some View {
         VStack(spacing: 0) {
             // MARK: - Header
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(isEditing ? "Edit Invoice" : "New Invoice")
-                        .font(.title2.bold())
-                    Text(isEditing ? "Update invoice details" : "Create a new invoice")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
+            PageHeader(
+                isEditing ? "Edit Invoice" : "New Invoice",
+                subtitle: isEditing ? "Update the details and totals." : "Draft a new invoice — line items recalculate as you type."
+            ) {
                 if showValidationError {
                     Text(validationError)
-                        .font(.caption)
-                        .foregroundColor(.red)
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.negative)
                         .transition(.opacity)
                 }
                 Button("Cancel") {
@@ -51,51 +46,49 @@ struct InvoiceFormView: View {
                     cancelAction = nil
                     dismiss()
                 }
-                    .keyboardShortcut(.cancelAction)
-                Button(isEditing ? "Update" : "Create") { 
+                .buttonStyle(.plain)
+                .capsuleButton(.ghost)
+                .keyboardShortcut(.cancelAction)
+                Button(isEditing ? "Update" : "Create") {
                     if validateForm() {
                         saveInvoice()
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.brandPrimary)
+                .buttonStyle(.plain)
+                .capsuleButton(.primary)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding()
-            
-            Divider()
+            .padding(.horizontal, 28)
+            .padding(.top, 22)
+
+            Divider().overlay(Theme.hairline)
             
             // MARK: - Form Content
             ScrollView {
                 VStack(spacing: 24) {
-                    // Invoice Details
-                    formSection(title: "Invoice Details") {
-                        VStack(spacing: 16) {
-                            HStack(spacing: 16) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Invoice Number")
-                                        .font(.caption.bold())
-                                        .foregroundColor(.secondary)
+                    // Invoice Details (prototype card: no header)
+                    formSection {
+                        VStack(spacing: 14) {
+                            HStack(alignment: .top, spacing: 16) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Invoice Number").modifier(FieldLabelStyle())
                                     TextField("INV-001", text: $invoiceNumber)
-                                        .textFieldStyle(.roundedBorder)
+                                        .textFieldStyle(GlassFieldStyle())
                                 }
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Type")
-                                        .font(.caption.bold())
-                                        .foregroundColor(.secondary)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Type").modifier(FieldLabelStyle())
                                     Picker("", selection: $invoiceType) {
                                         Text("Invoice").tag("invoice")
                                         Text("Proforma Invoice").tag("proforma")
                                     }
-                                    .pickerStyle(.segmented)
+                                    .labelsHidden()
+                                    .tint(Theme.accent)
                                 }
                             }
-                            
-                            HStack(spacing: 16) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Client")
-                                        .font(.caption.bold())
-                                        .foregroundColor(.secondary)
+
+                            HStack(alignment: .top, spacing: 16) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Client").modifier(FieldLabelStyle())
                                     Picker("", selection: $selectedClientIndex) {
                                         Text("No Client").tag(0)
                                         ForEach(Array(clients.enumerated()), id: \.element.id) { index, client in
@@ -103,29 +96,28 @@ struct InvoiceFormView: View {
                                         }
                                     }
                                     .labelsHidden()
+                                    .tint(Theme.accent)
                                     .onChange(of: selectedClientIndex) { _, newIndex in
                                         guard invoice == nil, newIndex > 0, newIndex <= clients.count else { return }
                                         generateInvoiceNumber(for: clients[newIndex - 1])
                                     }
                                 }
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Issue Date")
-                                        .font(.caption.bold())
-                                        .foregroundColor(.secondary)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Issue Date").modifier(FieldLabelStyle())
                                     DatePicker("", selection: $issueDate, displayedComponents: .date)
                                         .labelsHidden()
+                                        .tint(Theme.accent)
                                 }
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
-                                        Text("Due Date")
-                                            .font(.caption.bold())
-                                            .foregroundColor(.secondary)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 8) {
+                                        Text("Due Date").modifier(FieldLabelStyle())
                                         Toggle("", isOn: $hasDueDate)
                                             .labelsHidden()
-                                            .controlSize(.small)
+                                            .toggleStyle(GlassToggleStyle())
                                     }
                                     DatePicker("", selection: $dueDate, displayedComponents: .date)
                                         .labelsHidden()
+                                        .tint(Theme.accent)
                                         .disabled(!hasDueDate)
                                         .opacity(hasDueDate ? 1 : 0.5)
                                 }
@@ -133,126 +125,72 @@ struct InvoiceFormView: View {
                         }
                     }
                     
-                    // Line Items
-                    formSection(title: "Line Items") {
+                    // Line Items (prototype: grid `1fr 58 92 62 62 96`, totals
+                    // inside the same card)
+                    formSection {
                         VStack(spacing: 0) {
                             // Table header
                             HStack(spacing: 0) {
                                 Text("Description").frame(maxWidth: .infinity, alignment: .leading)
-                                Text("Qty").frame(width: 60, alignment: .center)
-                                Text("Price").frame(width: 100, alignment: .center)
-                                Text("Disc %").frame(width: 70, alignment: .center)
-                                Text("Tax %").frame(width: 70, alignment: .center)
-                                Text("Total").frame(width: 100, alignment: .trailing)
+                                Text("Qty").frame(width: 58, alignment: .center)
+                                Text("Price").frame(width: 92, alignment: .center)
+                                Text("Disc %").frame(width: 62, alignment: .center)
+                                Text("Tax %").frame(width: 62, alignment: .center)
+                                Text("Total").frame(width: 96, alignment: .trailing)
                                 Color.clear.frame(width: 32)
                             }
-                            .font(.system(.caption, weight: .semibold))
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.gray.opacity(0.08))
-                            
-                            Divider()
-                            
+                            .font(.system(size: 10.5, weight: .semibold))
+                            .kerning(0.5)
+                            .textCase(.uppercase)
+                            .foregroundColor(Theme.textMuted)
+                            .padding(.horizontal, 4)
+                            .padding(.bottom, 8)
+
                             // Line item rows
                             ForEach(Array(lineItems.enumerated()), id: \.element.id) { index, _ in
                                 lineItemRow(index: index)
-                                if index < lineItems.count - 1 {
-                                    Divider().padding(.horizontal, 12)
-                                }
+                                    .overlay(alignment: .top) {
+                                        if index > 0 {
+                                            Rectangle()
+                                                .fill(Theme.rowSeparator)
+                                                .frame(height: 1)
+                                                .padding(.horizontal, 4)
+                                        }
+                                    }
                             }
-                            
-                            Divider()
-                            
-                            // Add line item button
-                            Button(action: addLineItem) {
-                                HStack {
-                                    Image(systemName: "plus.circle.fill")
-                                        .foregroundColor(Color.brandPrimary)
-                                    Text("Add Line Item")
-                                        .font(.system(.caption, weight: .medium))
-                                        .foregroundColor(Color.brandPrimary)
+
+                            // Add line item — small capsule, left-aligned
+                            HStack {
+                                Button(action: addLineItem) {
+                                    Label("Add Line Item", systemImage: "plus")
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
+                                .buttonStyle(.plain)
+                                .capsuleButton(.plain, small: true)
+                                Spacer()
                             }
-                            .buttonStyle(.plain)
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                        )
-                    }
-                    
-                    // Totals
-                    formSection(title: "Summary") {
-                        HStack(spacing: 24) {
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack {
-                                    Text("Subtotal")
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text(formatCurrency(subtotal))
-                                }
-                                HStack(spacing: 6) {
-                                    Text("Discount")
-                                        .foregroundColor(.secondary)
-                                    TextField("0", value: $discount, format: .number)
-                                        .textFieldStyle(.roundedBorder)
-                                        .frame(width: 60)
-                                    Text("%")
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text("-\(formatCurrency(discountAmount))")
-                                        .foregroundColor(.red)
-                                }
-                                HStack(spacing: 6) {
-                                    Text("Tax")
-                                        .foregroundColor(.secondary)
-                                    TextField("0", value: $taxRate, format: .number)
-                                        .textFieldStyle(.roundedBorder)
-                                        .frame(width: 60)
-                                    Text("%")
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text("+\(formatCurrency(taxAmount))")
-                                        .foregroundColor(.green)
-                                }
-                            }
-                            
-                            Divider().frame(height: 60)
-                            
-                            VStack(alignment: .trailing, spacing: 8) {
-                                HStack {
-                                    Text("Total").font(.headline)
-                                    Spacer()
-                                    Text(formatCurrency(total))
-                                        .font(.system(.headline, design: .monospaced))
-                                }
-                                HStack {
-                                    Text("Balance Due").font(.headline)
-                                    Spacer()
-                                    Text(formatCurrency(total))
-                                        .font(.system(.headline, design: .monospaced))
-                                        .foregroundColor(.red)
-                                }
-                            }
+                            .padding(.top, 12)
+
+                            totals
+                                .padding(.top, 16)
                         }
                     }
-                    
-                    // Notes
-                    formSection(title: "Notes") {
-                        TextField("Notes", text: $notes, axis: .vertical)
-                            .lineLimit(2...8)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.body)
+
+                    // Notes — prototype card with a field label.
+                    formSection {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Notes").modifier(FieldLabelStyle())
+                            TextField("Thank you for your business!", text: $notes, axis: .vertical)
+                                .lineLimit(2...8)
+                                .textFieldStyle(GlassFieldMultilineStyle())
+                        }
                     }
                 }
-                .padding(20)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 28)
             }
         }
         .frame(minWidth: 800, minHeight: 650)
+        .background { ThemeCanvas().ignoresSafeArea() }
         .onAppear { loadInvoice() }
         .animation(.default, value: showValidationError)
         .alert("Could Not Save Invoice", isPresented: Binding(
@@ -274,62 +212,129 @@ struct InvoiceFormView: View {
     private var taxableAmount: Double { subtotal - discountAmount }
     private var taxAmount: Double { taxableAmount * taxRate / 100 }
     private var total: Double { taxableAmount + taxAmount }
+
+    /// Prototype `.totals`: subtotal, discount, tax, divider, total, balance.
+    private var totals: some View {
+        VStack(spacing: 9) {
+            HStack {
+                Text("Subtotal")
+                    .font(.system(size: 12.5))
+                    .foregroundColor(Theme.textSecondary)
+                Spacer()
+                Text(formatCurrency(subtotal))
+                    .font(.system(size: 12.5))
+                    .monospacedDigit()
+                    .foregroundColor(Theme.textPrimary)
+            }
+            HStack(spacing: 8) {
+                Text("Discount %")
+                    .font(.system(size: 12.5))
+                    .foregroundColor(Theme.textSecondary)
+                TextField("0", value: $discount, format: .number)
+                    .textFieldStyle(GlassFieldStyle())
+                    .frame(width: 64)
+                Spacer()
+                Text("−\(formatCurrency(discountAmount))")
+                    .font(.system(size: 12.5))
+                    .monospacedDigit()
+                    .foregroundColor(discount > 0 ? Theme.negative : Theme.textPrimary)
+            }
+            HStack(spacing: 8) {
+                Text("Tax %")
+                    .font(.system(size: 12.5))
+                    .foregroundColor(Theme.textSecondary)
+                TextField("0", value: $taxRate, format: .number)
+                    .textFieldStyle(GlassFieldStyle())
+                    .frame(width: 64)
+                Spacer()
+                Text("+\(formatCurrency(taxAmount))")
+                    .font(.system(size: 12.5))
+                    .monospacedDigit()
+                    .foregroundColor(taxRate > 0 ? Theme.positive : Theme.textPrimary)
+            }
+            Rectangle().fill(Theme.rowSeparator).frame(height: 1)
+            HStack {
+                Text("Total")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(Theme.textPrimary)
+                Spacer()
+                Text(formatCurrency(total))
+                    .font(.system(size: 15, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundColor(Theme.textPrimary)
+            }
+            HStack {
+                Text("Balance Due")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(Theme.textPrimary)
+                Spacer()
+                Text(formatCurrency(total))
+                    .font(.system(size: 15, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundColor(Theme.negative)
+            }
+        }
+        .frame(width: 280)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
     
     // MARK: - Helpers
     
-    private func formSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.system(.body, weight: .semibold))
-                .foregroundColor(.primary)
+    private func formSection<Content: View>(title: String? = nil, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: title == nil ? 0 : 14) {
+            if let title { SectionLabel(title) }
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(18)
+        .glassCard(radius: Theme.radiusLarge)
     }
-    
+
     @ViewBuilder
     private func lineItemRow(index: Int) -> some View {
         let binding = Binding<LineItemData>(
             get: { lineItems[index] },
             set: { lineItems[index] = $0 }
         )
-        
-        HStack(spacing: 0) {
+
+        HStack(spacing: 6) {
             TextField("Item description", text: binding.itemDescription, axis: .vertical)
                 .lineLimit(1...3)
-                .textFieldStyle(.plain)
+                .textFieldStyle(GlassFieldMultilineStyle())
                 .frame(maxWidth: .infinity, alignment: .leading)
             TextField("1", value: binding.quantity, format: .number)
-                .textFieldStyle(.plain)
+                .textFieldStyle(GlassFieldStyle())
                 .multilineTextAlignment(.center)
-                .frame(width: 60)
+                .frame(width: 58)
             TextField("0.00", value: binding.price, format: .number)
-                .textFieldStyle(.plain)
+                .textFieldStyle(GlassFieldStyle())
                 .multilineTextAlignment(.center)
-                .frame(width: 100)
+                .frame(width: 92)
             TextField("0", value: binding.discount, format: .number)
-                .textFieldStyle(.plain)
+                .textFieldStyle(GlassFieldStyle())
                 .multilineTextAlignment(.center)
-                .frame(width: 70)
+                .frame(width: 62)
             TextField("0", value: binding.tax, format: .number)
-                .textFieldStyle(.plain)
+                .textFieldStyle(GlassFieldStyle())
                 .multilineTextAlignment(.center)
-                .frame(width: 70)
+                .frame(width: 62)
             Text(formatCurrency(lineItems[index].lineTotal))
-                .font(.system(.body, design: .monospaced))
-                .frame(width: 100, alignment: .trailing)
+                .font(.system(size: 12.5, weight: .semibold))
+                .monospacedDigit()
+                .foregroundColor(Theme.textPrimary)
+                .frame(width: 96, alignment: .trailing)
             Button(action: { removeLineItem(at: index) }) {
                 Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.red.opacity(0.6))
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.textMuted.opacity(0.7))
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .frame(width: 32)
+            .help("Remove line item")
+            .frame(width: 28)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 5)
     }
     
     private func generateInvoiceNumber(for client: Client) {

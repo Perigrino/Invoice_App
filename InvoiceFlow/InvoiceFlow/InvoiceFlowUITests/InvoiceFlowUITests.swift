@@ -318,8 +318,8 @@ final class InvoiceFlowUITests: XCTestCase {
         let invoiceTab = settingsTab("Invoice")
         invoiceTab.click()
         sleep(1)
-        let displayOptions = app.staticTexts["Display Options"]
-        XCTAssertTrue(displayOptions.waitForExistence(timeout: 3), "Invoice settings should show Display Options")
+        let displayOptions = app.staticTexts["Document Options"]
+        XCTAssertTrue(displayOptions.waitForExistence(timeout: 3), "Invoice settings should show Document Options")
 
         // Click Currency tab
         let currencyTab = settingsTab("Currency")
@@ -332,8 +332,8 @@ final class InvoiceFlowUITests: XCTestCase {
         let generalTab = settingsTab("General")
         generalTab.click()
         sleep(1)
-        let appearanceSection = app.staticTexts["Appearance"]
-        XCTAssertTrue(appearanceSection.waitForExistence(timeout: 3), "General settings should show Appearance")
+        let darkModeRow = app.staticTexts["Dark Mode"]
+        XCTAssertTrue(darkModeRow.waitForExistence(timeout: 3), "General settings should show the Dark Mode row")
 
         // Click back to Profile
         let profileTab = settingsTab("Profile")

@@ -11,78 +11,77 @@ struct ClientListView: View {
     @State private var selectedClients = Set<Client>()
     @State private var clientToDelete: Client? = nil
     @State private var showDeleteConfirmation = false
-    
-    private var filteredClients: [Client] {
+
+    private var searchedClients: [Client] {
         clients.filter { client in
             searchText.isEmpty ||
                 client.fullName.localizedCaseInsensitiveContains(searchText) ||
                 (client.company?.localizedCaseInsensitiveContains(searchText) ?? false)
         }
     }
-    
+
+    private var filteredClients: [Client] {
+        searchedClients
+    }
+
     var body: some View {
-        Group {
-            if filteredClients.isEmpty {
-                EmptyStateView(
-                    icon: "person.2",
-                    title: "No Clients",
-                    message: searchText.isEmpty ? "Add your first client to get started." : "No clients match your search."
-                )
-            } else {
-                List(selection: $selectedClients) {
-                    ForEach(filteredClients) { client in
-                        ClientRow(client: client)
-                            .tag(client)
-                            .contextMenu {
-                                Button {
-                                    editingClient = client
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                Divider()
-                                Button(role: .destructive) {
-                                    clientToDelete = client
-                                    showDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                    }
-                }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
-                // See TableRowHeightFix — guards against rows inserted behind
-                // the Create sheet keeping the table's 24pt default height.
-                .overlay {
-                    TableRowHeightFix(
-                        height: ClientRow.tableRowHeight,
-                        dataCount: filteredClients.count
-                    )
-                }
-                .onChange(of: selectedClients) { _, newSelection in
-                    if let first = newSelection.first {
-                        editingClient = first
-                        selectedClients.removeAll()
-                    }
-                }
-            }
-        }
-        .navigationTitle("Clients")
-        .navigationSubtitle("\(filteredClients.count) client\(filteredClients.count == 1 ? "" : "s")")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+        VStack(spacing: 0) {
+            PageHeader("Clients", subtitle: "Everyone you bill, in one place.") {
                 Button {
                     showNewClient = true
                 } label: {
                     Label("New Client", systemImage: "plus")
                 }
+                .buttonStyle(.plain)
+                .capsuleButton(.primary)
+            }
+            .padding(.horizontal, 28)
+
+            HStack {
+                Spacer(minLength: 0)
+                inlineSearch
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, 4)
+
+            // Hoisted above the list (instead of a section header) so the
+            // list opens on a data row — see InvoiceListView for why.
+            if !filteredClients.isEmpty {
+                SectionLabel("\(filteredClients.count) Client\(filteredClients.count == 1 ? "" : "s")", uppercased: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 14)
+                    .padding(.bottom, 2)
+                    .appear()
+            }
+
+            if filteredClients.isEmpty {
+                Spacer(minLength: 0)
+                EmptyStateView(
+                    icon: "person.2",
+                    title: "No Clients",
+                    message: searchText.isEmpty ? "Add your first client to get started." : "No clients match your search.",
+                    actionTitle: searchText.isEmpty ? "Add Client" : nil,
+                    action: searchText.isEmpty ? { showNewClient = true } : nil
+                )
+                Spacer(minLength: 0)
+            } else {
+                clientList
             }
         }
-        .searchable(text: $searchText, prompt: "Search clients...")
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .navigationTitle("Clients")
         .sheet(isPresented: $showNewClient) {
             ClientFormView()
         }
         .sheet(item: $editingClient) { client in
             ClientFormView(client: client)
+        }
+        .onChange(of: selectedClients) { _, newSelection in
+            if let first = newSelection.first {
+                editingClient = first
+                selectedClients.removeAll()
+            }
         }
         .alert("Delete Client", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -95,7 +94,71 @@ struct ClientListView: View {
             Text("Are you sure you want to delete this client? This will also affect any associated invoices.")
         }
     }
-    
+
+    // MARK: - Search
+
+    @FocusState private var searchFocused: Bool
+
+    /// Prototype `.search`: capsule field at the right end of the chips row.
+    private var inlineSearch: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundColor(Theme.textMuted)
+            TextField("Search clients...", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12.5))
+                .foregroundColor(Theme.textPrimary)
+                .focused($searchFocused)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 32)
+        .frame(minWidth: 210)
+        .background(Capsule().fill(Theme.field))
+        .overlay {
+            Capsule().strokeBorder(
+                searchFocused ? Theme.accent.opacity(0.55) : Theme.hairline,
+                lineWidth: 1
+            )
+        }
+        .accessibilityAddTraits(.isSearchField)
+    }
+
+    private var clientList: some View {
+        List(selection: $selectedClients) {
+            ForEach(filteredClients) { client in
+                ClientRow(client: client, isSelected: selectedClients.contains(client))
+                    .tag(client)
+                    .contextMenu {
+                        Button {
+                            editingClient = client
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        Divider()
+                        Button(role: .destructive) {
+                            clientToDelete = client
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .tint(.clear)
+        .focusEffectDisabled()
+        // See TableRowHeightFix — guards against rows inserted behind the
+        // Create sheet keeping the table's 24pt default height.
+        .overlay {
+            TableRowHeightFix(
+                height: ClientRow.tableRowHeight,
+                dataCount: filteredClients.count
+            )
+        }
+    }
+
     private func deleteClient(_ client: Client) {
         modelContext.delete(client)
         modelContext.persist()
@@ -104,44 +167,128 @@ struct ClientListView: View {
 
 // MARK: - Client Row
 
+/// One glass card: tinted avatar, name + contact, balance pill, invoice count.
 struct ClientRow: View {
     /// Fixed height — see `InvoiceRow.rowHeight` for why rows need one.
-    static let rowHeight: CGFloat = 48
+    static let rowHeight: CGFloat = 64
     /// Full row pitch inside the table — see `InvoiceRow.tableRowHeight`.
-    static let tableRowHeight: CGFloat = rowHeight + 8
+    static let tableRowHeight: CGFloat = rowHeight + 10
 
     let client: Client
+    var isSelected: Bool = false
+
+    @State private var hovering = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(Color.brandPrimary.opacity(0.15))
-                .frame(width: 36, height: 36)
-                .overlay(
-                    Text(String(client.fullName.prefix(1)).uppercased())
-                        .font(.system(.body, weight: .semibold))
-                        .foregroundColor(Color.brandPrimary)
-                )
-            VStack(alignment: .leading, spacing: 2) {
+        let shape = RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
+
+        HStack(spacing: 14) {
+            avatar
+
+            VStack(alignment: .leading, spacing: 3) {
                 Text(client.fullName)
-                    .font(.system(.body, weight: .medium))
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .foregroundColor(Theme.textPrimary)
                     .lineLimit(1)
-                if let company = client.company, !company.isEmpty {
-                    Text(company)
-                        .font(.caption)
+                HStack(spacing: 5) {
+                    Image(systemName: "dollarsign.circle")
+                        .font(.system(size: 10))
+                        .foregroundColor(Theme.textMuted)
+                    Text(secondaryLine)
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.textSecondary)
                         .lineLimit(1)
-                        .foregroundColor(.secondary)
                 }
             }
-            Spacer()
-            if let email = client.email {
-                Text(email)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .foregroundColor(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            balancePill
+                .frame(minWidth: 92, alignment: .trailing)
+
+            Text("\(client.invoiceCount) invoice\(client.invoiceCount == 1 ? "" : "s")")
+                .font(.system(size: 11.5))
+                .foregroundColor(Theme.textSecondary)
+                .frame(minWidth: 74, alignment: .trailing)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: Self.rowHeight)
+        .background {
+            ZStack {
+                shape.fill(.ultraThinMaterial)
+                shape.fill(Theme.cardFill)
+                // PosterTint port: deterministic per-client wash.
+                LinearGradient(
+                    colors: [Theme.tint(for: client.fullName).opacity(0.18), .clear],
+                    startPoint: .topLeading,
+                    endPoint: .center
+                )
+                .clipShape(shape)
             }
         }
-        .padding(.vertical, 4)
-        .frame(height: Self.rowHeight)
+        .overlay {
+            shape.strokeBorder(
+                LinearGradient(
+                    colors: isSelected
+                        ? [Theme.accent, Theme.accent]
+                        : [Theme.cardStrokeTop, Theme.cardStrokeBottom],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                lineWidth: isSelected ? 1.5 : 1
+            )
+        }
+        .clipShape(shape)
+        .shadow(color: hovering ? .black.opacity(0.35) : .clear, radius: 14, x: 0, y: 6)
+        .scaleEffect(hovering ? 1.006 : 1)
+        .listRowInsets(EdgeInsets(top: 5, leading: 28, bottom: 5, trailing: 28))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .animation(Theme.smooth, value: isSelected)
+        .animation(Theme.quick, value: hovering)
+        .onHover { hovering = $0 }
+    }
+
+    /// Tinted initial circle — `color-mix(tint 22%, avatar-base)` in the
+    /// prototype, with the ink pulled from the same hue.
+    private var avatar: some View {
+        let tint = Theme.tint(for: client.fullName)
+        return ZStack {
+            Circle().fill(Theme.avatarBase)
+            Circle().fill(tint.opacity(0.22))
+            Text(client.initial)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(Theme.tintInk(for: client.fullName))
+        }
+        .frame(width: 36, height: 36)
+        .overlay {
+            Circle().strokeBorder(tint.opacity(0.30), lineWidth: 1)
+        }
+    }
+
+    /// Prototype sub-line: `company · email`, falling back to phone.
+    private var secondaryLine: String {
+        let company = (client.company?.isEmpty == false) ? client.company : nil
+        let email = (client.email?.isEmpty == false) ? client.email : nil
+        let parts = [company, email].compactMap { $0 }
+        if !parts.isEmpty { return parts.joined(separator: " · ") }
+        if let phone = client.phone, !phone.isEmpty { return phone }
+        return "No contact details yet"
+    }
+
+    @ViewBuilder
+    private var balancePill: some View {
+        if client.outstanding <= 0 {
+            StatusPill(text: "Settled", kind: .paid)
+        } else if client.hasOverdue {
+            StatusPill(
+                text: "\(CurrencyFormatter.shared.string(from: client.outstanding)) overdue",
+                kind: .overdue
+            )
+        } else {
+            StatusPill(
+                text: "\(CurrencyFormatter.shared.string(from: client.outstanding)) due",
+                kind: .due
+            )
+        }
     }
 }

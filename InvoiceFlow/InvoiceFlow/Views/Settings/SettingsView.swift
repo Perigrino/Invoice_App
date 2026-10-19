@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import AppKit
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -13,24 +14,77 @@ struct SettingsView: View {
         setting ?? activeSettings.first ?? allSettings.first
     }
 
+    /// Prototype `.tabstrip`: inline capsule container (chip bg + hairline
+    /// border), accent-gradient pill on the active tab.
+    private var tabstrip: some View {
+        HStack(spacing: 4) {
+            tabButton("Profile", icon: "person.2", tag: 0)
+            tabButton("Invoice", icon: "doc.text", tag: 1)
+            tabButton("Currency", icon: "dollarsign.circle", tag: 2)
+            tabButton("General", icon: "gearshape", tag: 3)
+        }
+        .padding(4)
+        .background(Capsule().fill(Theme.chip))
+        .overlay { Capsule().strokeBorder(Theme.hairline, lineWidth: 1) }
+        .animation(Theme.quick, value: selectedTab)
+    }
+
+    private func tabButton(_ title: String, icon: String, tag: Int) -> some View {
+        let isActive = selectedTab == tag
+        return Button {
+            withAnimation(Theme.quick) { selectedTab = tag }
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: icon).font(.system(size: 12, weight: .medium))
+                Text(title).font(.system(size: 12, weight: isActive ? .semibold : .medium))
+            }
+            .foregroundColor(isActive ? Theme.onAccent : Theme.textSecondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 7)
+            .background {
+                if isActive {
+                    Capsule().fill(Theme.gradient)
+                        .shadow(color: Theme.palette.glowStrong, radius: 8, x: 0, y: 3)
+                }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
     var body: some View {
         Group {
             if let setting = currentSetting {
                 VStack(spacing: 0) {
-                    TabView(selection: $selectedTab) {
-                        ProfileSettingsView(setting: setting)
-                            .tabItem { Label("Profile", systemImage: "person.circle") }
-                            .tag(0)
-                        InvoiceSettingsView(setting: setting)
-                            .tabItem { Label("Invoice", systemImage: "doc.text") }
-                            .tag(1)
-                        CurrencySettingsView(setting: setting)
-                            .tabItem { Label("Currency", systemImage: "dollarsign.circle") }
-                            .tag(2)
-                        GeneralSettingsView(setting: setting)
-                            .tabItem { Label("General", systemImage: "gearshape") }
-                            .tag(3)
+                    PageHeader("Settings", subtitle: "Configure your invoice preferences.") {
+                        profileMenu
                     }
+                    .padding(.horizontal, 28)
+
+                    // Prototype `.tabstrip`: one dark capsule, inline width,
+                    // accent-gradient pill on the active tab.
+                    tabstrip
+                        .padding(.horizontal, 28)
+                        .padding(.top, 2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Group {
+                        switch selectedTab {
+                        case 0: ProfileSettingsView(
+                            setting: setting,
+                            profiles: allSettings,
+                            onSwitch: switchProfile,
+                            onCreate: createProfile
+                        )
+                        case 1: InvoiceSettingsView(setting: setting)
+                        case 2: CurrencySettingsView(setting: setting)
+                        default: GeneralSettingsView(setting: setting)
+                        }
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.top, 12)
+                    .padding(.bottom, 24)
+                    .frame(maxHeight: .infinity)
                 }
             } else if isLoading {
                 VStack(spacing: 12) {
@@ -42,42 +96,56 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .navigationTitle("Settings")
-        .navigationSubtitle("Configure your invoice preferences")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    ForEach(allSettings) { s in
-                        Button {
-                            switchProfile(s)
-                        } label: {
-                            HStack {
-                                Text(s.profileName)
-                                if s.isActive {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                    Divider()
-                    Button {
-                        createProfile()
-                    } label: {
-                        Label("New Profile", systemImage: "plus")
-                    }
-                    if allSettings.count > 1, let active = setting {
-                        Button(role: .destructive) {
-                            deleteProfile(active)
-                        } label: {
-                            Label("Delete \"\(active.profileName)\"", systemImage: "trash")
-                        }
-                    }
+        .task { await loadSetting() }
+    }
+
+    // MARK: - Profile menu (prototype: "Default profile" header action)
+
+    private var profileMenu: some View {
+        Menu {
+            ForEach(allSettings) { s in
+                Button {
+                    switchProfile(s)
                 } label: {
-                    Label(setting?.profileName ?? "Default", systemImage: "person.circle")
+                    HStack {
+                        Text(s.profileName)
+                        if s.isActive {
+                            Image(systemName: "checkmark")
+                        }
+                    }
                 }
             }
+            Divider()
+            Button {
+                createProfile()
+            } label: {
+                Label("New Profile", systemImage: "plus")
+            }
+            if allSettings.count > 1, let active = setting {
+                Button(role: .destructive) {
+                    deleteProfile(active)
+                } label: {
+                    Label("Delete \"\(active.profileName)\"", systemImage: "trash")
+                }
+            }
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: "person.2")
+                    .font(.system(size: 12, weight: .medium))
+                Text(setting?.profileName ?? "Default")
+                    .font(.system(size: 12.5, weight: .medium))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(Theme.textMuted)
+            }
+            .foregroundColor(Theme.textPrimary)
+            .padding(.horizontal, 6)
+            .fixedSize()
         }
-        .task { await loadSetting() }
+        .menuIndicator(.hidden)
+        .fixedSize()
     }
 
     private func loadSetting() async {
@@ -121,6 +189,111 @@ struct SettingsView: View {
             switchProfile(next)
         }
     }
+}// MARK: - Shared row/section helpers
+
+/// Prototype `.setting-row`: label + description left, control right, hairline
+/// separator below.
+struct SettingRow<Trailing: View>: View {
+    let label: String
+    var description: String? = nil
+    var showsDivider: Bool = true
+    private let trailing: Trailing
+
+    init(
+        _ label: String,
+        description: String? = nil,
+        showsDivider: Bool = true,
+        @ViewBuilder trailing: () -> Trailing
+    ) {
+        self.label = label
+        self.description = description
+        self.showsDivider = showsDivider
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundColor(Theme.textPrimary)
+                if let description {
+                    Text(description)
+                        .font(.system(size: 11))
+                        .foregroundColor(Theme.textMuted)
+                }
+            }
+            Spacer(minLength: 12)
+            HStack(spacing: 8) { trailing }
+                .foregroundColor(Theme.textSecondary)
+        }
+        .padding(.vertical, 11)
+        .padding(.horizontal, 2)
+        .overlay(alignment: .bottom) {
+            if showsDivider {
+                Rectangle().fill(Theme.rowSeparator).frame(height: 1)
+            }
+        }
+    }
+}
+
+/// Section card wrapping `SettingRow`s (prototype `card card-lg card-pad`).
+struct SettingsCard<Content: View>: View {
+    private let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) { content }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+            .glassCard(radius: Theme.radiusLarge)
+    }
+}
+
+/// Section heading inside a card (prototype `.section-label`).
+struct SettingsCardHeader: View {
+    let title: String
+    var body: some View {
+        SectionLabel(title)
+            .padding(.top, 12)
+            .padding(.bottom, 2)
+    }
+}
+
+/// Mutually-exclusive choice group rendered as the prototype's chips
+/// (`.chip` / `.chip.is-filled` inside `.sr-value`).
+struct SettingsChips<Value: Hashable>: View {
+    let options: [(label: String, value: Value)]
+    @Binding var selection: Value
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(options, id: \.value) { option in
+                Button {
+                    selection = option.value
+                } label: {
+                    Text(option.label)
+                        .font(.system(size: 11.5, weight: selection == option.value ? .semibold : .medium))
+                        .foregroundColor(selection == option.value ? Theme.onAccent : Theme.textSecondary)
+                        .padding(.horizontal, 12)
+                        .frame(height: 26)
+                        .background(
+                            Capsule().fill(
+                                selection == option.value
+                                    ? AnyShapeStyle(Theme.gradient)
+                                    : AnyShapeStyle(Theme.chip)
+                            )
+                        )
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
 }
 
 // MARK: - Profile Settings
@@ -128,6 +301,11 @@ struct SettingsView: View {
 struct ProfileSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var setting: Setting
+
+    /// Profile management (prototype's "Profiles" card) — wired by the parent.
+    var profiles: [Setting] = []
+    var onSwitch: (Setting) -> Void = { _ in }
+    var onCreate: () -> Void = {}
 
     @State private var companyName = ""
     @State private var companyEmail = ""
@@ -139,60 +317,109 @@ struct ProfileSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                section("Company Information") {
-                    row("Company Name", text: $companyName, placeholder: "Acme Inc.", wraps: true)
-                    row("Email", text: $companyEmail, placeholder: "billing@acme.com")
-                    row("Phone", text: $companyPhone, placeholder: "+1 (555) 123-4567")
-                    row("Address", text: $companyAddress, placeholder: "123 Main St, City, Country", wraps: true)
-                    row("Website", text: $companyWebsite, placeholder: "https://acme.com")
-                }
-
-                section("Logo") {
-                    VStack(spacing: 16) {
-                        if let data = setting.logoData, let nsImage = NSImage(data: data) {
+                SettingsCard {
+                    SettingsCardHeader(title: "Logo")
+                    if let data = setting.logoData, let nsImage = NSImage(data: data) {
+                        VStack(spacing: 14) {
                             Image(nsImage: nsImage)
                                 .resizable()
                                 .interpolation(.high)
                                 .scaledToFit()
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 300)
-                                .background(Color(nsColor: .textBackgroundColor))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                )
-                        } else {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.gray.opacity(0.08))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 300)
-                                .overlay(
-                                    VStack(spacing: 12) {
-                                        Image(systemName: "photo")
-                                            .font(.system(size: 48))
-                                            .foregroundColor(.secondary)
-                                        Text("No logo uploaded")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                )
-                        }
-                        
-                        HStack {
-                            Button("Choose Logo") { pickLogo() }
-                            if setting.logoData != nil {
-                                Button("Remove Logo") {
-                                    setting.logoData = nil
-                                    modelContext.persist()
+                                .background(Theme.field)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusControl, style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: Theme.radiusControl, style: .continuous)
+                                        .strokeBorder(Theme.hairline, lineWidth: 1)
                                 }
-                                .foregroundColor(.red)
-                            }
-                            Spacer()
-                            Text("PNG or JPG, recommended 512×512")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            logoActions
                         }
+                        .padding(.vertical, 12)
+                    } else {
+                        // Prototype layout: 74 × 74 dashed box + copy + action.
+                        HStack(alignment: .top, spacing: 14) {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Theme.placeholder)
+                                .frame(width: 74, height: 74)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .strokeBorder(Theme.controlBorder, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                                    Image(systemName: "photo")
+                                        .font(.system(size: 18, weight: .light))
+                                        .foregroundColor(Theme.textMuted)
+                                }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Company logo")
+                                    .font(.system(size: 12.5, weight: .medium))
+                                    .foregroundColor(Theme.textPrimary)
+                                Text("PNG or JPG, recommended 512×512. Shown in the app and on exported PDFs.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Theme.textMuted)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                logoActions
+                                    .padding(.top, 6)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, 12)
+                    }
+                }
+
+                SettingsCard {
+                    SettingsCardHeader(title: "Company Information")
+                    VStack(spacing: 14) {
+                        HStack(alignment: .top, spacing: 18) {
+                            field(label: "Company Name", placeholder: "Acme Inc.", text: $companyName)
+                            field(label: "Company Email", placeholder: "billing@acme.com", text: $companyEmail)
+                        }
+                        HStack(alignment: .top, spacing: 18) {
+                            field(label: "Phone", placeholder: "+1 (555) 000-0000", text: $companyPhone)
+                            field(label: "Website", placeholder: "acmestudio.co", text: $companyWebsite)
+                        }
+                        field(label: "Address", placeholder: "14 Ridgeway Terrace, Lisbon, Portugal", text: $companyAddress, multiline: true)
+                    }
+                    .padding(.bottom, 14)
+                }
+
+                SettingsCard {
+                    SettingsCardHeader(title: "Profiles")
+                    SettingRow(
+                        "Active profile",
+                        description: "Settings profiles let you keep separate businesses or brands."
+                    ) {
+                        Text(setting.profileName)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Theme.onAccent)
+                            .padding(.horizontal, 10)
+                            .frame(height: 22)
+                            .background(Capsule().fill(Theme.gradient))
+                    }
+                    SettingRow(
+                        "Manage profiles",
+                        description: "Create a new profile or remove the current one.",
+                        showsDivider: false
+                    ) {
+                        Button(action: onCreate) {
+                            Label("New Profile", systemImage: "plus")
+                        }
+                        .buttonStyle(.plain)
+                        .capsuleButton(.plain, small: true)
+                        Menu {
+                            ForEach(profiles) { profile in
+                                Button(profile.profileName) { onSwitch(profile) }
+                            }
+                            Divider()
+                            Button("New Profile", action: onCreate)
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(Theme.textSecondary)
+                                .frame(width: 26, height: 26)
+                                .background(Capsule().fill(Theme.chip))
+                                .overlay { Capsule().strokeBorder(Theme.hairline, lineWidth: 1) }
+                        }
+                        .menuIndicator(.hidden)
                     }
                 }
 
@@ -200,17 +427,52 @@ struct ProfileSettingsView: View {
                     Spacer()
                     if saved {
                         Label("Saved", systemImage: "checkmark.circle.fill")
-                            .foregroundColor(Color.brandPrimary)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Theme.positive)
                             .transition(.opacity)
                     }
                     Button("Save Profile") { saveProfile() }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.brandPrimary)
+                        .buttonStyle(.plain)
+                        .capsuleButton(.primary)
+                        .keyboardShortcut(.defaultAction)
                 }
             }
-            .padding(20)
+            .padding(.top, 4)
         }
         .onAppear { loadProfile() }
+    }
+
+    /// Prototype `.field`: uppercase label over a glass input.
+    private func field(label: String, placeholder: String, text: Binding<String>, multiline: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).modifier(FieldLabelStyle())
+            if multiline {
+                TextField(placeholder, text: text, axis: .vertical)
+                    .lineLimit(2...6)
+                    .textFieldStyle(GlassFieldMultilineStyle())
+            } else {
+                TextField(placeholder, text: text)
+                    .textFieldStyle(GlassFieldStyle())
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var logoActions: some View {
+        HStack(spacing: 8) {
+            Button("Choose file…") { pickLogo() }
+                .buttonStyle(.plain)
+                .capsuleButton(.plain, small: true)
+            if setting.logoData != nil {
+                Button("Remove") {
+                    setting.logoData = nil
+                    modelContext.persist()
+                }
+                .buttonStyle(.plain)
+                .capsuleButton(.plain, small: true)
+                .foregroundColor(Theme.negative)
+            }
+        }
     }
 
     private func loadProfile() {
@@ -244,32 +506,6 @@ struct ProfileSettingsView: View {
             modelContext.persist()
         }
     }
-
-
-    private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.system(.body, weight: .semibold))
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-
-    private func row(_ label: String, text: Binding<String>, placeholder: String, wraps: Bool = false) -> some View {
-        HStack(alignment: .top) {
-            Text(label).frame(width: 120, alignment: .leading)
-            if wraps {
-                TextField(placeholder, text: text, axis: .vertical)
-                    .lineLimit(1...3)
-                    .textFieldStyle(.roundedBorder)
-            } else {
-                TextField(placeholder, text: text).textFieldStyle(.roundedBorder)
-            }
-            Spacer()
-        }
-    }
 }
 
 // MARK: - Invoice Settings
@@ -281,45 +517,64 @@ struct InvoiceSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                section("Display Options") {
-                    SettingsUI.toggle(label: "Show Invoice ID", isOn: $setting.showInvoiceId)
-                    SettingsUI.toggle(label: "Show Due Date", isOn: $setting.showDueDate)
-                    SettingsUI.toggle(label: "Show Currency", isOn: $setting.showCurrency)
-                    SettingsUI.toggle(label: "Show Discount", isOn: $setting.showDiscount)
-                    SettingsUI.toggle(label: "Show Tax", isOn: $setting.showTax)
-                    SettingsUI.toggle(label: "Show Notes", isOn: $setting.showNote)
+                SettingsCard {
+                    SettingsCardHeader(title: "PDF Template")
+                    SettingRow("Template", description: "Applied to exported PDFs.") {
+                        SettingsChips(
+                            options: [("Dark", "dark"), ("Light", "light")],
+                            selection: $setting.template
+                        )
+                    }
+                    SettingRow("Paper Size", showsDivider: false) {
+                        SettingsChips(
+                            options: [("A3", "A3"), ("A4", "A4"), ("Letter", "Letter"), ("Legal", "Legal")],
+                            selection: $setting.paperSize
+                        )
+                    }
                 }
 
-                section("PDF Template") {
-                    SettingsUI.pickerRow(label: "PDF Template", selection: $setting.template, options: [
-                        ("dark","Dark"),("light","Light")
-                    ])
-                    SettingsUI.pickerRow(label: "Paper Size", selection: $setting.paperSize, options: [
-                        ("A3","A3"),("A4","A4"),("Letter","Letter"),("Legal","Legal")
-                    ])
-                }
-
-                section("Colors") {
-                    HStack {
-                        Text("Accent Color").frame(width: 120, alignment: .leading)
+                SettingsCard {
+                    SettingsCardHeader(title: "Colors")
+                    SettingRow("Accent Color", description: "Primary brand colour on the PDF.") {
                         ColorPicker("", selection: accentBinding, supportsOpacity: false)
-                        Spacer()
+                            .labelsHidden()
                     }
-                    HStack {
-                        Text("Secondary Color").frame(width: 120, alignment: .leading)
+                    SettingRow("Secondary Color", description: "Used for the gradient and headings.", showsDivider: false) {
                         ColorPicker("", selection: secondaryBinding, supportsOpacity: false)
-                        Spacer()
+                            .labelsHidden()
                     }
                 }
 
-                section("Default Notes") {
-                    TextField("Notes", text: $setting.notes, axis: .vertical)
-                        .lineLimit(2...8)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.body)
+                SettingsCard {
+                    SettingsCardHeader(title: "Document Options")
+                    SettingRow("Show invoice number") {
+                        Toggle("", isOn: $setting.showInvoiceId).labelsHidden().toggleStyle(GlassToggleStyle())
+                    }
+                    SettingRow("Show due date") {
+                        Toggle("", isOn: $setting.showDueDate).labelsHidden().toggleStyle(GlassToggleStyle())
+                    }
+                    SettingRow("Show currency") {
+                        Toggle("", isOn: $setting.showCurrency).labelsHidden().toggleStyle(GlassToggleStyle())
+                    }
+                    SettingRow("Show discount") {
+                        Toggle("", isOn: $setting.showDiscount).labelsHidden().toggleStyle(GlassToggleStyle())
+                    }
+                    SettingRow("Show tax") {
+                        Toggle("", isOn: $setting.showTax).labelsHidden().toggleStyle(GlassToggleStyle())
+                    }
+                    SettingRow("Show notes") {
+                        Toggle("", isOn: $setting.showNote).labelsHidden().toggleStyle(GlassToggleStyle())
+                    }
+                    SettingRow("Default notes", showsDivider: false) {
+                        TextField("Thank you for your business!", text: $setting.notes, axis: .vertical)
+                            .lineLimit(2...8)
+                            .textFieldStyle(GlassFieldMultilineStyle())
+                            .frame(maxWidth: 360)
+                    }
+                    .padding(.bottom, 10)
                 }
             }
-            .padding(20)
+            .padding(.top, 4)
             // Persist settings edits as they happen; autosave is unreliable here.
             .onChange(of: setting.showInvoiceId) { _, _ in modelContext.persist() }
             .onChange(of: setting.showDueDate) { _, _ in modelContext.persist() }
@@ -362,17 +617,6 @@ struct InvoiceSettingsView: View {
             }
         )
     }
-
-    private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.system(.body, weight: .semibold))
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
 }
 
 // MARK: - Currency Settings
@@ -384,51 +628,57 @@ struct CurrencySettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                section("Currency") {
-                    SettingsUI.pickerRow(label: "Currency", selection: $setting.currency, options: [
-                        ("USD","US Dollar"),("EUR","Euro"),("GBP","British Pound"),
-                        ("GHS","Ghanaian Cedi"),("CAD","Canadian Dollar"),
-                        ("NGN","Nigerian Naira"),("ZAR","South African Rand")
-                    ])
-                    SettingsUI.pickerRow(label: "Separator", selection: $setting.separator, options: [
-                        ("comma","Comma (1,000.00)"),("dot","Dot (1.000,00)"),
-                        ("space","Space (1 000.00)")
-                    ])
-                    HStack {
-                        Text("Decimal Places").frame(width: 120, alignment: .leading)
-                        Stepper("\(setting.decimalPlaces)", value: $setting.decimalPlaces, in: 0...4)
-                        Spacer()
+                SettingsCard {
+                    SettingsCardHeader(title: "Currency")
+                    SettingRow("Currency", description: "Used for totals and exported PDFs.") {
+                        SettingsChips(
+                            options: ["USD", "EUR", "GBP", "GHS", "CAD", "NGN", "ZAR"].map { ($0, $0) },
+                            selection: $setting.currency
+                        )
                     }
-                    SettingsUI.pickerRow(label: "Sign Placement", selection: $setting.signPlacement, options: [
-                        ("before","Before ($100)"),("after","After (100$)")
-                    ])
+                    SettingRow("Thousands separator") {
+                        SettingsChips(
+                            options: [("Comma", "comma"), ("Dot", "dot"), ("Space", "space")],
+                            selection: $setting.separator
+                        )
+                    }
+                    SettingRow("Decimal places") {
+                        SettingsChips(
+                            options: [0, 1, 2, 3, 4].map { ("\($0)", $0) },
+                            selection: $setting.decimalPlaces
+                        )
+                    }
+                    SettingRow("Symbol placement", showsDivider: false) {
+                        SettingsChips(
+                            options: [("Before", "before"), ("After", "after")],
+                            selection: $setting.signPlacement
+                        )
+                    }
                 }
 
-                section("Date Format") {
-                    SettingsUI.pickerRow(label: "Format", selection: $setting.dateFormat, options: [
-                        ("MM/DD/YYYY","MM/DD/YYYY"),("DD/MM/YYYY","DD/MM/YYYY"),
-                        ("YYYY-MM-DD","YYYY-MM-DD"),("DD MMM YYYY","DD MMM YYYY")
-                    ])
+                SettingsCard {
+                    SettingsCardHeader(title: "Preview")
+                    HStack(alignment: .firstTextBaseline, spacing: 14) {
+                        Text(CurrencyFormatter.shared.string(from: 4820))
+                            .font(.system(size: 26, weight: .bold))
+                            .monospacedDigit()
+                            .foregroundColor(Theme.textPrimary)
+                        Text("\(setting.currency) · \(setting.separator) · \(setting.decimalPlaces) dp · \(setting.signPlacement)")
+                            .font(.system(size: 12))
+                            .foregroundColor(Theme.textMuted)
+                        Spacer()
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.bottom, 10)
                 }
             }
-            .padding(20)
+            .padding(.top, 4)
             .onChange(of: setting.currency) { _, _ in modelContext.persist() }
             .onChange(of: setting.separator) { _, _ in modelContext.persist() }
             .onChange(of: setting.decimalPlaces) { _, _ in modelContext.persist() }
             .onChange(of: setting.signPlacement) { _, _ in modelContext.persist() }
             .onChange(of: setting.dateFormat) { _, _ in modelContext.persist() }
         }
-    }
-
-    private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.system(.body, weight: .semibold))
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -444,71 +694,114 @@ struct GeneralSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                section("Appearance") {
-                    SettingsUI.toggle(label: "Dark Mode", isOn: $setting.darkMode)
-                }
-                section("PDF Export") {
-                    HStack {
-                        Text("Export Folder").frame(width: 120, alignment: .leading)
-                        TextField(exportPath.isEmpty ? "~/Documents" : exportPath, text: $exportPath)
-                            .textFieldStyle(.roundedBorder)
-                        Button("Choose...") { chooseExportFolder() }
-                        Spacer()
+                SettingsCard {
+                    SettingRow("Dark Mode", description: "Switch the whole app between the dark and light appearance.") {
+                        Toggle("", isOn: $setting.darkMode).labelsHidden().toggleStyle(GlassToggleStyle())
                     }
-                    Text("PDFs will be saved to this folder when exporting.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    SettingRow("Date Format") {
+                        SettingsChips(
+                            options: ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD", "DD MMM YYYY"].map { ($0, $0) },
+                            selection: $setting.dateFormat
+                        )
+                    }
+                    SettingRow("Language") {
+                        Picker("", selection: $setting.language) {
+                            Text("English").tag("en")
+                            Text("Français").tag("fr")
+                            Text("Español").tag("es")
+                            Text("العربية").tag("ar")
+                        }
+                        .labelsHidden()
+                        .tint(Theme.accent)
+                    }
+                    SettingRow("Export Folder", description: "PDFs will be saved to this folder when exporting.", showsDivider: false) {
+                        Button("Choose...") { chooseExportFolder() }
+                            .buttonStyle(.plain)
+                            .capsuleButton(.plain, small: true)
+                        HStack(spacing: 6) {
+                            Image(systemName: "folder")
+                                .font(.system(size: 11))
+                                .foregroundColor(Theme.textMuted)
+                            Text(exportPath.isEmpty ? "~/Documents" : exportPath)
+                                .font(.system(size: 11.5))
+                                .foregroundColor(Theme.textSecondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        .padding(.horizontal, 10)
+                        .frame(height: 30)
+                        .background(RoundedRectangle(cornerRadius: Theme.radiusControl, style: .continuous).fill(Theme.field))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: Theme.radiusControl, style: .continuous)
+                                .strokeBorder(Theme.hairline, lineWidth: 1)
+                        }
+                    }
                 }
-                section("Language") {
-                    SettingsUI.pickerRow(label: "Language", selection: $setting.language, options: [
-                        ("en","English"),("fr","Français"),("es","Español"),("ar","العربية")
-                    ])
-                }
-                section("Backup & Restore") {
-                    HStack(spacing: 12) {
-                        Button("Export Backup…") {
+
+                SettingsCard {
+                    SettingsCardHeader(title: "Data")
+                    SettingRow(
+                        "Export & import",
+                        description: "Export saves every client, invoice, and settings profile as a JSON file you can re-import later."
+                    ) {
+                        Button("Export JSON") {
                             BackupCoordinator.exportBackup(from: modelContext)
                         }
-                        Button("Import Backup…") {
+                        .buttonStyle(.plain)
+                        .capsuleButton(.plain, small: true)
+                        Button("Import JSON") {
                             BackupCoordinator.importBackup(into: modelContext)
                         }
-                        Spacer()
+                        .buttonStyle(.plain)
+                        .capsuleButton(.plain, small: true)
                     }
-                    Text("Export saves every client, invoice, and settings profile as a JSON file. Import restores from a backup — matching records are updated in place and nothing is deleted.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                section("Automatic Snapshots") {
-                    Text("A snapshot of your data is saved every time the app quits. The last \(RollingBackupService.keepCount) are kept.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    SettingRow(
+                        "Rolling backups",
+                        description: "A snapshot of your data is saved every time the app quits. The last \(RollingBackupService.keepCount) are kept.",
+                        showsDivider: false
+                    ) {
+                        StatusPill(text: "\(snapshots.count) snapshot\(snapshots.count == 1 ? "" : "s")")
+                    }
 
                     if pendingRestore {
-                        HStack {
+                        HStack(spacing: 8) {
                             Image(systemName: "clock.arrow.circlepath")
-                                .foregroundColor(.orange)
+                                .foregroundColor(Theme.warning)
                             Text("A restore is scheduled — it will apply the next time the app launches.")
-                                .font(.caption)
+                                .font(.system(size: 11.5))
+                                .foregroundColor(Theme.textSecondary)
                             Spacer()
                             Button("Cancel Restore") {
                                 RollingBackupService.clearStagedRestore()
                                 refreshSnapshots()
                             }
+                            .buttonStyle(.plain)
+                            .capsuleButton(.plain, small: true)
                         }
+                        .padding(.vertical, 10)
                     }
 
                     if snapshots.isEmpty {
                         Text("No snapshots yet — one will be created the next time you quit the app.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 11.5))
+                            .foregroundColor(Theme.textMuted)
+                            .padding(.vertical, 8)
                     } else {
                         ForEach(snapshots.reversed(), id: \.absoluteString) { snapshot in
-                            HStack {
+                            HStack(spacing: 10) {
                                 Image(systemName: "externaldrive.badge.timemachine")
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(Theme.textMuted)
                                 Text(snapshotLabel(snapshot))
+                                    .font(.system(size: 11.5))
+                                    .foregroundColor(Theme.textSecondary)
                                 Spacer()
                                 Button("Restore") { confirmRestore(snapshot) }
+                                    .buttonStyle(.plain)
+                                    .capsuleButton(.plain, small: true)
+                            }
+                            .padding(.vertical, 8)
+                            .overlay(alignment: .bottom) {
+                                Rectangle().fill(Theme.rowSeparator).frame(height: 1)
                             }
                         }
                     }
@@ -517,11 +810,14 @@ struct GeneralSettingsView: View {
                         Button("Show in Finder") {
                             NSWorkspace.shared.activateFileViewerSelecting([RollingBackupService.backupsDirectory])
                         }
+                        .buttonStyle(.plain)
+                        .capsuleButton(.plain, small: true)
                         Spacer()
                     }
+                    .padding(.vertical, 10)
                 }
             }
-            .padding(20)
+            .padding(.top, 4)
             .onChange(of: setting.darkMode) { _, _ in modelContext.persist() }
             .onChange(of: setting.language) { _, _ in modelContext.persist() }
         }
@@ -598,17 +894,4 @@ struct GeneralSettingsView: View {
             setting.exportPath = url.path
         }
     }
-
-    private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.system(.body, weight: .semibold))
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
 }
-
-

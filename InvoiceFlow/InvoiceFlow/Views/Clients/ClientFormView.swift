@@ -23,19 +23,14 @@ struct ClientFormView: View {
     var body: some View {
         VStack(spacing: 0) {
             // MARK: - Header
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(isEditing ? "Edit Client" : "New Client")
-                        .font(.title2.bold())
-                    Text(isEditing ? "Update client details" : "Add a new client to your directory")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
+            PageHeader(
+                isEditing ? "Edit Client" : "New Client",
+                subtitle: isEditing ? "Update the details for this client." : "Add a client you can bill straight away."
+            ) {
                 if showValidationError {
                     Text(validationError)
-                        .font(.caption)
-                        .foregroundColor(.red)
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.negative)
                         .transition(.opacity)
                 }
                 Button("Cancel") {
@@ -43,80 +38,62 @@ struct ClientFormView: View {
                     cancelAction = nil
                     dismiss()
                 }
-                    .keyboardShortcut(.cancelAction)
+                .buttonStyle(.plain)
+                .capsuleButton(.ghost)
+                .keyboardShortcut(.cancelAction)
                 Button(isEditing ? "Update" : "Create") {
                     if validateForm() {
                         saveClient()
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.brandPrimary)
+                .buttonStyle(.plain)
+                .capsuleButton(.primary)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding()
+            .padding(.horizontal, 28)
+            .padding(.top, 22)
 
-            Divider()
+            Divider().overlay(Theme.hairline)
 
             // MARK: - Form Content
             ScrollView {
                 VStack(spacing: 24) {
-                    formSection(title: "Personal Info") {
-                        HStack(spacing: 16) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Full Name *")
-                                    .font(.caption.bold())
-                                    .foregroundColor(.secondary)
-                                TextField("e.g. John Smith", text: $fullName, axis: .vertical)
-                                    .lineLimit(1...3)
-                                    .textFieldStyle(.roundedBorder)
+                    // Prototype form-grid: 2 columns, address wide.
+                    formSection {
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack(alignment: .top, spacing: 18) {
+                                field(label: "Full Name *", placeholder: "e.g. John Smith", text: $fullName)
+                                field(label: "Company", placeholder: "e.g. Acme Corp", text: $company)
                             }
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Company")
-                                    .font(.caption.bold())
-                                    .foregroundColor(.secondary)
-                                TextField("e.g. Acme Corp", text: $company, axis: .vertical)
-                                    .lineLimit(1...3)
-                                    .textFieldStyle(.roundedBorder)
+                            HStack(alignment: .top, spacing: 18) {
+                                field(label: "Email", placeholder: "e.g. john@acme.com", text: $email)
+                                field(label: "Phone", placeholder: "e.g. +1 (555) 123-4567", text: $phone)
                             }
+                            field(label: "Address", placeholder: "e.g. 123 Main St, City, Country", text: $address)
                         }
                     }
 
-                    formSection(title: "Contact") {
-                        HStack(spacing: 16) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Email")
-                                    .font(.caption.bold())
-                                    .foregroundColor(.secondary)
-                                TextField("e.g. john@acme.com", text: $email)
-                                    .textFieldStyle(.roundedBorder)
-                            }
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Phone")
-                                    .font(.caption.bold())
-                                    .foregroundColor(.secondary)
-                                TextField("e.g. +1 (555) 123-4567", text: $phone)
-                                    .textFieldStyle(.roundedBorder)
-                            }
-                        }
-                    }
-
-                    formSection(title: "Details") {
-                        VStack(alignment: .leading, spacing: 16) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Address")
-                                    .font(.caption.bold())
-                                    .foregroundColor(.secondary)
-                                TextField("e.g. 123 Main St, City, Country", text: $address, axis: .vertical)
-                                    .lineLimit(1...4)
-                                    .textFieldStyle(.roundedBorder)
-                            }
+                    // Billing history — the prototype's client-form footer card.
+                    formSection {
+                        SettingRow(
+                            "Billing history",
+                            description: billingDescription,
+                            showsDivider: false
+                        ) {
+                            StatusPill(
+                                text: "\(clientInvoiceCount) invoice\(clientInvoiceCount == 1 ? "" : "s")",
+                                kind: clientOutstanding > 0 ? .due : .plain
+                            )
                         }
                     }
                 }
-                .padding(20)
+                .padding(.horizontal, 28)
+                .padding(.top, 22)
+                .padding(.bottom, 28)
             }
         }
         .frame(minWidth: 560, minHeight: 480)
+        .background { ThemeCanvas().ignoresSafeArea() }
         .onAppear { loadClient() }
         .animation(.default, value: showValidationError)
         .alert("Could Not Save Client", isPresented: Binding(
@@ -129,17 +106,36 @@ struct ClientFormView: View {
         }
     }
 
-    private func formSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.system(.body, weight: .semibold))
-                .foregroundColor(.primary)
+    /// Prototype `.field`: uppercase label over a capsule-ish glass input.
+    private func field(label: String, placeholder: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).modifier(FieldLabelStyle())
+            TextField(placeholder, text: text, axis: .vertical)
+                .lineLimit(1...4)
+                .textFieldStyle(GlassFieldMultilineStyle())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var clientInvoiceCount: Int { client?.invoiceCount ?? 0 }
+    private var clientOutstanding: Double { client?.outstanding ?? 0 }
+
+    /// Prototype sr-desc for the billing-history row.
+    private var billingDescription: String {
+        guard clientInvoiceCount > 0 else { return "No invoices yet for this client." }
+        return clientOutstanding > 0
+            ? "\(CurrencyFormatter.shared.string(from: clientOutstanding)) still outstanding."
+            : "Everything is settled."
+    }
+
+    private func formSection<Content: View>(title: String? = nil, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: title == nil ? 0 : 14) {
+            if let title { SectionLabel(title) }
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(18)
+        .glassCard(radius: Theme.radiusLarge)
     }
 
     private func loadClient() {

@@ -174,6 +174,7 @@ struct PDFExportView: View {
                     }
                 }
                 .labelsHidden()
+                .accessibilityIdentifier("templatePicker")
                 Spacer()
             }
             HStack {
