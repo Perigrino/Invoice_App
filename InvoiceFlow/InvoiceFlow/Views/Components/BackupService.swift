@@ -18,11 +18,11 @@ import UniformTypeIdentifiers
 struct BackupLineItem: Codable {
     var id: UUID
     var itemDescription: String
-    var price: Double
+    var price: Decimal
     var quantity: Double
     var discount: Double
     var tax: Double
-    var total: Double
+    var total: Decimal
     var sortOrder: Int
 }
 
@@ -41,11 +41,11 @@ struct BackupInvoice: Codable {
     var id: UUID
     var invoiceNumber: String
     var invoiceType: String
-    var subtotal: Double
+    var subtotal: Decimal
     var discount: Double
     var tax: Double
-    var total: Double
-    var balanceDue: Double
+    var total: Decimal
+    var balanceDue: Decimal
     var notes: String?
     var issueDate: Date
     var dueDate: Date?

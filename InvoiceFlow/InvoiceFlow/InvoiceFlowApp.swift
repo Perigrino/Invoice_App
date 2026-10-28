@@ -33,10 +33,28 @@ struct InvoiceFlowApp: App {
     private let container: ModelContainer
 
     init() {
+        var restoredFromBackup = false
         if !Self.isRunningTests {
             // Apply a staged backup restore (if the user requested one) BEFORE
             // the container opens the store file.
+            let hadStagedRestore = FileManager.default.fileExists(
+                atPath: RollingBackupService.stagedRestoreURL.path
+            )
             RollingBackupService.applyStagedRestoreIfAny(liveStoreURL: Self.defaultStoreURL)
+            restoredFromBackup = hadStagedRestore
+                && !FileManager.default.fileExists(atPath: RollingBackupService.stagedRestoreURL.path)
+
+            // A restored snapshot may predate the Decimal schema (S-001): the
+            // version marker travels with the live store, not the snapshot, so
+            // mark the schema "unknown" and let the migrator decide.
+            if restoredFromBackup {
+                StoreMigrator.markUncertain(storeURL: Self.defaultStoreURL)
+                if StoreMigrator.migrateIfNeeded(storeURL: Self.defaultStoreURL) {
+                    NSLog("InvoiceFlow: migrated pre-Decimal backup snapshot in place.")
+                }
+            } else if StoreMigrator.migrateIfNeeded(storeURL: Self.defaultStoreURL) {
+                NSLog("InvoiceFlow: migrated 0.2.0 store to the Decimal money schema.")
+            }
         }
 
         do {

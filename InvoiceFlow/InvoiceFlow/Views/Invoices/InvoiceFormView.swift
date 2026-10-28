@@ -205,13 +205,13 @@ struct InvoiceFormView: View {
     
     // MARK: - Computed Properties
     
-    private var subtotal: Double {
-        lineItems.reduce(0) { $0 + $1.lineTotal }
+    private var subtotal: Decimal {
+        lineItems.reduce(Decimal.zero) { $0 + $1.lineTotal }
     }
-    private var discountAmount: Double { subtotal * discount / 100 }
-    private var taxableAmount: Double { subtotal - discountAmount }
-    private var taxAmount: Double { taxableAmount * taxRate / 100 }
-    private var total: Double { taxableAmount + taxAmount }
+    private var discountAmount: Decimal { (subtotal * Decimal(discount) / 100).roundedCents }
+    private var taxableAmount: Decimal { subtotal - discountAmount }
+    private var taxAmount: Decimal { (taxableAmount * Decimal(taxRate) / 100).roundedCents }
+    private var total: Decimal { (taxableAmount + taxAmount).roundedCents }
 
     /// Prototype `.totals`: subtotal, discount, tax, divider, total, balance.
     private var totals: some View {
@@ -483,7 +483,7 @@ struct InvoiceFormView: View {
             invoice.tax, invoice.total, invoice.balanceDue, invoice.notes, invoice.issueDate,
             invoice.dueDate, invoice.updatedAt
         )
-        let originalItems: [(item: InvoiceLineItem, fields: (String, Double, Double, Double, Double, Double, Int))] = (invoice.lineItems ?? []).map { item in
+        let originalItems: [(item: InvoiceLineItem, fields: (String, Decimal, Double, Double, Double, Decimal, Int))] = (invoice.lineItems ?? []).map { item in
             (item, (item.itemDescription, item.price, item.quantity, item.discount, item.tax, item.total, item.sortOrder))
         }
         let originalIDs = Set(originalItems.map { $0.item.id })
@@ -532,9 +532,9 @@ struct InvoiceFormView: View {
             context.insert(record)
             pending = record
         }
-        let subtotal = lineItems.reduce(0) { $0 + $1.lineTotal }
-        let taxableAmount = subtotal - subtotal * discount / 100
-        let total = taxableAmount + taxableAmount * taxRate / 100
+        let subtotal = lineItems.reduce(Decimal.zero) { $0 + $1.lineTotal }
+        let taxableAmount = subtotal - subtotal * Decimal(discount) / 100
+        let total = (taxableAmount + taxableAmount * Decimal(taxRate) / 100).roundedCents
         record.invoiceNumber = invoiceNumber
         record.invoiceType = invoiceType
         record.issueDate = issueDate
@@ -580,7 +580,7 @@ struct InvoiceFormView: View {
         lineItems.remove(at: index)
     }
     
-    private func formatCurrency(_ amount: Double) -> String {
+    private func formatCurrency(_ amount: Decimal) -> String {
         CurrencyFormatter.shared.string(from: amount)
     }
 }
@@ -590,16 +590,16 @@ struct InvoiceFormView: View {
 struct LineItemData: Identifiable {
     var id = UUID()
     var itemDescription = ""
-    var price = 0.0
+    var price: Decimal = .zero
     var quantity = 1.0
     var discount = 0.0
     var tax = 0.0
-    var lineTotal: Double {
-        let lineTotal = price * quantity
-        let disc = lineTotal * discount / 100
+    var lineTotal: Decimal {
+        let lineTotal = price * Decimal(quantity)
+        let disc = lineTotal * Decimal(discount) / 100
         let afterDisc = lineTotal - disc
-        let taxAmt = afterDisc * tax / 100
-        return afterDisc + taxAmt
+        let taxAmt = afterDisc * Decimal(tax) / 100
+        return (afterDisc + taxAmt).roundedCents
     }
     var sortOrder = 0
 }

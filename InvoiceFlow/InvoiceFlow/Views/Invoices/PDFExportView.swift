@@ -274,20 +274,20 @@ struct PDFExportView: View {
         }
     }
     
-    private var discountApplied: Double {
+    private var discountApplied: Decimal {
         let (subtotal, _) = computedTotals
-        return subtotal * discount / 100
+        return (subtotal * Decimal(discount) / 100).roundedCents
     }
-    
-    private var taxApplied: Double {
+
+    private var taxApplied: Decimal {
         let (subtotal, _) = computedTotals
-        return subtotal * tax / 100
+        return (subtotal * Decimal(tax) / 100).roundedCents
     }
-    
-    private var computedTotals: (Double, Double) {
-        let subtotal = lineItems.reduce(0) { $0 + ($1.price * $1.quantity) }
-        let afterDiscount = subtotal - subtotal * discount / 100
-        let total = afterDiscount + afterDiscount * tax / 100
+
+    private var computedTotals: (Decimal, Decimal) {
+        let subtotal = lineItems.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }
+        let afterDiscount = subtotal - subtotal * Decimal(discount) / 100
+        let total = afterDiscount + afterDiscount * Decimal(tax) / 100
         return (subtotal, total)
     }
     
@@ -350,16 +350,21 @@ struct PDFExportView: View {
         let client = selectedClientIndex > 0 && selectedClientIndex <= clients.count ? clients[selectedClientIndex - 1] : nil
         let subtotal = computedTotals.0
         let total = computedTotals.1
+        // InvoiceRenderData stays Double: the PDF pipeline is display-only,
+        // so Decimals cross the boundary here as exact doubles.
+        func d(_ value: Decimal) -> Double {
+            NSDecimalNumber(decimal: value).doubleValue
+        }
         return InvoiceRenderData(
             invoiceNumber: invoiceNumber,
             invoiceType: invoiceType,
             issueDate: issueDate,
             dueDate: dueDate,
             notes: notes,
-            subtotal: subtotal,
-            discount: discountApplied,
-            tax: taxApplied,
-            total: total,
+            subtotal: d(subtotal),
+            discount: d(discountApplied),
+            tax: d(taxApplied),
+            total: d(total),
             clientName: client?.fullName ?? "",
             clientCompany: client?.company ?? "",
             clientEmail: client?.email ?? "",
@@ -367,9 +372,9 @@ struct PDFExportView: View {
                 InvoiceRenderLineItem(
                     description: $0.description,
                     quantity: $0.quantity,
-                    price: $0.price,
+                    price: d($0.price),
                     tax: $0.tax,
-                    total: $0.price * $0.quantity + $0.price * $0.quantity * $0.tax / 100
+                    total: d($0.price * Decimal($0.quantity) + $0.price * Decimal($0.quantity) * Decimal($0.tax) / 100)
                 )
             },
             companyName: activeSetting?.companyName?.isEmpty == false ? activeSetting!.companyName! : (activeSetting?.profileName ?? "Your Company"),
@@ -406,7 +411,7 @@ struct PDFExportView: View {
         }
     }
     
-    private func formatCurrency(_ amount: Double) -> String {
+    private func formatCurrency(_ amount: Decimal) -> String {
         CurrencyFormatter.shared.string(from: amount, currencyCode: activeSetting?.currency ?? "USD")
     }
 }
@@ -416,7 +421,7 @@ struct PDFExportView: View {
 struct LineItemDraft: Identifiable, Equatable {
     let id = UUID()
     var description: String = ""
-    var price: Double = 0
+    var price: Decimal = .zero
     var quantity: Double = 1
     var tax: Double = 0
     
@@ -459,12 +464,12 @@ struct LineItemDraftRow: View {
     }
     
     private var itemTotal: String {
-        let base = item.price * item.quantity
-        let total = base + base * item.tax / 100
+        let base = item.price * Decimal(item.quantity)
+        let total = base + base * Decimal(item.tax) / 100
         return formatCurrency(total)
     }
-    
-    private func formatCurrency(_ amount: Double) -> String {
+
+    private func formatCurrency(_ amount: Decimal) -> String {
         CurrencyFormatter.shared.string(from: amount, currencyCode: currencyCode)
     }
 }

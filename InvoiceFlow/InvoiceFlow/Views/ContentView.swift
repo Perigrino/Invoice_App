@@ -495,73 +495,6 @@ struct StatusPill: View {
 // MARK: - Status tile
 
 /// The Airpisode countdown block, reused for days-to-due (prototype `.tile`).
-struct StatusTile: View {
-    enum Content {
-        case days(Int)
-        case late(Int)
-        case paid
-        case initials(String)
-    }
-    let content: Content
-
-    var body: some View {
-        VStack(spacing: 3) {
-            switch content {
-            case .days(let n):
-                Text("\(n)").font(.system(size: 17, weight: .bold)).monospacedDigit()
-                Text("DAYS")
-            case .late(let n):
-                Text("\(n)").font(.system(size: 17, weight: .bold)).monospacedDigit()
-                Text("LATE")
-            case .paid:
-                Image(systemName: "checkmark").font(.system(size: 15, weight: .semibold))
-                Text("PAID")
-            case .initials(let letters):
-                Text(letters)
-                    .font(.system(size: 16, weight: .semibold))
-                    .kerning(0.5)
-                    .foregroundColor(Theme.accent)
-            }
-        }
-        .font(.system(size: 8.5, weight: .semibold))
-        .kerning(0.6)
-        .foregroundColor(foreground)
-        .frame(width: 56, height: 62)
-        .background { background }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .shadow(color: shadow, radius: 14, x: 0, y: 6)
-    }
-
-    private var foreground: Color {
-        switch content {
-        case .days: return Theme.onAccent.opacity(0.9)
-        case .paid, .initials: return Theme.textSecondary
-        case .late: return Theme.onAccent
-        }
-    }
-
-    @ViewBuilder
-    private var background: some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-        switch content {
-        case .days:
-            shape.fill(Theme.gradient)
-        case .late:
-            shape.fill(Theme.overdueGradient)
-        case .paid, .initials:
-            shape.fill(Theme.hover)
-                .overlay { shape.strokeBorder(Theme.hairline, lineWidth: 1) }
-        }
-    }
-
-    private var shadow: Color {
-        switch content {
-        case .days: return Theme.palette.glowStrong
-        case .late: return Theme.negative.opacity(0.22)
-        case .paid, .initials: return .clear
-        }
-    }
-}
 
 // MARK: - Form field styles
 
@@ -653,8 +586,8 @@ extension Invoice {
 
 extension Client {
     /// Sum of open balances across this client's invoices.
-    var outstanding: Double {
-        (invoices ?? []).filter { $0.status != .paid }.reduce(0) { $0 + $1.balanceDue }
+    var outstanding: Decimal {
+        (invoices ?? []).filter { $0.status != .paid }.reduce(Decimal.zero) { $0 + $1.balanceDue }
     }
     var hasOverdue: Bool {
         (invoices ?? []).contains { $0.status == .overdue }
@@ -676,7 +609,7 @@ struct CurrencyFormatter {
 
     func string(from value: Double, currencyCode: String? = nil) -> String {
         let code = currencyCode ?? Self.activeCurrencyCode
-        let number = Self.numberString(value)
+        let number = Self.numberString(NSDecimalNumber(value: value))
         let symbol = Self.currencySymbol(for: code)
         if Self.signPlacement == "after" {
             return "\(number)\(symbol)"
@@ -684,7 +617,19 @@ struct CurrencyFormatter {
         return "\(symbol)\(number)"
     }
 
-    private static func numberString(_ value: Double) -> String {
+    /// decimal overload — the app stores money as `Decimal`, so this is the
+    /// path invoice amounts take; exact digits survive (no Double rounding).
+    func string(from value: Decimal, currencyCode: String? = nil) -> String {
+        let code = currencyCode ?? Self.activeCurrencyCode
+        let number = Self.numberString(NSDecimalNumber(decimal: value))
+        let symbol = Self.currencySymbol(for: code)
+        if Self.signPlacement == "after" {
+            return "\(number)\(symbol)"
+        }
+        return "\(symbol)\(number)"
+    }
+
+    private static func numberString(_ value: NSDecimalNumber) -> String {
         let f = NumberFormatter()
         f.numberStyle = .decimal
         f.minimumFractionDigits = decimalPlaces
@@ -700,7 +645,7 @@ struct CurrencyFormatter {
             f.groupingSeparator = ","
             f.decimalSeparator = "."
         }
-        return f.string(from: NSNumber(value: value)) ?? "0"
+        return f.string(from: value) ?? "0"
     }
 
     private static func currencySymbol(for code: String) -> String {
@@ -769,6 +714,10 @@ struct Currency: Identifiable, CaseIterable {
 }
 
 func formatCurrency(_ amount: Double, currencyCode: String = "USD") -> String {
+    CurrencyFormatter.shared.string(from: amount, currencyCode: currencyCode)
+}
+
+func formatCurrency(_ amount: Decimal, currencyCode: String = "USD") -> String {
     CurrencyFormatter.shared.string(from: amount, currencyCode: currencyCode)
 }
 
@@ -1023,6 +972,7 @@ struct SidebarItem: View {
         .animation(Theme.smooth, value: isSelected)
         .animation(Theme.quick, value: hovering)
         .tag(tab)
+        .listRowInsets(EdgeInsets()) // pill spans the full row → covers the system's gray row container
         .listRowBackground(Color.clear)
         .onHover { hovering = $0 }
     }

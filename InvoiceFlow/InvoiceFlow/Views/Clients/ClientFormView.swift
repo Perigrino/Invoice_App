@@ -118,7 +118,7 @@ struct ClientFormView: View {
     }
 
     private var clientInvoiceCount: Int { client?.invoiceCount ?? 0 }
-    private var clientOutstanding: Double { client?.outstanding ?? 0 }
+    private var clientOutstanding: Decimal { client?.outstanding ?? .zero }
 
     /// Prototype sr-desc for the billing-history row.
     private var billingDescription: String {

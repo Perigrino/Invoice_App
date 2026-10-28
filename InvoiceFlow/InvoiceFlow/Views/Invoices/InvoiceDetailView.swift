@@ -231,8 +231,16 @@ struct InvoiceDetailView: View {
     private var totals: some View {
         VStack(spacing: 9) {
             totalRow("Subtotal", formatCurrency(invoice.subtotal))
-            totalRow("Discount", "−\(formatCurrency(invoice.discount))", tint: invoice.discount > 0 ? Theme.negative : nil)
-            totalRow("Tax", "+\(formatCurrency(invoice.tax))", tint: invoice.tax > 0 ? Theme.positive : nil)
+            totalRow(
+                "Discount",
+                "−\(formatCurrency(discountAmount))",
+                tint: invoice.discount > 0 ? Theme.negative : nil
+            )
+            totalRow(
+                "Tax",
+                "+\(formatCurrency(taxAmount))",
+                tint: invoice.tax > 0 ? Theme.positive : nil
+            )
             Rectangle().fill(Theme.rowSeparator).frame(height: 1)
             grandRow("Total", formatCurrency(invoice.total))
             grandRow(
@@ -243,6 +251,20 @@ struct InvoiceDetailView: View {
         }
         .frame(width: 280)
         .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+
+    // The model stores discount/tax as percents, but the totals rows show
+    // amounts (matching the form). There was a bug here where the raw
+    // percents were formatted as money amounts; compute the amounts instead.
+    private var discountAmount: Decimal {
+        (invoice.subtotal * Decimal(invoice.discount) / 100).roundedCents
+    }
+    private var taxAmount: Decimal {
+        ((invoice.subtotal - invoice.subtotal * Decimal(invoice.discount) / 100) * Decimal(invoice.tax) / 100).roundedCents
+    }
+
+    private func formatCurrency(_ amount: Decimal) -> String {
+        CurrencyFormatter.shared.string(from: amount)
     }
 
     private func totalRow(_ label: String, _ value: String, tint: Color? = nil) -> some View {
@@ -269,9 +291,5 @@ struct InvoiceDetailView: View {
                 .monospacedDigit()
                 .foregroundColor(tint ?? Theme.textPrimary)
         }
-    }
-
-    private func formatCurrency(_ amount: Double) -> String {
-        CurrencyFormatter.shared.string(from: amount)
     }
 }

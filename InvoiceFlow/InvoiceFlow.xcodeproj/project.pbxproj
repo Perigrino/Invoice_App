@@ -33,6 +33,9 @@
 		TB01 /* PersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR01 /* PersistenceTests.swift */; };
 		TB02 /* RollingBackupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR02 /* RollingBackupTests.swift */; };
 		TB03 /* ListLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR03 /* ListLayoutTests.swift */; };
+		SC01 /* SchemaV1.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC_FR01 /* SchemaV1.swift */; };
+		SC02 /* StoreMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC_FR02 /* StoreMigrator.swift */; };
+		MN01 /* Money.swift in Sources */ = {isa = PBXBuildFile; fileRef = MN_FR01 /* Money.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -81,6 +84,9 @@
 		TB_FR01 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
 		TB_FR02 /* RollingBackupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RollingBackupTests.swift; sourceTree = "<group>"; };
 		TB_FR03 /* ListLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListLayoutTests.swift; sourceTree = "<group>"; };
+		SC_FR01 /* SchemaV1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaV1.swift; sourceTree = "<group>"; };
+		SC_FR02 /* StoreMigrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreMigrator.swift; sourceTree = "<group>"; };
+		MN_FR01 /* Money.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Money.swift; sourceTree = "<group>"; };
 		TB_PR01 /* InvoiceFlowTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InvoiceFlowTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -117,6 +123,7 @@
 				FR04,
 				FR05,
 				FR06,
+				MN_FR01,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -206,6 +213,7 @@
 				FR01,
 				AA0000000000000000000002,
 				AA0000000000000000000003,
+				SC_GRP01,
 				AA0000000000000000000008,
 				AA000000000000000000000A,
 				AA000000000000000000000B,
@@ -232,6 +240,15 @@
 				TB_FR03,
 			);
 			path = InvoiceFlowTests;
+			sourceTree = "<group>";
+		};
+		SC_GRP01 /* Schema */ = {
+			isa = PBXGroup;
+			children = (
+				SC_FR01,
+				SC_FR02,
+			);
+			path = Schema;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -384,6 +401,9 @@
 				BF12 /* PDFExportView.swift in Sources */,
 				BS01 /* BackupService.swift in Sources */,
 				BS02 /* RollingBackupService.swift in Sources */,
+				SC01 /* SchemaV1.swift in Sources */,
+				SC02 /* StoreMigrator.swift in Sources */,
+				MN01 /* Money.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

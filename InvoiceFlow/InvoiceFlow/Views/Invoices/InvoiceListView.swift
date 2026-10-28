@@ -54,7 +54,18 @@ struct InvoiceListView: View {
                 inlineSearch
             }
             .padding(.horizontal, 28)
-            .padding(.top, 4)
+            .padding(.top, 12)
+
+            // Same hoisted label as the client list, so both lists open on a
+            // data row and read identically.
+            if !filteredInvoices.isEmpty {
+                SectionLabel("\(filteredInvoices.count) Invoice\(filteredInvoices.count == 1 ? "" : "s")", uppercased: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 14)
+                    .padding(.bottom, 2)
+                    .appear()
+            }
 
             if filteredInvoices.isEmpty {
                 Spacer(minLength: 0)
@@ -259,7 +270,7 @@ struct InvoiceRow: View {
     /// Fixed height: SwiftUI's `List` only re-measures a row when it lays it
     /// out, and rows created while a sheet is on screen keep the table's
     /// default 24pt height — their second line then spills over the next row.
-    static let rowHeight: CGFloat = 70
+    static let rowHeight: CGFloat = 64
     /// Full row pitch inside the table: content height + the list's vertical
     /// row insets (5 + 5 in `invoiceList`).
     static let tableRowHeight: CGFloat = rowHeight + 10
@@ -275,7 +286,7 @@ struct InvoiceRow: View {
         let shape = RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
 
         HStack(spacing: 14) {
-            StatusTile(content: tileContent)
+            avatar
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(invoice.invoiceNumber.isEmpty ? "New Invoice" : invoice.invoiceNumber)
@@ -359,16 +370,20 @@ struct InvoiceRow: View {
         .onHover { hovering = $0 }
     }
 
-    private var tileContent: StatusTile.Content {
-        switch invoice.status {
-        case .paid: return .paid
-        case .overdue: return .late(abs(invoice.daysTo(invoice.dueDate ?? Date())))
-        case .dueSoon: return .days(max(invoice.daysTo(invoice.dueDate ?? Date()), 0))
-        case .upcoming:
-            if let due = invoice.dueDate {
-                return .days(max(invoice.daysTo(due), 0))
-            }
-            return .initials(initials)
+    /// Tinted initial circle — same avatar treatment as `ClientRow`, seeded by
+    /// client name so a client's invoices share their wash and colour.
+    private var avatar: some View {
+        let tint = Theme.tint(for: tintSeed)
+        return ZStack {
+            Circle().fill(Theme.avatarBase)
+            Circle().fill(tint.opacity(0.22))
+            Text(initials)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(Theme.tintInk(for: tintSeed))
+        }
+        .frame(width: 36, height: 36)
+        .overlay {
+            Circle().strokeBorder(tint.opacity(0.30), lineWidth: 1)
         }
     }
 
@@ -407,7 +422,7 @@ struct InvoiceRow: View {
         invoice.status == .overdue ? "exclamationmark.triangle" : "calendar"
     }
 
-    private func formatCurrency(_ amount: Double) -> String {
+    private func formatCurrency(_ amount: Decimal) -> String {
         CurrencyFormatter.shared.string(from: amount)
     }
 }

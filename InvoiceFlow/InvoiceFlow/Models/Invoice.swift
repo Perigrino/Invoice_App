@@ -6,11 +6,13 @@ final class Invoice {
     var id: UUID
     var invoiceNumber: String
     var invoiceType: String
-    var subtotal: Double
+    var subtotal: Decimal
+    /// Invoice-level percent (0–100), applied to the line-item subtotal.
     var discount: Double
+    /// Invoice-level percent (0–100), applied after the discount.
     var tax: Double
-    var total: Double
-    var balanceDue: Double
+    var total: Decimal
+    var balanceDue: Decimal
     var notes: String?
     var issueDate: Date
     var dueDate: Date?
@@ -26,11 +28,11 @@ final class Invoice {
         id: UUID = UUID(),
         invoiceNumber: String = "",
         invoiceType: String = "invoice",
-        subtotal: Double = 0,
+        subtotal: Decimal = .zero,
         discount: Double = 0,
         tax: Double = 0,
-        total: Double = 0,
-        balanceDue: Double = 0,
+        total: Decimal = .zero,
+        balanceDue: Decimal = .zero,
         notes: String? = nil,
         issueDate: Date = Date(),
         dueDate: Date? = nil,
@@ -52,12 +54,20 @@ final class Invoice {
         self.updatedAt = updatedAt
     }
 
+    /// Recomputes money totals from the line items. The formulas with
+    /// `discount`/`tax` treated as invoice-level percents match the original
+    /// 0.2.0 behaviour exactly — only the numeric type changed (and cents are
+    /// now rounded deterministically instead of relying on `Double`).
+    /// NOTE: per-line `total` already includes that line's percent tax, so
+    /// the invoice-level `tax` percent is effectively applied on top. Fixing
+    /// that semantics gap is deferred (M3, docs/STORIES.md S-021).
     func recalculate() {
         let items = lineItems ?? []
-        subtotal = items.reduce(0) { $0 + $1.total }
-        let discountTotal = items.reduce(0) { $0 + ($1.total * $1.discount / 100) }
-        let taxTotal = items.reduce(0) { $0 + ($1.total * $1.tax / 100) }
-        total = subtotal - discountTotal + taxTotal
+        let itemSubtotal = items.reduce(Decimal.zero) { $0 + $1.total }
+        let discountTotal = items.reduce(Decimal.zero) { $0 + ($1.total * Decimal($1.discount) / 100) }
+        let taxTotal = items.reduce(Decimal.zero) { $0 + ($1.total * Decimal($1.tax) / 100) }
+        subtotal = itemSubtotal
+        total = (itemSubtotal - discountTotal + taxTotal).roundedCents
         balanceDue = total
         updatedAt = Date()
     }

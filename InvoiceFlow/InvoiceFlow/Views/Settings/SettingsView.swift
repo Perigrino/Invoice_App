@@ -659,7 +659,7 @@ struct CurrencySettingsView: View {
                 SettingsCard {
                     SettingsCardHeader(title: "Preview")
                     HStack(alignment: .firstTextBaseline, spacing: 14) {
-                        Text(CurrencyFormatter.shared.string(from: 4820))
+                        Text(CurrencyFormatter.shared.string(from: 4820.0))
                             .font(.system(size: 26, weight: .bold))
                             .monospacedDigit()
                             .foregroundColor(Theme.textPrimary)
