@@ -566,4 +566,102 @@ final class PersistenceTests: XCTestCase {
             XCTAssertEqual(invoice.client?.fullName, "Alan Turing")
         }
     }
+
+    // MARK: - Payments (S-0010)
+
+    /// Payments survive a full relaunch cycle: seed, save, tear the container
+    /// down, reopen the same store, and verify the payment and its derived
+    /// balance are really there.
+    func testPaymentsSurviveRelaunch() throws {
+        try autoreleasepool {
+            let container = try openContainer()
+            let context = makeContext(for: container)
+            let client = Client(fullName: "Ada Lovelace")
+            context.insert(client)
+            let invoice = Invoice(invoiceNumber: "INV-PAY-1")
+            invoice.client = client
+            context.insert(invoice)
+            let item = InvoiceLineItem(itemDescription: "Analytical Engine", price: 100, quantity: 1)
+            context.insert(item)
+            item.invoice = invoice
+            invoice.lineItems?.append(item)
+            invoice.recalculate()
+            let payment = Payment(amount: Decimal(string: "40.00")!, method: "Cash")
+            context.insert(payment)
+            payment.invoice = invoice
+            invoice.payments?.append(payment)
+            invoice.recalculateBalance()
+            context.persist()
+        }
+
+        // "Relaunch": reopen the same store file in a brand-new container.
+        try autoreleasepool {
+            let container = try openContainer()
+            let context = makeContext(for: container)
+            let invoice = try XCTUnwrap(try context.fetch(FetchDescriptor<Invoice>()).first)
+            let payments = try XCTUnwrap(invoice.payments)
+            XCTAssertEqual(payments.count, 1)
+            XCTAssertEqual(payments.first?.amount, Decimal(string: "40.00")!)
+            XCTAssertEqual(payments.first?.method, "Cash")
+            XCTAssertEqual(invoice.balanceDue, Decimal(string: "60.00")!)
+            XCTAssertEqual(invoice.status, .partiallyPaid)
+        }
+    }
+
+    /// Payments ride along in backups: export, wipe the store, reimport, and
+    /// verify the payments (not just the invoice) are restored with cent-exact
+    /// Decimal amounts.
+    func testPaymentsSurviveBackupExportImport() throws {
+        try autoreleasepool {
+            let container = try openContainer()
+            let context = makeContext(for: container)
+            let client = Client(fullName: "Grace Hopper")
+            context.insert(client)
+            let invoice = Invoice(invoiceNumber: "INV-PAY-2")
+            invoice.client = client
+            context.insert(invoice)
+            let item = InvoiceLineItem(itemDescription: "Compiler", price: 100, quantity: 1)
+            context.insert(item)
+            item.invoice = invoice
+            invoice.lineItems?.append(item)
+            invoice.recalculate()
+            for (amount, method) in [(Decimal(string: "40.00")!, "Cash"), (Decimal(string: "35.00")!, "Card")] {
+                let payment = Payment(amount: amount, method: method)
+                context.insert(payment)
+                payment.invoice = invoice
+                invoice.payments?.append(payment)
+            }
+            invoice.recalculateBalance()
+            context.persist()
+            try BackupService.export(to: backupURL, from: context)
+        }
+
+        // The store is wiped (disaster scenario).
+        try autoreleasepool {
+            let container = try openContainer()
+            let context = makeContext(for: container)
+            for client in try context.fetch(FetchDescriptor<Client>()) { context.delete(client) }
+            for invoice in try context.fetch(FetchDescriptor<Invoice>()) { context.delete(invoice) }
+            context.persist()
+        }
+
+        // Restore from the backup file and verify.
+        try autoreleasepool {
+            let container = try openContainer()
+            let context = makeContext(for: container)
+            let result = try BackupService.importDocument(from: backupURL, into: context)
+            context.persist()
+
+            XCTAssertEqual(result.clientsCreated, 1)
+            XCTAssertEqual(result.invoicesCreated, 1)
+            let invoice = try XCTUnwrap(try context.fetch(FetchDescriptor<Invoice>()).first)
+            XCTAssertEqual(invoice.invoiceNumber, "INV-PAY-2")
+            let payments = try XCTUnwrap(invoice.payments)
+            XCTAssertEqual(payments.count, 2)
+            let amounts = Set(payments.map { $0.amount })
+            XCTAssertEqual(amounts, [Decimal(string: "40.00")!, Decimal(string: "35.00")!])
+            XCTAssertEqual(invoice.balanceDue, Decimal(string: "25.00")!)
+            XCTAssertEqual(invoice.status, .partiallyPaid)
+        }
+    }
 }

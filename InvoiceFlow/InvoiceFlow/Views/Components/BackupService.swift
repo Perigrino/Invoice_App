@@ -26,6 +26,14 @@ struct BackupLineItem: Codable {
     var sortOrder: Int
 }
 
+struct BackupPayment: Codable {
+    var id: UUID
+    var amount: Decimal
+    var date: Date
+    var method: String
+    var notes: String?
+}
+
 struct BackupClient: Codable {
     var id: UUID
     var fullName: String
@@ -53,6 +61,8 @@ struct BackupInvoice: Codable {
     var updatedAt: Date
     var clientID: UUID?
     var lineItems: [BackupLineItem]
+    /// Optional so pre-Payment backups (v1 JSON without the key) still decode.
+    var payments: [BackupPayment]? = nil
 }
 
 struct BackupSetting: Codable {
@@ -202,6 +212,14 @@ enum BackupService {
                             price: item.price, quantity: item.quantity,
                             discount: item.discount, tax: item.tax, total: item.total,
                             sortOrder: item.sortOrder
+                        )
+                    },
+                payments: (invoice.payments ?? [])
+                    .sorted { $0.date < $1.date }
+                    .map { payment in
+                        BackupPayment(
+                            id: payment.id, amount: payment.amount,
+                            date: payment.date, method: payment.method, notes: payment.notes
                         )
                     }
             )
@@ -366,6 +384,21 @@ enum BackupService {
             lineItem.invoice = invoice
             invoice.lineItems?.append(lineItem)
         }
+
+        // Replace payments wholesale, then re-derive the balance from them
+        // (the stored balanceDue in an old backup may predate payments).
+        for payment in invoice.payments ?? [] { invoice.modelContext?.delete(payment) }
+        invoice.payments = []
+        for payment in backup.payments ?? [] {
+            let record = Payment(
+                id: payment.id, amount: payment.amount,
+                date: payment.date, method: payment.method, notes: payment.notes
+            )
+            invoice.modelContext?.insert(record)
+            record.invoice = invoice
+            invoice.payments?.append(record)
+        }
+        invoice.recalculateBalance()
     }
 
     private static func apply(_ backup: BackupSetting, to setting: Setting) {

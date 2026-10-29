@@ -4,6 +4,7 @@
 //
 
 import XCTest
+import SwiftData
 @testable import InvoiceFlow
 
 final class RollingBackupTests: XCTestCase {
@@ -141,5 +142,57 @@ final class RollingBackupTests: XCTestCase {
         try makeLiveStore(content: "untouched")
         XCTAssertFalse(RollingBackupService.applyStagedRestoreIfAny(liveStoreURL: liveStore))
         XCTAssertEqual(try readStore(liveStore), "untouched")
+    }
+
+    // MARK: - Real stores with payments (S-0010)
+
+    /// Snapshots of a REAL store trio carry payments: take a snapshot of a
+    /// live store byte-for-byte in the middle of a session, drop the trio
+    /// back at a fresh store path (what restore does), and verify the
+    /// payment and its derived balance come with it.
+    func testSnapshotOfRealStoreKeepsPayments() throws {
+        // Seed a real file-backed store with an invoice and a payment.
+        try autoreleasepool {
+            let container = try ModelContainer(
+                for: Invoice.self, InvoiceLineItem.self, Client.self, Company.self, Setting.self,
+                configurations: ModelConfiguration(url: liveStore)
+            )
+            let context = ModelContext(container)
+            context.autosaveEnabled = false
+            let invoice = Invoice(invoiceNumber: "INV-SNAP-1")
+            context.insert(invoice)
+            let item = InvoiceLineItem(itemDescription: "Consulting", price: 80, quantity: 1)
+            context.insert(item)
+            item.invoice = invoice
+            invoice.lineItems?.append(item)
+            invoice.recalculate()
+            let payment = Payment(amount: Decimal(string: "30.00")!, method: "Cash")
+            context.insert(payment)
+            payment.invoice = invoice
+            invoice.payments?.append(payment)
+            invoice.recalculateBalance()
+            context.persist()
+        }
+
+        let snapshot = try XCTUnwrap(RollingBackupService.takeSnapshot(storeURL: liveStore))
+        let restoredStore = tempDir.appendingPathComponent("restored.store")
+        for suffix in ["", "-wal", "-shm"] {
+            try FileManager.default.copyItem(
+                at: URL(fileURLWithPath: snapshot.appendingPathComponent(RollingBackupService.snapshotStoreFileName).path + suffix),
+                to: URL(fileURLWithPath: restoredStore.path + suffix))
+        }
+
+        try autoreleasepool {
+            let container = try ModelContainer(
+                for: Invoice.self, InvoiceLineItem.self, Client.self, Company.self, Setting.self,
+                configurations: ModelConfiguration(url: restoredStore)
+            )
+            let context = ModelContext(container)
+            context.autosaveEnabled = false
+            let invoice = try XCTUnwrap(try context.fetch(FetchDescriptor<Invoice>()).first)
+            XCTAssertEqual(invoice.payments?.count, 1, "snapshot keeps the recorded payment")
+            XCTAssertEqual(invoice.payments?.first?.amount, Decimal(string: "30.00")!)
+            XCTAssertEqual(invoice.balanceDue, Decimal(string: "50.00")!)
+        }
     }
 }
