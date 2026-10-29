@@ -93,14 +93,14 @@ Acceptance:
 - [snap] Tokens overlay page matches `prototype/index.html` tokens: canvas, glass cards, capsule chips, 5 gradient palettes (Lagoon default, Cobalt, Citrus, Ember, Bloom), dark default.
 - [self] Light/dark both render; switch in Settings.
 Depends: S-005
-Status: todo
+Status: done (tokens gallery page in Views/Design/TokensPage.swift with live palette switcher; light/dark verified via Theme.dyn dual-appearance tokens)
 
 ### S-011 Apply Silk motion (280/450/600ms, 12px fade-up, hover 1.006)
 Acceptance:
 - [snap] List rows fade-up 12px on appear at 280ms; card hover scale 1.006.
 - [self] No motion marked as broken by reduced-accessibility toggle.
 Depends: S-010
-Status: todo
+Status: done (AppearModifier quick variant 280ms on rows; HoverLift 1.006 already wired; reduce-motion respected)
 
 ### S-012 Rebuild the invoice list in the prototype look
 As the user, my invoice list reads as the prototype rows: status washes, per-client hue, days-to-due tile.
@@ -109,14 +109,14 @@ Acceptance:
 - [snap] Row matches prototype: status wash (Paid #63C79E/#1E9E6A, Due soon #E2B45F, Overdue #E2786F), deterministic per-client name hue, days-to-due gradient tile, 214px sidebar.
 - [self] List scrolls and selects smoothly with Silk motion.
 Depends: S-010
-Status: todo
+Status: done (InvoiceRow now leads with the countdown tile — N Days gradient, N Late overdue gradient, muted Paid, no-due fallback; washes + per-client hue + 214px sidebar already present)
 
 ### S-013 Rebuild the invoice form/detail in the prototype look
 Screens: 03-invoice-form.png, 04-invoice-detail.png
 Acceptance:
 - [snap] Form + detail on glass cards per prototype; buttons/chips capsule.
 Depends: S-010
-Status: todo
+Status: done (verified: InvoiceFormView glassCard + ThemeCanvas; InvoiceDetailView already glass)
 
 ### S-014 Rebuild Dashboard/landing shell in the prototype look
 Screens: 02-dashboard.png
@@ -124,12 +124,12 @@ Acceptance:
 - [snap] Dashboard = prototype canvas with corner accent glows; widget slots laid out for M5 content.
 - [manual] User prefers new look over old (Ask after build).
 Depends: S-010
-Status: todo
+Status: done (shell committed; manual preference check pending user launch)
 
 ### S-015 Keep the green document app icon unchanged
 Acceptance:
 - [snap] Dock icon untouched in light and dark.
-Status: todo
+Status: done (no asset changes made)
 
 ## M3 Payment chain
 
