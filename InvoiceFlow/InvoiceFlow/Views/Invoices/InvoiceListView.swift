@@ -12,6 +12,7 @@ struct InvoiceListView: View {
     @State private var invoiceToDelete: Invoice? = nil
     @State private var showDeleteConfirmation = false
     @State private var exportingInvoice: Invoice? = nil
+    @State private var paymentInvoice: Invoice? = nil
 
     private var searchedInvoices: [Invoice] {
         invoices.filter { invoice in
@@ -108,6 +109,9 @@ struct InvoiceListView: View {
         .sheet(item: $exportingInvoice) { invoice in
             PDFExportView(sourceInvoice: invoice)
         }
+        .sheet(item: $paymentInvoice) { invoice in
+            PaymentSheet(invoice: invoice)
+        }
         .alert("Delete Invoice", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -196,6 +200,11 @@ struct InvoiceListView: View {
                 duplicateInvoice(invoice)
             } label: {
                 Label("Duplicate", systemImage: "doc.on.doc")
+            }
+            Button {
+                paymentInvoice = invoice
+            } label: {
+                Label("Add Payment…", systemImage: "dollarsign.circle")
             }
             Button {
                 exportingInvoice = invoice

@@ -10,6 +10,8 @@ struct InvoiceDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var showingExportFallback = false
+    @State private var showingAddPayment = false
+    @State private var paymentToDelete: Payment?
 
     var body: some View {
         ScrollView {
@@ -47,11 +49,22 @@ struct InvoiceDetailView: View {
                     .buttonStyle(.plain)
                     .capsuleButton(.primary)
                     .accessibilityIdentifier("exportPDFButton")
+
+                    Button {
+                        showingAddPayment = true
+                    } label: {
+                        Label("Add Payment…", systemImage: "dollarsign.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .capsuleButton(.plain)
+                    .help("Record a payment (⏎)")
+                    .accessibilityIdentifier("addPaymentButton")
                 }
 
                 heroCard
                 infoCard
                 itemsCard
+                paymentsCard
 
                 if let notes = invoice.notes, !notes.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -74,6 +87,28 @@ struct InvoiceDetailView: View {
         .background { ThemeCanvas().ignoresSafeArea() }
         .sheet(isPresented: $showingExportFallback) {
             PDFExportView(sourceInvoice: invoice)
+        }
+        .sheet(isPresented: $showingAddPayment) {
+            PaymentSheet(invoice: invoice)
+        }
+        .alert(
+            "Delete this Payment?",
+            isPresented: Binding(
+                get: { paymentToDelete != nil },
+                set: { if !$0 { paymentToDelete = nil } }
+            )
+        ) {
+            Button("Delete", role: .destructive) {
+                if let payment = paymentToDelete {
+                    modelContext.delete(payment)
+                    invoice.recalculateBalance()
+                    modelContext.persist()
+                }
+                paymentToDelete = nil
+            }
+            Button("Cancel", role: .cancel) { paymentToDelete = nil }
+        } message: {
+            Text("This payment will be removed from the invoice and the balance due will go back up.")
         }
     }
 
@@ -249,6 +284,13 @@ struct InvoiceDetailView: View {
             )
             Rectangle().fill(Theme.rowSeparator).frame(height: 1)
             grandRow("Total", formatCurrency(invoice.total))
+            if amountsPaid > .zero {
+                totalRow(
+                    "Payments",
+                    "−\(formatCurrency(amountsPaid))",
+                    tint: Theme.positive
+                )
+            }
             grandRow(
                 "Balance Due",
                 formatCurrency(invoice.balanceDue),
@@ -267,6 +309,84 @@ struct InvoiceDetailView: View {
     }
     private var taxAmount: Decimal {
         ((invoice.subtotal - invoice.subtotal * Decimal(invoice.discount) / 100) * Decimal(invoice.tax) / 100).roundedCents
+    }
+
+    // MARK: - Payments
+
+    private var sortedPayments: [Payment] {
+        (invoice.payments ?? []).sorted { $0.date > $1.date }
+    }
+
+    private var amountsPaid: Decimal {
+        (invoice.payments ?? []).reduce(Decimal.zero) { $0 + $1.amount }
+    }
+
+    /// Prototype `.payments` card: every recorded payment, newest first.
+    /// Deleting a row raises the balance back — the balance is derived, so
+    /// this card never needs a save button.
+    private var paymentsCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Payments")
+
+            if sortedPayments.isEmpty {
+                VStack(spacing: 10) {
+                    Text("No Payments Yet")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(Theme.textSecondary)
+                    Button {
+                        showingAddPayment = true
+                    } label: {
+                        Label("Add Payment…", systemImage: "dollarsign.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .capsuleButton(.plain, small: true)
+                    .accessibilityIdentifier("addPaymentEmptyStateButton")
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+            } else {
+                ForEach(sortedPayments, id: \.id) { payment in
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(DateFormatHelper.string(from: payment.date))
+                                .font(.system(size: 12.5, weight: .medium))
+                                .foregroundColor(Theme.textPrimary)
+                            Text(payment.method)
+                                .font(.system(size: 11.5))
+                                .foregroundColor(Theme.textSecondary)
+                            if let notes = payment.notes, !notes.isEmpty {
+                                Text(notes)
+                                    .font(.system(size: 11.5))
+                                    .foregroundColor(Theme.textMuted)
+                            }
+                        }
+                        Spacer(minLength: 8)
+                        Text(formatCurrency(payment.amount))
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .monospacedDigit()
+                            .foregroundColor(Theme.textPrimary)
+                        Button {
+                            paymentToDelete = payment
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: 12))
+                                .foregroundColor(Theme.textMuted)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Delete this payment")
+                        .accessibilityIdentifier("deletePaymentButton")
+                    }
+                    .padding(.vertical, 8)
+                    .overlay(alignment: .bottom) {
+                        Rectangle().fill(Theme.rowSeparator).frame(height: 1)
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard(radius: Theme.radiusLarge)
     }
 
     private func formatCurrency(_ amount: Decimal) -> String {
@@ -297,5 +417,104 @@ struct InvoiceDetailView: View {
                 .monospacedDigit()
                 .foregroundColor(tint ?? Theme.textPrimary)
         }
+    }
+}
+
+// MARK: - Add Payment sheet
+
+/// One short task: record a payment against the invoice. Prefills the
+/// remaining balance and today's date; Return confirms, Escape cancels.
+struct PaymentSheet: View {
+    let invoice: Invoice
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @State private var amount: Decimal = .zero
+    @State private var date = Date()
+    @State private var method = "Bank Transfer"
+    @State private var errorMessage: String?
+
+    private static let methods = ["Bank Transfer", "Cash", "Card", "Mobile Money", "Other"]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Add Payment")
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(Theme.textPrimary)
+            Text("\(invoice.invoiceNumber) · balance due \(formatCurrency(invoice.balanceDue))")
+                .font(.system(size: 12))
+                .foregroundColor(Theme.textSecondary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("AMOUNT").modifier(FieldLabelStyle())
+                TextField("0", value: $amount, format: .number)
+                    .textFieldStyle(GlassFieldStyle())
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.negative)
+                }
+            }
+
+            HStack(alignment: .top, spacing: 18) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("DATE").modifier(FieldLabelStyle())
+                    DatePicker("", selection: $date, displayedComponents: .date)
+                        .labelsHidden()
+                        .textFieldStyle(GlassFieldStyle())
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("METHOD").modifier(FieldLabelStyle())
+                    Picker("", selection: $method) {
+                        ForEach(Self.methods, id: \.self) { option in
+                            Text(option).tag(option)
+                        }
+                    }
+                    .labelsHidden()
+                    .textFieldStyle(GlassFieldStyle())
+                }
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                    .buttonStyle(.plain)
+                    .capsuleButton(.plain)
+                    .keyboardShortcut(.cancelAction)
+                Button("Record Payment") { recordPayment() }
+                    .buttonStyle(.plain)
+                    .capsuleButton(.primary)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(24)
+        .frame(width: 420)
+        .glassCard(radius: Theme.radiusLarge)
+        .background { ThemeCanvas().ignoresSafeArea() }
+        .onAppear { amount = invoice.balanceDue }
+    }
+
+    private func recordPayment() {
+        if amount <= .zero {
+            errorMessage = "Enter an amount."
+            return
+        }
+        if amount > invoice.balanceDue {
+            errorMessage = "Payment is larger than the balance due."
+            return
+        }
+        let payment = Payment(amount: amount.roundedCents, date: date, method: method)
+        modelContext.insert(payment)
+        payment.invoice = invoice
+        invoice.recalculateBalance()
+        if modelContext.persist() {
+            dismiss()
+        } else {
+            errorMessage = "Could not save the payment. Try again."
+        }
+    }
+
+    private func formatCurrency(_ value: Decimal) -> String {
+        CurrencyFormatter.shared.string(from: value)
     }
 }
