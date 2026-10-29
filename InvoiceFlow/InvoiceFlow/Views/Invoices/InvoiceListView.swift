@@ -295,7 +295,7 @@ struct InvoiceRow: View {
         let shape = RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
 
         HStack(spacing: 14) {
-            avatar
+            tile
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(invoice.invoiceNumber.isEmpty ? "New Invoice" : invoice.invoiceNumber)
@@ -377,30 +377,90 @@ struct InvoiceRow: View {
         .animation(Theme.smooth, value: isSelected)
         .animation(Theme.quick, value: hovering)
         .onHover { hovering = $0 }
+        .appear(quick: true)
     }
 
-    /// Tinted initial circle — same avatar treatment as `ClientRow`, seeded by
-    /// client name so a client's invoices share their wash and colour.
-    private var avatar: some View {
-        let tint = Theme.tint(for: tintSeed)
-        return ZStack {
-            Circle().fill(Theme.avatarBase)
-            Circle().fill(tint.opacity(0.22))
-            Text(initials)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(Theme.tintInk(for: tintSeed))
+    /// Days-to-due tile — the prototype's leading element, replacing the
+    /// initials avatar. Open invoices show days to due (or days late) on a
+    /// countdown gradient; paid invoices fall back to a muted "Paid" state.
+    private var tile: some View {
+        ZStack {
+            switch tileKind {
+            case .countdown(let gradient, let glow):
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(gradient)
+                    .shadow(color: glow.opacity(0.22), radius: 9, x: 0, y: 8)
+                tileText
+            case .muted(let label, let symbol):
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Theme.hover)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(Theme.hairline, lineWidth: 1)
+                    }
+                VStack(spacing: 3) {
+                    Image(systemName: symbol)
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(label)
+                        .font(.system(size: 8.5, weight: .semibold))
+                        .tracking(0.6)
+                        .textCase(.uppercase)
+                }
+                .foregroundColor(Theme.textSecondary)
+            }
         }
-        .frame(width: 36, height: 36)
-        .overlay {
-            Circle().strokeBorder(tint.opacity(0.30), lineWidth: 1)
+        .frame(width: 56, height: 62)
+        .animation(Theme.quick, value: invoice.status)
+    }
+
+    /// The large countdown number over its small uppercase label, on-accent.
+    private var tileText: some View {
+        VStack(spacing: 3) {
+            Text(tileNumber)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .monospacedDigit()
+            Text(tileLabel)
+                .font(.system(size: 8.5, weight: .semibold))
+                .tracking(0.6)
+                .textCase(.uppercase)
+                .opacity(0.9)
+        }
+        .foregroundColor(Theme.onAccent)
+    }
+
+    private enum TileKind {
+        case countdown(LinearGradient, Color)
+        case muted(String, String)
+    }
+
+    private var tileKind: TileKind {
+        switch invoice.status {
+        case .paid:
+            return .muted("Paid", "checkmark")
+        default:
+            guard let due = invoice.dueDate else {
+                return .muted("Draft", "calendar")
+            }
+            let days = invoice.daysTo(due)
+            if days < 0 {
+                return .countdown(Theme.overdueGradient, Theme.glowOverdueTile)
+            }
+            return .countdown(Theme.gradient, Theme.glowAccent)
         }
     }
 
-    /// Client initials for the leading tile (up to two letters).
-    private var initials: String {
-        let words = (invoice.client?.fullName ?? "").split(separator: " ").filter { !$0.isEmpty }
-        guard !words.isEmpty else { return "—" }
-        return words.prefix(2).map { String($0.prefix(1)).uppercased() }.joined()
+    /// Tile headline: days to due, days late, or a dash without a due date.
+    private var tileNumber: String {
+        guard let due = invoice.dueDate else { return "—" }
+        let days = invoice.daysTo(due)
+        let magnitude = days < 0 ? -days : days
+        return magnitude > 99 ? "99+" : "\(magnitude)"
+    }
+
+    /// Tile sub-label: "Days" when due ahead, "Late" when overdue.
+    private var tileLabel: String {
+        guard let due = invoice.dueDate else { return "No Due" }
+        return invoice.daysTo(due) < 0 ? "Late" : "Days"
     }
 
     private var wash: LinearGradient? {

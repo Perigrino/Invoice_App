@@ -194,6 +194,10 @@ enum Theme {
         LinearGradient(colors: [negative, negativeDeep], startPoint: .top, endPoint: .bottom)
     }
 
+    /// Glow colour behind the overdue countdown tile (prototype
+    /// `--overdue-glow`, cast at ≤0.22 opacity).
+    static let glowOverdueTile = dyn(light: "#B03E38", dark: "#C2554C")
+
     /// Overdue / due-soon row washes — "a wash, not a colour block".
     static var washOverdue: LinearGradient {
         LinearGradient(colors: [negative.opacity(0.13), .clear], startPoint: .leading, endPoint: .center)
@@ -323,13 +327,18 @@ struct GlassCard: ViewModifier {
 struct AppearModifier: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = false
+    /// Row entrances use the Silk "quick" curve (280ms per the prototype);
+    /// larger surfaces keep the gentle settle.
+    private var spring: Animation { quick ? Theme.quick : Theme.gentle }
+
+    var quick = false
 
     func body(content: Content) -> some View {
         content
             .opacity(shown ? 1 : 0)
             .offset(y: shown ? 0 : 12)
             .onAppear {
-                withAnimation(reduceMotion ? nil : Theme.gentle) { shown = true }
+                withAnimation(reduceMotion ? nil : spring) { shown = true }
             }
     }
 }
@@ -353,8 +362,8 @@ extension View {
         modifier(GlassCard(radius: radius))
     }
 
-    func appear() -> some View {
-        modifier(AppearModifier())
+    func appear(quick: Bool = false) -> some View {
+        modifier(AppearModifier(quick: quick))
     }
 
     func hoverLift() -> some View {
@@ -790,6 +799,8 @@ struct ContentView: View {
                 sidebar
             } detail: {
                 switch selectedTab {
+                case .dashboard:
+                    DashboardView(selectedTab: $selectedTab)
                 case .invoices:
                     InvoiceListView()
                 case .clients:
@@ -842,6 +853,7 @@ struct ContentView: View {
 
             List(selection: $selectedTab) {
                 Section {
+                    sidebarRow(.dashboard)
                     sidebarRow(.invoices, count: allInvoices.count)
                     sidebarRow(.clients, count: allClients.count)
                 } header: {
@@ -980,12 +992,14 @@ struct SidebarItem: View {
 }
 
 enum SidebarTab: String, CaseIterable {
+    case dashboard = "Dashboard"
     case invoices = "Invoices"
     case clients = "Clients"
     case settings = "Settings"
     
     var icon: String {
         switch self {
+        case .dashboard: return "square.grid.2x2"
         case .invoices: return "doc.text"
         case .clients: return "person.2"
         case .settings: return "gearshape"
