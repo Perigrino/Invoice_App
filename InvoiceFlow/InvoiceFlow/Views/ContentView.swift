@@ -805,6 +805,8 @@ struct ContentView: View {
                     InvoiceListView()
                 case .clients:
                     ClientListView()
+                case .tokens:
+                    TokensPage()
                 case .settings:
                     SettingsView()
                 }
@@ -862,6 +864,7 @@ struct ContentView: View {
 
                 Section {
                     sidebarRow(.settings)
+                    sidebarRow(.tokens)
                 } header: {
                     sidebarHeader("General")
                 }
@@ -995,6 +998,7 @@ enum SidebarTab: String, CaseIterable {
     case dashboard = "Dashboard"
     case invoices = "Invoices"
     case clients = "Clients"
+    case tokens = "Tokens"
     case settings = "Settings"
     
     var icon: String {
@@ -1002,6 +1006,7 @@ enum SidebarTab: String, CaseIterable {
         case .dashboard: return "square.grid.2x2"
         case .invoices: return "doc.text"
         case .clients: return "person.2"
+        case .tokens: return "paintbrush"
         case .settings: return "gearshape"
         }
     }
