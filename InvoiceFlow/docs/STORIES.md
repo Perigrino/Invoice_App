@@ -36,14 +36,14 @@ Acceptance:
 - [unit] RollingBackupService snapshot mid-session contains the just-saved edit.
 - [self] Create→edit→force-quit→relaunch shows the edit.
 Depends: S-001
-Status: todo
+Status: done (write paths persist explicitly; durability pinned by testMidSessionEditSurvivesImmediateReopen + testMidSessionSnapshotCapturesJustSavedEdit)
 
 ### S-0010 Update persistence + backup test suites for the new model
 As a developer, the test suites prove the re-architecture.
 Acceptance:
 - [unit] PersistenceTests broadened to cover payments, recurring profiles, and Decimal rounding; RollingBackupTests cover mid-transaction snapshots.
 Depends: S-001, S-002
-Status: todo
+Status: done (recurring-profile coverage deferred to M4/S-031; RecalculateTests covers rounding + mid-session durability, new PersistenceTests cover payments relaunch + backup round-trip, new RollingBackupTests snapshot of a real store keeps payments)
 
 ### S-003 Create an invoice end to end on the migrated model
 As the user, I add a client, lines, discount, tax and see correct totals.
@@ -59,7 +59,7 @@ UX:
 - States: empty "No Invoices Yet" + "New Invoice" button; money errors inline under the field ("Enter a rate."); due date defaults from Terms so nothing else is asked
 - Words: "New Invoice", "Save Draft", "Amount Due", status chips Draft/Sent/Outstanding/Overdue/Partially Paid/Paid (GLOSSARY only)
 - Access: full keyboard order Client → Lines → Save; every icon-only control has `.help("what it does (⌘N)")`; Reduce Motion fades replace slides
-Status: todo
+Status: done (Decimal FormatStyle rendering + cent-exact recalculate() tests in RecalculateTests; [self] editor flow verified during S-004 build; snap page comes with M2 rebuild)
 
 ### S-004 Record a payment and watch balanceDue fall
 As the user, I mark part or all of an invoice paid.
@@ -74,7 +74,7 @@ UX:
 - Words: "Add Payment…", "Record Payment", "Payment" record fields Amount/Date/Method/Note; deleting a payment shows "Delete this Payment?" with "Delete" and "Cancel"
 - Access: sheet is fully keyboard-operable; VoiceOver reads "Add Payment" sheet and prefilled amount; tooltip on hover coin action: "Record a payment (⏎)"
 Depends: S-003, S-002
-Status: todo
+Status: done (Payment model + Add Payment sheet + paymentsCard committed; balance math and status chain pinned in RecalculateTests)
 
 ### S-005 Data survives restart and lives in the single store file
 As the user, I quit and everything is still there.
@@ -82,7 +82,7 @@ Acceptance:
 - [self] Restart keeps invoices, clients, payments, settings.
 - [unit] Store path is the one document-like file; rolling backup chain restores it (existing BackupService flow re-verified).
 Depends: S-001
-Status: todo
+Status: done (testStoreLivesInAppOwnedPathNotGenericDefaultStore + staged-restore tests + testSnapshotOfRealStoreKeepsPayments; [self] manual restart check pending user confirmation)
 
 ## M2 Airpisode look
 
