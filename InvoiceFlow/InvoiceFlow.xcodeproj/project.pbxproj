@@ -34,6 +34,7 @@
 		TB02 /* RollingBackupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR02 /* RollingBackupTests.swift */; };
 		TB03 /* ListLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR03 /* ListLayoutTests.swift */; };
 		TB04 /* MigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR04 /* MigrationTests.swift */; };
+		TB05 /* RecalculateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR05 /* RecalculateTests.swift */; };
 		SC01 /* SchemaV1.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC_FR01 /* SchemaV1.swift */; };
 		SC02 /* StoreMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC_FR02 /* StoreMigrator.swift */; };
 		MN01 /* Money.swift in Sources */ = {isa = PBXBuildFile; fileRef = MN_FR01 /* Money.swift */; };
@@ -87,6 +88,7 @@
 		TB_FR02 /* RollingBackupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RollingBackupTests.swift; sourceTree = "<group>"; };
 		TB_FR03 /* ListLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListLayoutTests.swift; sourceTree = "<group>"; };
 		TB_FR04 /* MigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationTests.swift; sourceTree = "<group>"; };
+		TB_FR05 /* RecalculateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecalculateTests.swift; sourceTree = "<group>"; };
 		SC_FR01 /* SchemaV1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaV1.swift; sourceTree = "<group>"; };
 		SC_FR02 /* StoreMigrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreMigrator.swift; sourceTree = "<group>"; };
 		MN_FR01 /* Money.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Money.swift; sourceTree = "<group>"; };
@@ -244,6 +246,7 @@
 				TB_FR02,
 				TB_FR03,
 				TB_FR04,
+				TB_FR05,
 			);
 			path = InvoiceFlowTests;
 			sourceTree = "<group>";
@@ -430,6 +433,7 @@
 				TB02 /* RollingBackupTests.swift in Sources */,
 				TB03 /* ListLayoutTests.swift in Sources */,
 				TB04 /* MigrationTests.swift in Sources */,
+				TB05 /* RecalculateTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
