@@ -58,20 +58,17 @@ final class Invoice {
         self.updatedAt = updatedAt
     }
 
-    /// Recomputes money totals from the line items. The formulas with
-    /// `discount`/`tax` treated as invoice-level percents match the original
-    /// 0.2.0 behaviour exactly — only the numeric type changed (and cents are
-    /// now rounded deterministically instead of relying on `Double`).
-    /// NOTE: per-line `total` already includes that line's percent tax, so
-    /// the invoice-level `tax` percent is effectively applied on top. Fixing
-    /// that semantics gap is deferred (M3, docs/STORIES.md S-021).
+    /// Recomputes money totals from the line items. Per-line totals include
+    /// their own discount and tax; the invoice-level percents apply to the
+    /// resulting subtotal and tax again (S-021 semantics — mirrors saveInvoice).
     func recalculate() {
         let items = lineItems ?? []
         let itemSubtotal = items.reduce(Decimal.zero) { $0 + $1.total }
-        let discountTotal = items.reduce(Decimal.zero) { $0 + ($1.total * Decimal($1.discount) / 100) }
-        let taxTotal = items.reduce(Decimal.zero) { $0 + ($1.total * Decimal($1.tax) / 100) }
         subtotal = itemSubtotal
-        total = (itemSubtotal - discountTotal + taxTotal).roundedCents
+        // Invoice-level percents apply to the line-item subtotal; tax applies
+        // after the discount (S-021 semantics — mirrors saveInvoice in the form).
+        let taxable = itemSubtotal - (itemSubtotal * Decimal(discount) / 100)
+        total = (taxable + (taxable * Decimal(tax) / 100)).roundedCents
         recalculateBalance()
         updatedAt = Date()
     }

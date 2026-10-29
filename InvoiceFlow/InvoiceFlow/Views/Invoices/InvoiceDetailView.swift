@@ -157,7 +157,12 @@ struct InvoiceDetailView: View {
             }
             return "Partially Paid · Due in \(max(days, 0)) day\(days == 1 ? "" : "s")"
         case .overdue:
-            return "Overdue by \(abs(invoice.daysTo(due))) day\(abs(invoice.daysTo(due)) == 1 ? "" : "s")"
+            let overdueDays = abs(invoice.daysTo(due))
+            // "Partial payment on an overdue invoice" reads better than a plain
+            // "Overdue" status (S-021).
+            return invoice.balanceDue < invoice.total
+                ? "Partially Paid · Overdue by \(overdueDays) day\(overdueDays == 1 ? "" : "s")"
+                : "Overdue by \(overdueDays) day\(overdueDays == 1 ? "" : "s")"
         case .dueSoon, .upcoming:
             let days = invoice.daysTo(due)
             if days == 0 { return "Due today" }

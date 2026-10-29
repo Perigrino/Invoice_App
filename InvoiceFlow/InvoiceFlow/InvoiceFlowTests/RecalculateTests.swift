@@ -85,10 +85,10 @@ final class RecalculateTests: XCTestCase {
         XCTAssertEqual(invoice.balanceDue, d("39.98"))
     }
 
-    /// The preserved v1 formula: recalculate() uses the LINE-level discount
-    /// and tax percents (invoice-level discount/tax are stored but do not
-    /// enter this math). 102.13 − 5.1065 + 7.65975 = 104.68325 → 104.68 —
-    /// the same value the MigrationTests v1 fixture produced.
+    /// Invoice-level discount is applied before tax; both round to the cent.
+    /// Line total 102.13 (line-discount/tax already folded in), then invoice
+    /// discount 10 % → 91.917, then invoice tax 5 % → 91.917 + 4.59585 =
+    /// 96.51285 → 96.51.
     func testInvoiceAggregateRoundsToCents() {
         let invoice = invoiceWithLines(
             [(d("33.335"), 3, 5, 7.5)],
@@ -96,8 +96,21 @@ final class RecalculateTests: XCTestCase {
             invoiceTax: 5
         )
         XCTAssertEqual(invoice.subtotal, d("102.13"))
-        XCTAssertEqual(invoice.total, d("104.68"))
-        XCTAssertEqual(invoice.balanceDue, d("104.68"))
+        XCTAssertEqual(invoice.total, d("96.51"))
+        XCTAssertEqual(invoice.balanceDue, d("96.51"))
+    }
+
+    /// Plain lines with invoice-level discount+tax compose cleanly.
+    /// 100 × (1−10%) × 1.05 = 94.5.
+    func testInvoiceDiscountAndTaxApplyAtInvoiceLevel() {
+        let invoice = invoiceWithLines(
+            [(d("100"), 1, 0, 0)],
+            invoiceDiscount: 10,
+            invoiceTax: 5
+        )
+        XCTAssertEqual(invoice.subtotal, d("100"))
+        XCTAssertEqual(invoice.total, d("94.50"))
+        XCTAssertEqual(invoice.balanceDue, d("94.50"))
     }
 
     /// Two cents-tight lines on one invoice aggregate exactly.
@@ -150,6 +163,46 @@ final class RecalculateTests: XCTestCase {
         let invoice = paidInvoice(total: d("100.00"), paymentAmounts: [d("100.00")])
         XCTAssertEqual(invoice.balanceDue, .zero)
         XCTAssertEqual(invoice.status, .paid)
+    }
+
+    // MARK: - S-021: status engine
+
+    /// Past due with money still owed ⇒ Overdue even if partially paid.
+    @MainActor
+    func testOverdueWhenPastDueEvenThoughPartiallyPaid() {
+        let invoice = invoiceWithLines([(d("50"), 2, 0, 0)]) // total 100
+        invoice.dueDate = Date().addingTimeInterval(-86400 * 10)
+        let payments = [Payment(amount: d("50"))]
+        invoice.payments = payments
+        payments.forEach { $0.invoice = invoice }
+        invoice.recalculateBalance()
+        XCTAssertEqual(invoice.balanceDue, d("50"))
+        XCTAssertEqual(invoice.status, .overdue)
+    }
+
+    /// Within terms ⇒ Partially Paid.
+    @MainActor
+    func testPartiallyPaidWithinTerms() {
+        let invoice = invoiceWithLines([(d("50"), 2, 0, 0)])
+        invoice.dueDate = Date().addingTimeInterval(86400 * 10)
+        let payments = [Payment(amount: d("50"))]
+        invoice.payments = payments
+        payments.forEach { $0.invoice = invoice }
+        invoice.recalculateBalance()
+        XCTAssertEqual(invoice.status, .partiallyPaid)
+    }
+
+    /// No balance after a partial payment stays old due date but not overdue.
+    @MainActor
+    func testNotOverdueAfterPartialPaymentSoonDue() {
+        let invoice = invoiceWithLines([(d("50"), 2, 0, 0)])
+        invoice.dueDate = Date().addingTimeInterval(86400 * 3)
+        let payments = [Payment(amount: d("25"))]
+        invoice.payments = payments
+        payments.forEach { $0.invoice = invoice }
+        invoice.recalculateBalance()
+        XCTAssertEqual(invoice.balanceDue, d("75"))
+        XCTAssertEqual(invoice.status, .partiallyPaid)
     }
 
     /// S-002: an edit persisted mid-session must reach the store file

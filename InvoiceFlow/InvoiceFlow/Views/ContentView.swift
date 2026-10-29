@@ -575,11 +575,13 @@ enum InvoiceStatus: CaseIterable {
 
 extension Invoice {
     var status: InvoiceStatus {
+        // Balance is the money truth: fully paid clears the invoice; anything
+        // still owed inherits the aging of its due date (S-021).
         if balanceDue <= 0 { return .paid }
+        if let due = dueDate, daysTo(due) < 0 { return .overdue }
         if total > 0 && balanceDue < total { return .partiallyPaid }
         guard let due = dueDate else { return .upcoming }
         switch daysTo(due) {
-        case ..<0: return .overdue
         case 0...14: return .dueSoon
         default: return .upcoming
         }
