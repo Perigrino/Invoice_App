@@ -558,15 +558,16 @@ struct GlassToggleStyle: ToggleStyle {
 
 // MARK: - Invoice status
 
-/// Derived, never stored: the app has no "paid" flag, so status comes from
-/// the due date (and balance, for future-proofing).
+/// Derived, never stored: status comes from the due date and the payment
+/// chain (balance due vs total), never from a stored flag.
 enum InvoiceStatus: CaseIterable {
-    case paid, overdue, dueSoon, upcoming
+    case paid, partiallyPaid, overdue, dueSoon, upcoming
 }
 
 extension Invoice {
     var status: InvoiceStatus {
         if balanceDue <= 0 { return .paid }
+        if total > 0 && balanceDue < total { return .partiallyPaid }
         guard let due = dueDate else { return .upcoming }
         switch daysTo(due) {
         case ..<0: return .overdue

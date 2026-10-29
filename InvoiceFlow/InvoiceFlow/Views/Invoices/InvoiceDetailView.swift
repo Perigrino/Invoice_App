@@ -115,6 +115,12 @@ struct InvoiceDetailView: View {
         guard let due = invoice.dueDate else { return "No due date" }
         switch invoice.status {
         case .paid: return "Paid"
+        case .partiallyPaid:
+            let days = invoice.daysTo(due)
+            if days < 0 {
+                return "Partially Paid · Overdue by \(abs(days)) day\(abs(days) == 1 ? "" : "s")"
+            }
+            return "Partially Paid · Due in \(max(days, 0)) day\(days == 1 ? "" : "s")"
         case .overdue:
             return "Overdue by \(abs(invoice.daysTo(due))) day\(abs(invoice.daysTo(due)) == 1 ? "" : "s")"
         case .dueSoon, .upcoming:

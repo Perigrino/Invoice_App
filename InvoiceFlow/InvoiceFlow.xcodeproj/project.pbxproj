@@ -37,6 +37,7 @@
 		SC01 /* SchemaV1.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC_FR01 /* SchemaV1.swift */; };
 		SC02 /* StoreMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC_FR02 /* StoreMigrator.swift */; };
 		MN01 /* Money.swift in Sources */ = {isa = PBXBuildFile; fileRef = MN_FR01 /* Money.swift */; };
+		PM01 /* Payment.swift in Sources */ = {isa = PBXBuildFile; fileRef = PM_FR01 /* Payment.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -89,6 +90,7 @@
 		SC_FR01 /* SchemaV1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaV1.swift; sourceTree = "<group>"; };
 		SC_FR02 /* StoreMigrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreMigrator.swift; sourceTree = "<group>"; };
 		MN_FR01 /* Money.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Money.swift; sourceTree = "<group>"; };
+		PM_FR01 /* Payment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Payment.swift; sourceTree = "<group>"; };
 		TB_PR01 /* InvoiceFlowTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InvoiceFlowTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -126,6 +128,7 @@
 				FR05,
 				FR06,
 				MN_FR01,
+				PM_FR01,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -407,6 +410,7 @@
 				SC01 /* SchemaV1.swift in Sources */,
 				SC02 /* StoreMigrator.swift in Sources */,
 				MN01 /* Money.swift in Sources */,
+				PM01 /* Payment.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

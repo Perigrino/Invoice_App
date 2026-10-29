@@ -398,13 +398,14 @@ struct InvoiceRow: View {
         switch invoice.status {
         case .overdue: return Theme.washOverdue
         case .dueSoon: return Theme.washDue
-        case .paid, .upcoming: return nil
+        case .paid, .partiallyPaid, .upcoming: return nil
         }
     }
 
     private var pillKind: StatusPill.Kind {
         switch invoice.status {
         case .paid: return .paid
+        case .partiallyPaid: return .due
         case .overdue: return .overdue
         case .dueSoon: return .due
         case .upcoming: return .plain
@@ -413,7 +414,11 @@ struct InvoiceRow: View {
 
     /// Prototype pill copy: paid rows read "Paid"; open rows show the type.
     private var pillText: String {
-        invoice.status == .paid ? "Paid" : (invoice.invoiceType == "proforma" ? "Proforma" : "Invoice")
+        switch invoice.status {
+        case .paid: return "Paid"
+        case .partiallyPaid: return "Partially Paid"
+        default: return invoice.invoiceType == "proforma" ? "Proforma" : "Invoice"
+        }
     }
 
     private var displayDate: Date { invoice.dueDate ?? invoice.issueDate }

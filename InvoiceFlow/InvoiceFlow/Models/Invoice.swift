@@ -22,6 +22,10 @@ final class Invoice {
     @Relationship(deleteRule: .cascade, inverse: \InvoiceLineItem.invoice)
     var lineItems: [InvoiceLineItem]?
 
+    /// Money-in records; cascade so deleting an invoice removes its payments.
+    @Relationship(deleteRule: .cascade, inverse: \Payment.invoice)
+    var payments: [Payment]?
+
     var client: Client?
 
     init(
@@ -68,7 +72,14 @@ final class Invoice {
         let taxTotal = items.reduce(Decimal.zero) { $0 + ($1.total * Decimal($1.tax) / 100) }
         subtotal = itemSubtotal
         total = (itemSubtotal - discountTotal + taxTotal).roundedCents
-        balanceDue = total
+        recalculateBalance()
         updatedAt = Date()
+    }
+
+    /// Balance due = total − payments, never negative. Payments are the
+    /// only money-in, so this is derived — never stored as a flag.
+    func recalculateBalance() {
+        let paid = (payments ?? []).reduce(Decimal.zero) { $0 + $1.amount }
+        balanceDue = max(total - paid, .zero).roundedCents
     }
 }
