@@ -5,6 +5,7 @@ struct InvoiceListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Invoice.createdAt, order: .reverse) private var invoices: [Invoice]
     @State private var searchText = ""
+    @Binding var statusFilter: InvoiceStatus?
     @State private var showNewInvoice = false
     @State private var editingInvoice: Invoice? = nil
     @State private var viewingInvoice: Invoice? = nil
@@ -23,7 +24,8 @@ struct InvoiceListView: View {
     }
 
     private var filteredInvoices: [Invoice] {
-        searchedInvoices
+        guard let status = statusFilter else { return searchedInvoices }
+        return searchedInvoices.filter { $0.status == status }
     }
 
     var body: some View {
@@ -56,6 +58,8 @@ struct InvoiceListView: View {
             }
             .padding(.horizontal, 28)
             .padding(.top, 12)
+
+            statusFilterRow
 
             // Same hoisted label as the client list, so both lists open on a
             // data row and read identically.
@@ -112,6 +116,11 @@ struct InvoiceListView: View {
         .sheet(item: $paymentInvoice) { invoice in
             PaymentSheet(invoice: invoice)
         }
+        // A changed filter can leave selection pointing at rows that are no longer
+        // visible, so drop it whenever the filter moves (S-022).
+        .onChange(of: statusFilter) { _, _ in
+            selectedInvoices.removeAll()
+        }
         .alert("Delete Invoice", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -151,6 +160,55 @@ struct InvoiceListView: View {
             )
         }
         .accessibilityAddTraits(.isSearchField)
+    }
+
+    // MARK: - Status filter chips
+
+    /// S-022: a row of status chips below the search bar. Clicking one narrows
+    /// the list to that status; a "All" chip clears it. The dashboard's
+    /// outstanding widget lands here with the same filter pre-set.
+    private var statusFilterRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                filterChip("All", kind: .plain, selected: statusFilter == nil) {
+                    statusFilter = nil
+                }
+                ForEach(InvoiceStatus.allCases, id: \.self) { status in
+                    filterChip(
+                        status.filterLabel,
+                        kind: status.pillKind,
+                        selected: statusFilter == status
+                    ) {
+                        statusFilter = status
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 8)
+        .padding(.bottom, 2)
+    }
+
+    private func filterChip(
+        _ text: String,
+        kind: StatusPill.Kind,
+        selected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(text)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(selected ? Theme.onAccent : Theme.textSecondary)
+                .padding(.horizontal, 10)
+                .frame(height: 22)
+                .background {
+                    Capsule()
+                        .fill(selected ? AnyShapeStyle(Theme.gradient) : AnyShapeStyle(Theme.hover))
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("statusFilter-\(text)")
     }
 
     // MARK: - List

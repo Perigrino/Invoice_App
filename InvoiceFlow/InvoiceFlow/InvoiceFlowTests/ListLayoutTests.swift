@@ -36,7 +36,7 @@ final class ListLayoutTests: XCTestCase {
         context.insert(first)
         try context.save()
 
-        let window = try host(InvoiceListView(), context: context)
+        let window = try host(InvoiceListView(statusFilter: .constant(nil)), context: context)
         settle(0.6)
 
         // Simulate the user creating two more invoices from the Create sheet.

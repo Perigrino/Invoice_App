@@ -13,6 +13,7 @@ struct DashboardView: View {
     @Binding var selectedTab: SidebarTab
     @Environment(\.modelContext) private var modelContext
     @Query private var invoices: [Invoice]
+    @Binding var invoiceStatusFilter: InvoiceStatus?
 
     @State private var showNewInvoice = false
 
@@ -158,21 +159,24 @@ struct DashboardView: View {
                     label: "Overdue",
                     symbol: "exclamationmark.triangle",
                     color: Theme.negative,
-                    bucket: overdueBucket
+                    bucket: overdueBucket,
+                    status: .overdue
                 )
                 rowSeparator
                 agingRow(
                     label: "Due Soon",
                     symbol: "clock",
                     color: Theme.warning,
-                    bucket: dueSoonBucket
+                    bucket: dueSoonBucket,
+                    status: .dueSoon
                 )
                 rowSeparator
                 agingRow(
                     label: "All Outstanding",
                     symbol: "tray.full",
                     color: Theme.accent,
-                    bucket: outstandingBucket
+                    bucket: outstandingBucket,
+                    status: nil
                 )
             }
             .glassCard(radius: Theme.radiusLarge)
@@ -185,10 +189,12 @@ struct DashboardView: View {
         label: String,
         symbol: String,
         color: Color,
-        bucket: (count: Int, amount: Decimal)
+        bucket: (count: Int, amount: Decimal),
+        status: InvoiceStatus? = nil
     ) -> some View {
         Button {
             selectedTab = .invoices
+            invoiceStatusFilter = status
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: symbol)

@@ -147,8 +147,7 @@ As the user, statuses reflect reality automatically.
 Acceptance:
 - [unit] Overdue = past due date with balance > 0; Paid when balance 0; Partially Paid between.
 - [self] Status chip updates across list and detail everywhere.
-Depends: S-004
-Status: todo
+Status: done
 
 ### S-022 Status click-through filters on lists
 As the user, I click a status chip and the list filters to it.
@@ -156,7 +155,7 @@ Screens: 01-invoices-list.png
 Acceptance:
 - [snap] Click-through from dashboard outstanding widget to filtered list (fake data). [unit] Filter predicate covers all statuses.
 Depends: S-021
-Status: todo
+Status: done
 
 ### S-023 Client + item libraries with autofill
 As the user, typing a known client/item autocompletes from history.

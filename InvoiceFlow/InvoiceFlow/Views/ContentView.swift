@@ -571,6 +571,29 @@ struct GlassToggleStyle: ToggleStyle {
 /// chain (balance due vs total), never from a stored flag.
 enum InvoiceStatus: CaseIterable {
     case paid, partiallyPaid, overdue, dueSoon, upcoming
+
+    /// Short chip label shown in the status filter row.
+    var filterLabel: String {
+        switch self {
+        case .paid: return "Paid"
+        case .partiallyPaid: return "Partial"
+        case .overdue: return "Overdue"
+        case .dueSoon: return "Due Soon"
+        case .upcoming: return "Upcoming"
+        }
+    }
+
+    /// StatusPill.Kind for the filter chip (mirrors the row pill so the
+    /// filter and the list read the same colour).
+    var pillKind: StatusPill.Kind {
+        switch self {
+        case .paid: return .paid
+        case .partiallyPaid: return .due
+        case .overdue: return .overdue
+        case .dueSoon: return .due
+        case .upcoming: return .plain
+        }
+    }
 }
 
 extension Invoice {
@@ -788,6 +811,7 @@ struct ContentView: View {
     @Query private var allClients: [Client]
     @State private var selectedTab: SidebarTab = .invoices
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
+    @State private var invoiceStatusFilter: InvoiceStatus? = nil
     @AppStorage(GradientPalette.storageKey) private var paletteID = GradientPalette.lagoon.rawValue
 
     private var isDarkMode: Bool { activeSettings.first?.darkMode ?? true }
@@ -802,9 +826,9 @@ struct ContentView: View {
             } detail: {
                 switch selectedTab {
                 case .dashboard:
-                    DashboardView(selectedTab: $selectedTab)
+                    DashboardView(selectedTab: $selectedTab, invoiceStatusFilter: $invoiceStatusFilter)
                 case .invoices:
-                    InvoiceListView()
+                    InvoiceListView(statusFilter: $invoiceStatusFilter)
                 case .clients:
                     ClientListView()
                 case .tokens:
