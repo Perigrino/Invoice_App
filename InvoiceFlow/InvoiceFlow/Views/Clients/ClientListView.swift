@@ -7,8 +7,6 @@ struct ClientListView: View {
     @State private var searchText = ""
     @State private var showNewClient = false
     @State private var editingClient: Client? = nil
-    @State private var selectedClient: Client? = nil
-    @State private var selectedClients = Set<Client>()
     @State private var clientToDelete: Client? = nil
     @State private var showDeleteConfirmation = false
 
@@ -77,12 +75,6 @@ struct ClientListView: View {
         .sheet(item: $editingClient) { client in
             ClientFormView(client: client)
         }
-        .onChange(of: selectedClients) { _, newSelection in
-            if let first = newSelection.first {
-                editingClient = first
-                selectedClients.removeAll()
-            }
-        }
         .alert("Delete Client", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -125,29 +117,40 @@ struct ClientListView: View {
     }
 
     private var clientList: some View {
-        List(selection: $selectedClients) {
+        // No List(selection:) — same as InvoiceListView: the system's
+        // selection highlight bled through the translucent cards (the mixed
+        // blues/grays the user reported). Rows are Buttons; a click opens
+        // the client's edit sheet.
+        List {
             ForEach(filteredClients) { client in
-                ClientRow(client: client, isSelected: selectedClients.contains(client))
-                    .tag(client)
-                    .contextMenu {
-                        Button {
-                            editingClient = client
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
-                        }
-                        Divider()
-                        Button(role: .destructive) {
-                            clientToDelete = client
-                            showDeleteConfirmation = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
+                Button {
+                    editingClient = client
+                } label: {
+                    ClientRow(client: client)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("clientRow-\(client.fullName)")
+                .listRowInsets(EdgeInsets(top: 5, leading: 28, bottom: 5, trailing: 28))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .contextMenu {
+                    Button {
+                        editingClient = client
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
                     }
+                    Divider()
+                    Button(role: .destructive) {
+                        clientToDelete = client
+                        showDeleteConfirmation = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .tint(.clear)
         .focusEffectDisabled()
         // See TableRowHeightFix — guards against rows inserted behind the
         // Create sheet keeping the table's 24pt default height.
@@ -175,7 +178,6 @@ struct ClientRow: View {
     static let tableRowHeight: CGFloat = rowHeight + 10
 
     let client: Client
-    var isSelected: Bool = false
 
     @State private var hovering = false
 
@@ -228,22 +230,16 @@ struct ClientRow: View {
         .overlay {
             shape.strokeBorder(
                 LinearGradient(
-                    colors: isSelected
-                        ? [Theme.accent, Theme.accent]
-                        : [Theme.cardStrokeTop, Theme.cardStrokeBottom],
+                    colors: [Theme.cardStrokeTop, Theme.cardStrokeBottom],
                     startPoint: .top,
                     endPoint: .bottom
                 ),
-                lineWidth: isSelected ? 1.5 : 1
+                lineWidth: 1
             )
         }
         .clipShape(shape)
         .shadow(color: hovering ? .black.opacity(0.35) : .clear, radius: 14, x: 0, y: 6)
         .scaleEffect(hovering ? 1.006 : 1)
-        .listRowInsets(EdgeInsets(top: 5, leading: 28, bottom: 5, trailing: 28))
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
-        .animation(Theme.smooth, value: isSelected)
         .animation(Theme.quick, value: hovering)
         .onHover { hovering = $0 }
     }
