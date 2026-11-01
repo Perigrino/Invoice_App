@@ -811,7 +811,6 @@ struct ContentView: View {
     @Query private var allClients: [Client]
     @State private var selectedTab: SidebarTab = .invoices
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
-    @State private var invoiceStatusFilter: InvoiceStatus? = nil
     @AppStorage(GradientPalette.storageKey) private var paletteID = GradientPalette.lagoon.rawValue
 
     private var isDarkMode: Bool { activeSettings.first?.darkMode ?? true }
@@ -825,14 +824,10 @@ struct ContentView: View {
                 sidebar
             } detail: {
                 switch selectedTab {
-                case .dashboard:
-                    DashboardView(selectedTab: $selectedTab, invoiceStatusFilter: $invoiceStatusFilter)
                 case .invoices:
-                    InvoiceListView(statusFilter: $invoiceStatusFilter)
+                    InvoiceListView()
                 case .clients:
                     ClientListView()
-                case .tokens:
-                    TokensPage()
                 case .settings:
                     SettingsView()
                 }
@@ -881,7 +876,6 @@ struct ContentView: View {
 
             List {
                 Section {
-                    sidebarRow(.dashboard)
                     sidebarRow(.invoices, count: allInvoices.count)
                     sidebarRow(.clients, count: allClients.count)
                 } header: {
@@ -890,7 +884,6 @@ struct ContentView: View {
 
                 Section {
                     sidebarRow(.settings)
-                    sidebarRow(.tokens)
                 } header: {
                     sidebarHeader("General")
                 }
@@ -1023,18 +1016,14 @@ struct SidebarItem: View {
 }
 
 enum SidebarTab: String, CaseIterable {
-    case dashboard = "Dashboard"
     case invoices = "Invoices"
     case clients = "Clients"
-    case tokens = "Tokens"
     case settings = "Settings"
     
     var icon: String {
         switch self {
-        case .dashboard: return "square.grid.2x2"
         case .invoices: return "doc.text"
         case .clients: return "person.2"
-        case .tokens: return "paintbrush"
         case .settings: return "gearshape"
         }
     }

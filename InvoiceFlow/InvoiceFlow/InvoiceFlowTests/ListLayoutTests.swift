@@ -36,7 +36,7 @@ final class ListLayoutTests: XCTestCase {
         context.insert(first)
         try context.save()
 
-        let window = try host(InvoiceListView(statusFilter: .constant(nil)), context: context)
+        let window = try host(InvoiceListView(), context: context)
         settle(0.6)
 
         // Simulate the user creating two more invoices from the Create sheet.
@@ -162,6 +162,12 @@ final class ListLayoutTests: XCTestCase {
         )
     }
 
+    /// Dashboard and Tokens are removed by user request; only the three
+    /// working tabs remain.
+    func testSidebarOnlyContainsLiveTabs() {
+        XCTAssertEqual(SidebarTab.allCases, [.invoices, .clients, .settings])
+    }
+
     // MARK: - Helpers
 
     /// S-bugfix: one click on an invoice row opens its detail sheet
@@ -175,7 +181,7 @@ final class ListLayoutTests: XCTestCase {
         context.insert(invoice)
         try context.save()
 
-        let window = try host(InvoiceListView(statusFilter: .constant(nil)), context: context)
+        let window = try host(InvoiceListView(), context: context)
         settle(0.6)
         XCTAssertNil(window.attachedSheet, "detail sheet should start closed")
 

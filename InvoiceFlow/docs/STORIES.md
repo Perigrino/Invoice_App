@@ -10,7 +10,7 @@ acceptance line names its check: [snap] snapshot · [self] in-app self-test
 2. **M2 Airpisode look** — the shipped prototype's design system as real SwiftUI parts (user's priority).
 3. **M3 Payment chain** — payments records, partial balances, status engine + click-through.
 4. **M4 Lifecycle** — estimates→invoice, recurring generator profiles.
-5. **M5 Hub & speed** — dashboard widgets, list-as-hub quick actions, keyboard-first entry (FreshBooks + MoneyWorks patterns).
+5. **M5 Hub & speed** — list-as-hub quick actions, keyboard-first entry (FreshBooks + MoneyWorks patterns).
 6. **M6 System & polish** — branded PDF templates, reminders, CSV export, basic reports, empty states.
 
 No screens/INDEX.md exists yet; Screens name the snapshot pages improve-loop will create.
@@ -91,9 +91,9 @@ As the user, the app looks like the prototype, not a stock app.
 Screens: 00-tokens.png
 Acceptance:
 - [snap] Tokens overlay page matches `prototype/index.html` tokens: canvas, glass cards, capsule chips, 5 gradient palettes (Lagoon default, Cobalt, Citrus, Ember, Bloom), dark default.
-- [self] Light/dark both render; switch in Settings.
+- [self] Light/dark both render (palette fixed, no switcher).
 Depends: S-005
-Status: done (tokens gallery page in Views/Design/TokensPage.swift with live palette switcher; light/dark verified via Theme.dyn dual-appearance tokens)
+Status: removed 2026-10-30 (Tokens page removed by user request; palette stays at saved/default Lagoon)
 
 ### S-011 Apply Silk motion (280/450/600ms, 12px fade-up, hover 1.006)
 Acceptance:
@@ -124,7 +124,7 @@ Acceptance:
 - [snap] Dashboard = prototype canvas with corner accent glows; widget slots laid out for M5 content.
 - [manual] User prefers new look over old (Ask after build).
 Depends: S-010
-Status: done (shell committed; manual preference check pending user launch)
+Status: removed 2026-10-30 (user request: dashboard not needed; Invoices is the landing tab)
 
 ### S-015 Keep the green document app icon unchanged
 Acceptance:
@@ -153,7 +153,7 @@ Status: done
 As the user, I click a status chip and the list filters to it.
 Screens: 01-invoices-list.png
 Acceptance:
-- [snap] Click-through from dashboard outstanding widget to filtered list (fake data). [unit] Filter predicate covers all statuses.
+- [unit] Filter predicate covers all statuses.
 Depends: S-021
 Status: done
 
@@ -194,7 +194,7 @@ Acceptance:
 - [snap] Create New… (invoice/client/estimate) first; Outstanding shows overdue/outstanding bars and aging buckets with click-through (S-022).
 - [self] Ads or decorative widgets not shown.
 Depends: S-022
-Status: todo
+Status: removed 2026-10-30 (dashboard removed by user request)
 
 ### S-041 Hover quick actions on list rows
 As the user, hovering an invoice row shows edit, duplicate, add payment, more.

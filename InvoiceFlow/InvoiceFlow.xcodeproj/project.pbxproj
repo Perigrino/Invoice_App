@@ -15,8 +15,6 @@
 		BF06 /* Setting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR06 /* Setting.swift */; };
 		BF07 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR07 /* ContentView.swift */; };
 		BF08 /* LandingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR08 /* LandingView.swift */; };
-		DB01 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB_FR01 /* DashboardView.swift */; };
-		DB02 /* TokensPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB_FR02 /* TokensPage.swift */; };
 		BF09 /* ClientFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR09 /* ClientFormView.swift */; };
 		BF10 /* ClientListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR10 /* ClientListView.swift */; };
 		BF11 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR11 /* EmptyStateView.swift */; };
@@ -69,8 +67,6 @@
 		FR06 /* Setting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Setting.swift; sourceTree = "<group>"; };
 		FR07 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		FR08 /* LandingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandingView.swift; sourceTree = "<group>"; };
-		DB_FR01 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
-		DB_FR02 /* TokensPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokensPage.swift; sourceTree = "<group>"; };
 		FR09 /* ClientFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientFormView.swift; sourceTree = "<group>"; };
 		FR10 /* ClientListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientListView.swift; sourceTree = "<group>"; };
 		FR11 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
@@ -148,18 +144,8 @@
 				AA0000000000000000000005,
 				AA0000000000000000000006,
 				AA0000000000000000000007,
-				DB_GRP01,
 			);
 			path = Views;
-			sourceTree = "<group>";
-		};
-		DB_GRP01 /* Design */ = {
-			isa = PBXGroup;
-			children = (
-				DB_FR01,
-				DB_FR02,
-			);
-			path = Design;
 			sourceTree = "<group>";
 		};
 		AA0000000000000000000008 /* PDF */ = {
@@ -428,8 +414,6 @@
 				SC02 /* StoreMigrator.swift in Sources */,
 				MN01 /* Money.swift in Sources */,
 				PM01 /* Payment.swift in Sources */,
-				DB01 /* DashboardView.swift in Sources */,
-				DB02 /* TokensPage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

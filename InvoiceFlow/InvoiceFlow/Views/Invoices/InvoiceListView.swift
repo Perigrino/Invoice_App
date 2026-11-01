@@ -5,7 +5,7 @@ struct InvoiceListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Invoice.createdAt, order: .reverse) private var invoices: [Invoice]
     @State private var searchText = ""
-    @Binding var statusFilter: InvoiceStatus?
+    @State private var statusFilter: InvoiceStatus? = nil
     @State private var showNewInvoice = false
     @State private var editingInvoice: Invoice? = nil
     @State private var viewingInvoice: Invoice? = nil
