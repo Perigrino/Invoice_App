@@ -879,7 +879,7 @@ struct ContentView: View {
             sidebarBranding
             Rectangle().fill(Theme.hairline).frame(height: 1)
 
-            List(selection: $selectedTab) {
+            List {
                 Section {
                     sidebarRow(.dashboard)
                     sidebarRow(.invoices, count: allInvoices.count)
@@ -899,11 +899,9 @@ struct ContentView: View {
             .scrollContentBackground(.hidden)
             .background(.ultraThinMaterial)
             .background(Theme.sidebarFill)
-            // The system paints its own accent-coloured source-list selection on
-            // top of the row background, which showed as a blue rim around our
-            // inset pill. Clear the tint and the focus ring so the row we draw is
-            // the only selection chrome on screen.
-            .tint(.clear)
+            // No List(selection:) on purpose: the system's source-list selection
+            // painted a blue rim around our gradient pill (the selection bug the
+            // user reported). Rows are Buttons; the pill is the only chrome.
             .focusEffectDisabled()
             .overlay(alignment: .trailing) {
                 Rectangle()
@@ -954,7 +952,14 @@ struct ContentView: View {
     }
 
     private func sidebarRow(_ tab: SidebarTab, count: Int? = nil) -> some View {
-        SidebarItem(tab: tab, isSelected: selectedTab == tab, count: count)
+        Button {
+            selectedTab = tab
+        } label: {
+            SidebarItem(tab: tab, isSelected: selectedTab == tab, count: count)
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets()) // pill spans the full row → covers the system's gray row container
+        .listRowBackground(Color.clear)
     }
 
     private func seedDefaultSettingIfNeeded() {
@@ -1013,9 +1018,6 @@ struct SidebarItem: View {
         .scaleEffect(hovering ? 1.012 : 1)
         .animation(Theme.smooth, value: isSelected)
         .animation(Theme.quick, value: hovering)
-        .tag(tab)
-        .listRowInsets(EdgeInsets()) // pill spans the full row → covers the system's gray row container
-        .listRowBackground(Color.clear)
         .onHover { hovering = $0 }
     }
 }
