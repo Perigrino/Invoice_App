@@ -216,6 +216,22 @@ final class ListLayoutTests: XCTestCase {
         XCTAssertNotNil(window.attachedSheet, "clicking the row must open the detail sheet")
     }
 
+    /// S-bugfix: an invoice without a due date shows a neutral "No due" tile
+    /// — the old tile claimed "Draft", which was never a real state.
+    @MainActor
+    func testInvoiceWithoutDueDateShowsNoDueTileNotDraft() throws {
+        let invoice = Invoice(invoiceNumber: "ND-26-000001", createdAt: Date())
+        invoice.dueDate = nil
+        invoice.total = 100
+        invoice.balanceDue = 100 // unpaid, so status falls to the no-due-date path
+
+        guard case .muted(let label, _) = InvoiceRow(invoice: invoice).tileKind else {
+            return XCTFail("an invoice with no due date should use the muted tile")
+        }
+        XCTAssertEqual(label, "No due")
+        XCTAssertNotEqual(label, "Draft")
+    }
+
     private func firstDescendant(of view: NSView?, where predicate: (NSView) -> Bool) -> NSView? {
         guard let view else { return nil }
         if predicate(view) { return view }

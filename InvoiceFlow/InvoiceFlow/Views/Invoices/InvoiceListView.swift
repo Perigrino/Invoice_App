@@ -468,18 +468,22 @@ struct InvoiceRow: View {
         .foregroundColor(Theme.onAccent)
     }
 
-    private enum TileKind {
+    enum TileKind {
         case countdown(LinearGradient, Color)
         case muted(String, String)
     }
 
-    private var tileKind: TileKind {
+    /// Internal (not private) so tests can assert the tile copy directly —
+    /// SwiftUI draws this text itself, so it never appears in the AppKit tree.
+    var tileKind: TileKind {
         switch invoice.status {
         case .paid:
             return .muted("Paid", "checkmark")
         default:
             guard let due = invoice.dueDate else {
-                return .muted("Draft", "calendar")
+                // No due date set: a neutral tile, not a status claim —
+                // "Draft" was never a real state here (user report: task 4).
+                return .muted("No due", "calendar")
             }
             let days = invoice.daysTo(due)
             if days < 0 {
