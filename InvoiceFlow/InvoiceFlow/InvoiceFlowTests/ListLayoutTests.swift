@@ -164,6 +164,67 @@ final class ListLayoutTests: XCTestCase {
 
     // MARK: - Helpers
 
+    /// S-bugfix: one click on an invoice row opens its detail sheet
+    /// (it used to only select the row, which did nothing visible).
+    @MainActor
+    func testClickingInvoiceRowOpensDetailSheet() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let invoice = Invoice(invoiceNumber: "AFD-26-546532", createdAt: Date())
+        context.insert(invoice)
+        try context.save()
+
+        let window = try host(InvoiceListView(statusFilter: .constant(nil)), context: context)
+        settle(0.6)
+        XCTAssertNil(window.attachedSheet, "detail sheet should start closed")
+
+        // Locate the list's NSTableView and click the centre of its first row
+        // with synthesized mouse events (SwiftUI does not materialize an AX
+        // tree in this bare NSHostingView host, so AX press is not an option).
+        // The fixture has exactly one invoice, so it is row 0.
+        guard let table = firstDescendant(of: window.contentView, where: { $0 is NSTableView }) as? NSTableView,
+              table.numberOfRows > 0
+        else {
+            print("CLICK TEST TREE\n" + dumpTree(in: window))
+            return XCTFail("could not find the invoice list table")
+        }
+
+        // Synthesized NSEvent location feeds locationInWindow as-is, so the
+        // click must be in WINDOW coordinates — and window.sendEvent is the
+        // entry point that actually reaches the SwiftUI row Button (posting to
+        // the queue or NSApp.sendEvent both left it unhandled).
+        let rowRectInWindow = table.convert(table.rect(ofRow: 0), to: nil)
+        let clickPoint = NSPoint(x: rowRectInWindow.midX, y: rowRectInWindow.midY)
+
+        let timestamp = ProcessInfo.processInfo.systemUptime
+        guard let down = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: clickPoint, modifierFlags: [],
+            timestamp: timestamp, windowNumber: window.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1
+        ), let up = NSEvent.mouseEvent(
+            with: .leftMouseUp, location: clickPoint, modifierFlags: [],
+            timestamp: timestamp + 0.05, windowNumber: window.windowNumber,
+            context: nil, eventNumber: 1, clickCount: 1, pressure: 1
+        ) else {
+            return XCTFail("could not synthesize mouse events")
+        }
+        window.sendEvent(down)
+        window.sendEvent(up)
+
+        settle(1.0)
+        XCTAssertNotNil(window.attachedSheet, "clicking the row must open the detail sheet")
+    }
+
+    private func firstDescendant(of view: NSView?, where predicate: (NSView) -> Bool) -> NSView? {
+        guard let view else { return nil }
+        if predicate(view) { return view }
+        for sub in view.subviews {
+            if let found = firstDescendant(of: sub, where: predicate) { return found }
+        }
+        return nil
+    }
+
     private func makeContainer() throws -> ModelContainer {
         try ModelContainer(
             for: Invoice.self, InvoiceLineItem.self, Client.self, Company.self, Setting.self,

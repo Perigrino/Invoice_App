@@ -9,7 +9,6 @@ struct InvoiceListView: View {
     @State private var showNewInvoice = false
     @State private var editingInvoice: Invoice? = nil
     @State private var viewingInvoice: Invoice? = nil
-    @State private var selectedInvoices = Set<Invoice>()
     @State private var invoiceToDelete: Invoice? = nil
     @State private var showDeleteConfirmation = false
     @State private var exportingInvoice: Invoice? = nil
@@ -31,17 +30,6 @@ struct InvoiceListView: View {
     var body: some View {
         VStack(spacing: 0) {
             PageHeader("Invoices", subtitle: "Track billing, payments, and what's due next.") {
-                Button {
-                    exportingInvoice = selectedInvoices.sorted { $0.createdAt > $1.createdAt }.first
-                } label: {
-                    Label("Export PDF", systemImage: "square.and.arrow.up")
-                }
-                .buttonStyle(.plain)
-                .capsuleButton(.ghost)
-                .opacity(selectedInvoices.isEmpty ? 0.45 : 1)
-                .disabled(selectedInvoices.isEmpty)
-                .accessibilityIdentifier("exportSelectedPDF")
-
                 Button {
                     showNewInvoice = true
                 } label: {
@@ -115,11 +103,6 @@ struct InvoiceListView: View {
         }
         .sheet(item: $paymentInvoice) { invoice in
             PaymentSheet(invoice: invoice)
-        }
-        // A changed filter can leave selection pointing at rows that are no longer
-        // visible, so drop it whenever the filter moves (S-022).
-        .onChange(of: statusFilter) { _, _ in
-            selectedInvoices.removeAll()
         }
         .alert("Delete Invoice", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -214,16 +197,16 @@ struct InvoiceListView: View {
     // MARK: - List
 
     private var invoiceList: some View {
-        List(selection: $selectedInvoices) {
+        // No List(selection:) — the system's selection highlight bled through
+        // the translucent cards (see ContentView sidebar note). Rows are
+        // Buttons; a click opens the invoice detail (S-022 follow-up fix).
+        List {
             ForEach(filteredInvoices) { invoice in
                 invoiceRow(invoice)
-                    .tag(invoice)
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        // Our card is the only selection chrome on screen (see ContentView).
-        .tint(.clear)
         .focusEffectDisabled()
         // Keep the table's row height in sync with the fixed row content —
         // rows inserted while a sheet covers the window are otherwise stuck at
@@ -238,10 +221,16 @@ struct InvoiceListView: View {
     }
 
     private func invoiceRow(_ invoice: Invoice) -> some View {
-        InvoiceRow(
-            invoice: invoice,
-            isSelected: selectedInvoices.contains(invoice)
-        )
+        Button {
+            viewingInvoice = invoice
+        } label: {
+            InvoiceRow(invoice: invoice)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("invoiceRow-\(invoice.invoiceNumber)")
+        .listRowInsets(EdgeInsets(top: 5, leading: 28, bottom: 5, trailing: 28))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
         .contextMenu {
             Button {
                 viewingInvoice = invoice
@@ -343,7 +332,6 @@ struct InvoiceRow: View {
     static let tableRowHeight: CGFloat = rowHeight + 10
 
     let invoice: Invoice
-    var isSelected: Bool = false
 
     @State private var hovering = false
 
@@ -417,22 +405,16 @@ struct InvoiceRow: View {
         .overlay {
             shape.strokeBorder(
                 LinearGradient(
-                    colors: isSelected
-                        ? [Theme.accent, Theme.accent]
-                        : [Theme.cardStrokeTop, Theme.cardStrokeBottom],
+                    colors: [Theme.cardStrokeTop, Theme.cardStrokeBottom],
                     startPoint: .top,
                     endPoint: .bottom
                 ),
-                lineWidth: isSelected ? 1.5 : 1
+                lineWidth: 1
             )
         }
         .clipShape(shape)
-        .shadow(color: hovering ? .black.opacity(isSelected ? 0.4 : 0.35) : .clear, radius: 14, x: 0, y: 6)
+        .shadow(color: hovering ? .black.opacity(0.35) : .clear, radius: 14, x: 0, y: 6)
         .scaleEffect(hovering ? 1.006 : 1)
-        .listRowInsets(EdgeInsets(top: 5, leading: 28, bottom: 5, trailing: 28))
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
-        .animation(Theme.smooth, value: isSelected)
         .animation(Theme.quick, value: hovering)
         .onHover { hovering = $0 }
         .appear(quick: true)
