@@ -599,20 +599,31 @@ struct InvoiceRenderData {
 final class PDFGenerator {
     func generatePDF(for data: InvoiceRenderData, template: PDFTemplate = .dark, paperSize: String? = nil) -> URL? {
         let paper = paperSize ?? "A4"
-        let spec = PDFPageSpec.size(for: paper)
-        let height = data.dynamicHeight(for: paper)
-        let pageSize = NSSize(width: spec.width, height: height)
-        
         let tempDir = FileManager.default.temporaryDirectory
         let fileName = data.invoiceNumber.isEmpty ? "invoice.pdf" : "\(data.invoiceNumber).pdf"
         let fileURL = tempDir.appendingPathComponent(fileName)
-        
-        let rootView = InvoicePDFView(data: data, template: template, paperSize: paper)
+        do {
+            let pdfData = try InvoicePDFRenderer(data: data, template: template, paperSize: paper).render()
+            try pdfData.write(to: fileURL)
+            return fileURL
+        } catch {
+            print("PDF error: \(error)")
+            return nil
+        }
+    }
+
+    // ponytail: parity harness only — deleted in Task 8 once the pixel-diff gate passes.
+    func legacyRasterData(for data: InvoiceRenderData, template: PDFTemplate, paperSize: String) throws -> Data {
+        let spec = PDFPageSpec.size(for: paperSize)
+        let height = data.dynamicHeight(for: paperSize)
+        let pageSize = NSSize(width: spec.width, height: height)
+
+        let rootView = InvoicePDFView(data: data, template: template, paperSize: paperSize)
             .frame(width: spec.width, height: height)
-        
+
         // Render at high resolution for crisp output
         let baseScale: CGFloat
-        switch paper {
+        switch paperSize {
         case "a3": baseScale = 16.0  // High res for large paper
         case "a4": baseScale = 14.0  // High res for medium paper
         case "legal": baseScale = 12.0
@@ -621,22 +632,15 @@ final class PDFGenerator {
         let renderer = ImageRenderer(content: rootView)
         renderer.scale = baseScale
         renderer.isOpaque = true
-        
+
         guard let nsImage = renderer.nsImage,
               let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return nil
+            throw PDFGeneratorError.couldNotRenderImage
         }
-        
-        do {
-            let pdfData = try makePDF(cgImage: cgImage, pageSize: pageSize)
-            try pdfData.write(to: fileURL)
-            return fileURL
-        } catch {
-            print("PDF error: \(error)")
-            return nil
-        }
+
+        return try makePDF(cgImage: cgImage, pageSize: pageSize)
     }
-    
+
     private func makePDF(cgImage: CGImage, pageSize: NSSize) throws -> Data {
         let data = NSMutableData()
         guard let consumer = CGDataConsumer(data: data as CFMutableData) else {
@@ -659,11 +663,12 @@ final class PDFGenerator {
 }
 
 enum PDFGeneratorError: LocalizedError {
-    case couldNotCreateConsumer, couldNotCreateContext
+    case couldNotCreateConsumer, couldNotCreateContext, couldNotRenderImage
     var errorDescription: String? {
         switch self {
         case .couldNotCreateConsumer: return "Could not create the PDF data consumer."
         case .couldNotCreateContext: return "Could not create the PDF drawing context."
+        case .couldNotRenderImage: return "Could not render the invoice image."
         }
     }
 }
