@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import CoreText
 
 struct PDFPageSpec {
     let width: CGFloat
@@ -93,6 +94,86 @@ extension NSColor {
             blue: CGFloat(value & 0xFF) / 255,
             alpha: 1
         )
+    }
+}
+
+// MARK: - PDF Canvas
+
+struct PDFCanvas {
+    let context: CGContext
+    let pageWidth: CGFloat
+    let pageHeight: CGFloat
+
+    func rect(x: CGFloat, top: CGFloat, width: CGFloat, height: CGFloat) -> CGRect {
+        CGRect(x: x, y: pageHeight - top - height, width: width, height: height)
+    }
+
+    func fill(x: CGFloat, top: CGFloat, width: CGFloat, height: CGFloat, color: CGColor) {
+        context.setFillColor(color)
+        context.fill(rect(x: x, top: top, width: width, height: height))
+    }
+
+    func strokeLine(x1: CGFloat, top1: CGFloat, x2: CGFloat, top2: CGFloat, color: CGColor, width: CGFloat = 1) {
+        context.setStrokeColor(color)
+        context.setLineWidth(width)
+        context.move(to: CGPoint(x: x1, y: pageHeight - top1))
+        context.addLine(to: CGPoint(x: x2, y: pageHeight - top2))
+        context.strokePath()
+    }
+
+    @discardableResult
+    func text(
+        _ string: String,
+        font: NSFont,
+        color: NSColor,
+        x: CGFloat,
+        top: CGFloat,
+        width: CGFloat,
+        alignment: NSTextAlignment = .left,
+        lineSpacing: CGFloat = 0
+    ) -> CGFloat {
+        guard !string.isEmpty else { return 0 }
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = alignment
+        paragraph.lineSpacing = lineSpacing
+        let attributed = NSAttributedString(string: string, attributes: [
+            .font: font,
+            .foregroundColor: color,
+            .paragraphStyle: paragraph
+        ])
+        let framesetter = CTFramesetterCreateWithAttributedString(attributed as CFAttributedString)
+        let suggested = CTFramesetterSuggestFrameSizeWithConstraints(
+            framesetter, CFRange(), nil, CGSize(width: width, height: .greatestFiniteMagnitude), nil
+        )
+        let drawHeight = ceil(suggested.height)
+        let path = CGPath(rect: rect(x: x, top: top, width: width, height: drawHeight), transform: nil)
+        let frame = CTFramesetterCreateFrame(framesetter, CFRange(), path, nil)
+        CTFrameDraw(frame, context)
+        return drawHeight
+    }
+
+    func width(of string: String, font: NSFont) -> CGFloat {
+        let attributed = NSAttributedString(string: string, attributes: [.font: font])
+        let line = CTLineCreateWithAttributedString(attributed as CFAttributedString)
+        return CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+    }
+
+    func height(of string: String, font: NSFont, width: CGFloat, lineSpacing: CGFloat = 0) -> CGFloat {
+        guard !string.isEmpty else { return 0 }
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineSpacing = lineSpacing
+        let attributed = NSAttributedString(string: string, attributes: [
+            .font: font, .paragraphStyle: paragraph
+        ])
+        let framesetter = CTFramesetterCreateWithAttributedString(attributed as CFAttributedString)
+        let suggested = CTFramesetterSuggestFrameSizeWithConstraints(
+            framesetter, CFRange(), nil, CGSize(width: width, height: .greatestFiniteMagnitude), nil
+        )
+        return ceil(suggested.height)
+    }
+
+    func image(_ image: CGImage, x: CGFloat, top: CGFloat, width: CGFloat, height: CGFloat) {
+        context.draw(image, in: rect(x: x, top: top, width: width, height: height))
     }
 }
 
