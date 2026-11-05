@@ -618,6 +618,38 @@ private struct BracketLabel: View {
 // MARK: - Paper Texture
 // ═══════════════════════════════════════════════════════════════
 
+enum PDFGrainTile {
+    struct SplitMix64: RandomNumberGenerator {
+        private var state: UInt64
+        init(seed: UInt64) { state = seed }
+        mutating func next() -> UInt64 {
+            state &+= 0x9E37_79B9_7F4A_7C15
+            var z = state
+            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+            return z ^ (z >> 31)
+        }
+    }
+
+    static func image(dot: NSColor, density: Int, seed: UInt64 = 0x5EED_2026) -> CGImage? {
+        let side = 256
+        guard let context = CGContext(
+            data: nil, width: side, height: side,
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.setFillColor(dot.usingColorSpace(.deviceRGB)?.cgColor ?? CGColor(gray: 0, alpha: 0))
+        var rng = SplitMix64(seed: seed)
+        for _ in 0..<density {
+            let x = CGFloat.random(in: 0..<CGFloat(side), using: &rng).rounded(.down)
+            let y = CGFloat.random(in: 0..<CGFloat(side), using: &rng).rounded(.down)
+            context.fill(CGRect(x: x, y: y, width: 1, height: 1))
+        }
+        return context.makeImage()
+    }
+}
+
 private struct NoiseTexture: View {
     let dotColor: Color
     let opacity: Double
@@ -636,27 +668,8 @@ private struct NoiseTexture: View {
 
     private static func tile(density: Int, color: Color) -> NSImage? {
         let side: CGFloat = 256
-        guard let context = CGContext(
-            data: nil,
-            width: Int(side),
-            height: Int(side),
-            bitsPerComponent: 8,
-            bytesPerRow: 0,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return nil }
-
-        let resolved = NSColor(color).usingColorSpace(.deviceRGB)?.cgColor
-            ?? CGColor(gray: 0, alpha: 0)
-        context.setFillColor(resolved)
-
-        for _ in 0..<density {
-            let x = CGFloat.random(in: 0..<side)
-            let y = CGFloat.random(in: 0..<side)
-            context.fill(CGRect(x: x, y: y, width: 1, height: 1))
-        }
-
-        guard let cgImage = context.makeImage() else { return nil }
+        let dot = NSColor(color)
+        guard let cgImage = PDFGrainTile.image(dot: dot, density: density) else { return nil }
         return NSImage(cgImage: cgImage, size: NSSize(width: side, height: side))
     }
 }
