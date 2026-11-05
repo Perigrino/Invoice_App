@@ -204,9 +204,6 @@ struct ClientRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            balancePill
-                .frame(minWidth: 92, alignment: .trailing)
-
             Text("\(client.invoiceCount) invoice\(client.invoiceCount == 1 ? "" : "s")")
                 .font(.system(size: 11.5))
                 .foregroundColor(Theme.textSecondary)
@@ -269,22 +266,5 @@ struct ClientRow: View {
         if !parts.isEmpty { return parts.joined(separator: " · ") }
         if let phone = client.phone, !phone.isEmpty { return phone }
         return "No contact details yet"
-    }
-
-    @ViewBuilder
-    private var balancePill: some View {
-        if client.outstanding <= 0 {
-            StatusPill(text: "Settled", kind: .paid)
-        } else if client.hasOverdue {
-            StatusPill(
-                text: "\(CurrencyFormatter.shared.string(from: client.outstanding)) overdue",
-                kind: .overdue
-            )
-        } else {
-            StatusPill(
-                text: "\(CurrencyFormatter.shared.string(from: client.outstanding)) due",
-                kind: .due
-            )
-        }
     }
 }

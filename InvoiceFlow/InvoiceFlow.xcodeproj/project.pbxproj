@@ -35,6 +35,7 @@
 		TB03 /* ListLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR03 /* ListLayoutTests.swift */; };
 		TB04 /* MigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR04 /* MigrationTests.swift */; };
 		TB05 /* RecalculateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR05 /* RecalculateTests.swift */; };
+		TB06 /* PDFExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB_FR06 /* PDFExportTests.swift */; };
 		SC01 /* SchemaV1.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC_FR01 /* SchemaV1.swift */; };
 		SC02 /* StoreMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC_FR02 /* StoreMigrator.swift */; };
 		MN01 /* Money.swift in Sources */ = {isa = PBXBuildFile; fileRef = MN_FR01 /* Money.swift */; };
@@ -89,6 +90,7 @@
 		TB_FR03 /* ListLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListLayoutTests.swift; sourceTree = "<group>"; };
 		TB_FR04 /* MigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationTests.swift; sourceTree = "<group>"; };
 		TB_FR05 /* RecalculateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecalculateTests.swift; sourceTree = "<group>"; };
+		TB_FR06 /* PDFExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportTests.swift; sourceTree = "<group>"; };
 		SC_FR01 /* SchemaV1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaV1.swift; sourceTree = "<group>"; };
 		SC_FR02 /* StoreMigrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreMigrator.swift; sourceTree = "<group>"; };
 		MN_FR01 /* Money.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Money.swift; sourceTree = "<group>"; };
@@ -247,6 +249,7 @@
 				TB_FR03,
 				TB_FR04,
 				TB_FR05,
+				TB_FR06,
 			);
 			path = InvoiceFlowTests;
 			sourceTree = "<group>";
@@ -434,6 +437,7 @@
 				TB03 /* ListLayoutTests.swift in Sources */,
 				TB04 /* MigrationTests.swift in Sources */,
 				TB05 /* RecalculateTests.swift in Sources */,
+				TB06 /* PDFExportTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -511,7 +515,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -519,7 +523,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.4.0;
+				MARKETING_VERSION = 2.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.invoiceflow.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -534,7 +538,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -542,7 +546,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.4.0;
+				MARKETING_VERSION = 2.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.invoiceflow.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

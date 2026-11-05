@@ -481,9 +481,13 @@ struct PDFKitView: NSViewRepresentable {
     
     func makeNSView(context: Context) -> PDFView {
         let view = PDFView()
-        view.autoScales = false
-        view.displayMode = .singlePageContinuous
+        // Scale the page to the panel so the whole invoice is visible at once —
+        // singlePage (not singlePageContinuous) is what lets autoScales fit the
+        // height, which removes the vertical scrolling on the preview.
+        view.autoScales = true
+        view.displayMode = .singlePage
         view.displayDirection = .vertical
+        view.displaysPageBreaks = false
         view.backgroundColor = .clear
         view.document = document
         return view
@@ -491,5 +495,7 @@ struct PDFKitView: NSViewRepresentable {
     
     func updateNSView(_ nsView: PDFView, context: Context) {
         nsView.document = document
+        // Re-fit after a re-render; a new document otherwise keeps the old scale.
+        nsView.autoScales = true
     }
 }

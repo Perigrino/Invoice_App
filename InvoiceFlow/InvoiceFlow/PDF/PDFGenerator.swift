@@ -113,6 +113,20 @@ struct PDFCanvas {
         context.fill(rect(x: x, top: top, width: width, height: height))
     }
 
+    func line(x: CGFloat, top: CGFloat, width: CGFloat, height: CGFloat, color: CGColor, lineWidth: CGFloat = 0.5, dash: [CGFloat]? = nil) {
+        context.saveGState()
+        context.setStrokeColor(color)
+        context.setLineWidth(lineWidth)
+        if let dash {
+            context.setLineDash(phase: 0, lengths: dash)
+        }
+        let y = pageHeight - top
+        context.move(to: CGPoint(x: x, y: y + lineWidth / 2))
+        context.addLine(to: CGPoint(x: x + width, y: y + lineWidth / 2))
+        context.strokePath()
+        context.restoreGState()
+    }
+
     func strokeLine(x1: CGFloat, top1: CGFloat, x2: CGFloat, top2: CGFloat, color: CGColor, width: CGFloat = 1) {
         context.setStrokeColor(color)
         context.setLineWidth(width)
@@ -413,15 +427,20 @@ private extension InvoicePDFRenderer {
 
 private extension InvoicePDFRenderer {
     struct Columns {
+        /// SwiftUI's `Spacer()` collapses to its minimum length once the text has
+        /// taken its share; it does not split the remainder equally with `Text`.
+        static let spacer: CGFloat = 8
+
         let origin: CGFloat
         let inset: CGFloat
         let contentWidth: CGFloat
-        var flex: CGFloat { (contentWidth - PDFStyle.qtyWidth - PDFStyle.moneyWidth * 2) / 3 }
         var descriptionX: CGFloat { origin }
-        var descriptionWidth: CGFloat { flex }
-        var qtyX: CGFloat { origin + flex }
-        var unitX: CGFloat { origin + flex + PDFStyle.qtyWidth + flex }
-        var amountX: CGFloat { origin + flex + PDFStyle.qtyWidth + flex + PDFStyle.moneyWidth + flex }
+        var descriptionWidth: CGFloat {
+            contentWidth - PDFStyle.qtyWidth - PDFStyle.moneyWidth * 2 - Self.spacer * 2
+        }
+        var qtyX: CGFloat { origin + descriptionWidth }
+        var unitX: CGFloat { qtyX + PDFStyle.qtyWidth + Self.spacer }
+        var amountX: CGFloat { unitX + PDFStyle.moneyWidth + Self.spacer }
         var moneyWidth: CGFloat { PDFStyle.moneyWidth }
     }
 
@@ -482,16 +501,20 @@ private extension InvoicePDFRenderer {
 
     func drawDashedSeparator(canvas: PDFCanvas, top: CGFloat, palette: PDFPalette,
                              color: CGColor? = nil) -> CGFloat {
-        let font = PDFStyle.font(size: 9, family: data.fontFamily)
-        let text = String(repeating: "- ", count: 70)
-        return canvas.text(text, font: font, color: NSColor(cgColor: color ?? palette.border) ?? palette.text,
-                           x: PDFStyle.margin, top: top,
-                           width: canvas.pageWidth - PDFStyle.margin * 2)
+        let separatorWidth = canvas.pageWidth - PDFStyle.margin * 2
+        canvas.line(
+            x: PDFStyle.margin, top: top + 4,
+            width: separatorWidth, height: 0,
+            color: color ?? palette.border,
+            lineWidth: 0.5,
+            dash: [6, 4, 1.5, 4]
+        )
+        return 14
     }
 
     func drawTotals(canvas: PDFCanvas, top: CGFloat, palette: PDFPalette, sz: CGFloat, family: String,
                     width: CGFloat, fmt: (Double) -> String) -> CGFloat {
-        let blockWidth: CGFloat = 240
+        let blockWidth: CGFloat = 180
         let x = canvas.pageWidth - PDFStyle.margin - blockWidth
         var y = top
         let bodyFont = PDFStyle.font(size: sz, family: family)
@@ -530,6 +553,16 @@ enum LogoImage {
         let scale = min(maxDimension / max(original.width, original.height), 1)
         let target = NSSize(width: original.width * scale, height: original.height * scale)
 
+        // Detect transparency from the source, not from the scratch bitmap
+        // (which always allocates an alpha channel).
+        let sourceHasAlpha: Bool = {
+            guard let cg = source.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return true }
+            switch cg.alphaInfo {
+            case .first, .last, .premultipliedFirst, .premultipliedLast, .alphaOnly: return true
+            default: return false
+            }
+        }()
+
         guard let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
             pixelsWide: Int(target.width),
@@ -542,14 +575,18 @@ enum LogoImage {
 
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        if !sourceHasAlpha {
+            // JPEG has no alpha channel; flatten onto white instead of black.
+            NSColor.white.setFill()
+            NSRect(origin: .zero, size: target).fill()
+        }
         source.draw(in: NSRect(origin: .zero, size: target))
         NSGraphicsContext.restoreGraphicsState()
 
-        let hasAlpha = rep.hasAlpha
-        let properties: [NSBitmapImageRep.PropertyKey: Any] = hasAlpha
+        let properties: [NSBitmapImageRep.PropertyKey: Any] = sourceHasAlpha
             ? [:]
             : [.compressionFactor: 0.8]
-        let type: NSBitmapImageRep.FileType = hasAlpha ? .png : .jpeg
+        let type: NSBitmapImageRep.FileType = sourceHasAlpha ? .png : .jpeg
         guard let encoded = rep.representation(using: type, properties: properties),
               let compressed = NSBitmapImageRep(data: encoded) else { return nil }
         return compressed.cgImage
@@ -632,34 +669,6 @@ final class PDFGenerator {
     }
 
     // ponytail: parity harness only — deleted in Task 8 once the pixel-diff gate passes.
-    func legacyRasterData(for data: InvoiceRenderData, template: PDFTemplate, paperSize: String) throws -> Data {
-        let spec = PDFPageSpec.size(for: paperSize)
-        let height = data.dynamicHeight(for: paperSize)
-        let pageSize = NSSize(width: spec.width, height: height)
-
-        let rootView = InvoicePDFView(data: data, template: template, paperSize: paperSize)
-            .frame(width: spec.width, height: height)
-
-        // Render at high resolution for crisp output
-        let baseScale: CGFloat
-        switch paperSize {
-        case "a3": baseScale = 16.0  // High res for large paper
-        case "a4": baseScale = 14.0  // High res for medium paper
-        case "legal": baseScale = 12.0
-        default: baseScale = 12.0  // Letter and smaller
-        }
-        let renderer = ImageRenderer(content: rootView)
-        renderer.scale = baseScale
-        renderer.isOpaque = true
-
-        guard let nsImage = renderer.nsImage,
-              let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            throw PDFGeneratorError.couldNotRenderImage
-        }
-
-        return try makePDF(cgImage: cgImage, pageSize: pageSize)
-    }
-
     private func makePDF(cgImage: CGImage, pageSize: NSSize) throws -> Data {
         let data = NSMutableData()
         guard let consumer = CGDataConsumer(data: data as CFMutableData) else {

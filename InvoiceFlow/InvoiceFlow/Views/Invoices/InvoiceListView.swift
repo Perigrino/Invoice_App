@@ -5,14 +5,12 @@ struct InvoiceListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Invoice.createdAt, order: .reverse) private var invoices: [Invoice]
     @State private var searchText = ""
-    @State private var statusFilter: InvoiceStatus? = nil
     @State private var showNewInvoice = false
     @State private var editingInvoice: Invoice? = nil
     @State private var viewingInvoice: Invoice? = nil
     @State private var invoiceToDelete: Invoice? = nil
     @State private var showDeleteConfirmation = false
     @State private var exportingInvoice: Invoice? = nil
-    @State private var paymentInvoice: Invoice? = nil
 
     private var searchedInvoices: [Invoice] {
         invoices.filter { invoice in
@@ -23,8 +21,7 @@ struct InvoiceListView: View {
     }
 
     private var filteredInvoices: [Invoice] {
-        guard let status = statusFilter else { return searchedInvoices }
-        return searchedInvoices.filter { $0.status == status }
+        searchedInvoices
     }
 
     var body: some View {
@@ -45,9 +42,6 @@ struct InvoiceListView: View {
                 inlineSearch
             }
             .padding(.horizontal, 28)
-            .padding(.top, 12)
-
-            statusFilterRow
 
             // Same hoisted label as the client list, so both lists open on a
             // data row and read identically.
@@ -101,9 +95,6 @@ struct InvoiceListView: View {
         .sheet(item: $exportingInvoice) { invoice in
             PDFExportView(sourceInvoice: invoice)
         }
-        .sheet(item: $paymentInvoice) { invoice in
-            PaymentSheet(invoice: invoice)
-        }
         .alert("Delete Invoice", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -143,55 +134,6 @@ struct InvoiceListView: View {
             )
         }
         .accessibilityAddTraits(.isSearchField)
-    }
-
-    // MARK: - Status filter chips
-
-    /// S-022: a row of status chips below the search bar. Clicking one narrows
-    /// the list to that status; a "All" chip clears it. The dashboard's
-    /// outstanding widget lands here with the same filter pre-set.
-    private var statusFilterRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                filterChip("All", kind: .plain, selected: statusFilter == nil) {
-                    statusFilter = nil
-                }
-                ForEach(InvoiceStatus.allCases, id: \.self) { status in
-                    filterChip(
-                        status.filterLabel,
-                        kind: status.pillKind,
-                        selected: statusFilter == status
-                    ) {
-                        statusFilter = status
-                    }
-                }
-            }
-            .padding(.vertical, 2)
-        }
-        .padding(.horizontal, 28)
-        .padding(.top, 8)
-        .padding(.bottom, 2)
-    }
-
-    private func filterChip(
-        _ text: String,
-        kind: StatusPill.Kind,
-        selected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Text(text)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(selected ? Theme.onAccent : Theme.textSecondary)
-                .padding(.horizontal, 10)
-                .frame(height: 22)
-                .background {
-                    Capsule()
-                        .fill(selected ? AnyShapeStyle(Theme.gradient) : AnyShapeStyle(Theme.hover))
-                }
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("statusFilter-\(text)")
     }
 
     // MARK: - List
@@ -247,11 +189,6 @@ struct InvoiceListView: View {
                 duplicateInvoice(invoice)
             } label: {
                 Label("Duplicate", systemImage: "doc.on.doc")
-            }
-            Button {
-                paymentInvoice = invoice
-            } label: {
-                Label("Add Payment…", systemImage: "dollarsign.circle")
             }
             Button {
                 exportingInvoice = invoice
@@ -341,7 +278,7 @@ struct InvoiceRow: View {
         let shape = RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
 
         HStack(spacing: 14) {
-            tile
+            avatar
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(invoice.invoiceNumber.isEmpty ? "New Invoice" : invoice.invoiceNumber)
@@ -441,10 +378,12 @@ struct InvoiceRow: View {
                 VStack(spacing: 3) {
                     Image(systemName: symbol)
                         .font(.system(size: 13, weight: .semibold))
-                    Text(label)
-                        .font(.system(size: 8.5, weight: .semibold))
-                        .tracking(0.6)
-                        .textCase(.uppercase)
+                    if !label.isEmpty {
+                        Text(label)
+                            .font(.system(size: 8.5, weight: .semibold))
+                            .tracking(0.6)
+                            .textCase(.uppercase)
+                    }
                 }
                 .foregroundColor(Theme.textSecondary)
             }
@@ -478,18 +417,44 @@ struct InvoiceRow: View {
     var tileKind: TileKind {
         switch invoice.status {
         case .paid:
-            return .muted("Paid", "checkmark")
+            return .muted("Paid", "check")
         default:
             guard let due = invoice.dueDate else {
-                // No due date set: a neutral tile, not a status claim —
-                // "Draft" was never a real state here (user report: task 4).
-                return .muted("No due", "calendar")
+                // No due date: muted tile without a "No due" badge.
+                return .muted("", "calendar")
             }
             let days = invoice.daysTo(due)
             if days < 0 {
                 return .countdown(Theme.overdueGradient, Theme.glowOverdueTile)
             }
             return .countdown(Theme.gradient, Theme.glowAccent)
+        }
+    }
+
+    /// Initial for the row avatar — client initial when available, else invoice number prefix.
+    private var avatarInitial: String {
+        if let client = invoice.client, !client.initial.isEmpty {
+            return client.initial
+        }
+        let trimmed = invoice.invoiceNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let first = trimmed.first {
+            return String(first).uppercased()
+        }
+        return "?"
+    }
+
+    private var avatar: some View {
+        let tint = Theme.tint(for: tintSeed)
+        return ZStack {
+            Circle().fill(Theme.avatarBase)
+            Circle().fill(tint.opacity(0.22))
+            Text(avatarInitial)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(Theme.tintInk(for: tintSeed))
+        }
+        .frame(width: 36, height: 36)
+        .overlay {
+            Circle().strokeBorder(tint.opacity(0.30), lineWidth: 1)
         }
     }
 
@@ -503,7 +468,7 @@ struct InvoiceRow: View {
 
     /// Tile sub-label: "Days" when due ahead, "Late" when overdue.
     private var tileLabel: String {
-        guard let due = invoice.dueDate else { return "No Due" }
+        guard let due = invoice.dueDate else { return "" }
         return invoice.daysTo(due) < 0 ? "Late" : "Days"
     }
 
