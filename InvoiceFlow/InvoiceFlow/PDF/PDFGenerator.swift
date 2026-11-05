@@ -15,6 +15,87 @@ struct PDFPageSpec {
     }
 }
 
+struct PDFPalette {
+    let background: CGColor
+    let text: NSColor
+    let bold: NSColor
+    let border: CGColor
+    let accent: NSColor
+    let secondary: NSColor
+    let grainDot: NSColor
+    let grainOpacity: CGFloat
+    let grainBlend: CGBlendMode
+    let tableTint: CGFloat
+}
+
+struct PDFStyle {
+    static let margin: CGFloat = 36
+    static let rowInset: CGFloat = 48
+    static let tableHeaderInset: CGFloat = 12
+    static let qtyWidth: CGFloat = 70
+    static let moneyWidth: CGFloat = 130
+    static let logoHeight: CGFloat = 90
+    static let logoMaxWidth: CGFloat = 280
+
+    static func pageHeight(for data: InvoiceRenderData, paperSize: String) -> CGFloat {
+        let base = PDFPageSpec.size(for: paperSize).height
+        let tableHeight = CGFloat(max(data.lineItems.count, 1)) * 22 + 40
+        return max(base, 280 + tableHeight + 100 + 140)
+    }
+
+    static func font(size: CGFloat, weight: NSFont.Weight = .regular, family: String) -> NSFont {
+        let base = NSFont(name: family, size: size)
+            ?? NSFont.monospacedSystemFont(ofSize: size, weight: weight)
+        guard weight.rawValue >= NSFont.Weight.semibold.rawValue else { return base }
+        let traits: [NSFontDescriptor.TraitKey: Any] = [
+            .symbolic: NSFontDescriptor.SymbolicTraits.monoSpace.rawValue
+                | NSFontDescriptor.SymbolicTraits.bold.rawValue
+        ]
+        let descriptor = base.fontDescriptor.addingAttributes([.traits: traits])
+        return NSFont(descriptor: descriptor, size: size) ?? base
+    }
+
+    static func palette(template: PDFTemplate, accentHex: String, secondaryHex: String) -> PDFPalette {
+        let accent = NSColor(hex: accentHex)
+        let secondary = NSColor(hex: secondaryHex)
+        switch template {
+        case .dark:
+            return PDFPalette(
+                background: CGColor(red: 0.051, green: 0.051, blue: 0.078, alpha: 1),
+                text: NSColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1),
+                bold: NSColor(red: 0.87, green: 0.87, blue: 0.87, alpha: 1),
+                border: CGColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1),
+                accent: accent, secondary: secondary,
+                grainDot: NSColor.white.withAlphaComponent(0.06),
+                grainOpacity: 0.35, grainBlend: .screen, tableTint: 0.2
+            )
+        case .light:
+            return PDFPalette(
+                background: CGColor(red: 0.98, green: 0.98, blue: 0.98, alpha: 1),
+                text: NSColor(red: 0.33, green: 0.33, blue: 0.33, alpha: 1),
+                bold: NSColor(red: 0.07, green: 0.07, blue: 0.07, alpha: 1),
+                border: CGColor(red: 0.82, green: 0.82, blue: 0.82, alpha: 1),
+                accent: accent, secondary: secondary,
+                grainDot: NSColor.black.withAlphaComponent(0.05),
+                grainOpacity: 0.35, grainBlend: .multiply, tableTint: 0.15
+            )
+        }
+    }
+}
+
+extension NSColor {
+    convenience init(hex: String) {
+        let cleaned = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        let value = UInt64(cleaned, radix: 16) ?? 0x60A5FA
+        self.init(
+            red: CGFloat((value >> 16) & 0xFF) / 255,
+            green: CGFloat((value >> 8) & 0xFF) / 255,
+            blue: CGFloat(value & 0xFF) / 255,
+            alpha: 1
+        )
+    }
+}
+
 struct InvoiceRenderLineItem {
     var description = ""
     var quantity = 1.0
