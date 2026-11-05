@@ -525,15 +525,34 @@ private extension InvoicePDFRenderer {
 enum LogoImage {
     static func prepare(_ data: Data, maxDimension: CGFloat) -> CGImage? {
         guard let source = NSImage(data: data) else { return nil }
-        let scale = min(maxDimension / max(source.size.width, source.size.height), 1)
-        let size = NSSize(width: source.size.width * scale, height: source.size.height * scale)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        source.draw(in: NSRect(origin: .zero, size: size))
-        image.unlockFocus()
-        guard let tiff = image.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff) else { return nil }
-        return rep.cgImage
+        let original = source.size
+        guard original.width > 0, original.height > 0 else { return nil }
+        let scale = min(maxDimension / max(original.width, original.height), 1)
+        let target = NSSize(width: original.width * scale, height: original.height * scale)
+
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(target.width),
+            pixelsHigh: Int(target.height),
+            bitsPerSample: 8, samplesPerPixel: 4,
+            hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0, bitsPerPixel: 0
+        ) else { return nil }
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        source.draw(in: NSRect(origin: .zero, size: target))
+        NSGraphicsContext.restoreGraphicsState()
+
+        let hasAlpha = rep.hasAlpha
+        let properties: [NSBitmapImageRep.PropertyKey: Any] = hasAlpha
+            ? [:]
+            : [.compressionFactor: 0.8]
+        let type: NSBitmapImageRep.FileType = hasAlpha ? .png : .jpeg
+        guard let encoded = rep.representation(using: type, properties: properties),
+              let compressed = NSBitmapImageRep(data: encoded) else { return nil }
+        return compressed.cgImage
     }
 }
 
