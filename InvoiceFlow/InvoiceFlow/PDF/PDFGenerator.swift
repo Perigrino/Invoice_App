@@ -177,6 +177,366 @@ struct PDFCanvas {
     }
 }
 
+// MARK: - Native PDF Renderer
+
+@MainActor
+struct InvoicePDFRenderer {
+    let data: InvoiceRenderData
+    let template: PDFTemplate
+    let paperSize: String
+
+    func render() throws -> Data {
+        let spec = PDFPageSpec.size(for: paperSize)
+        let height = PDFStyle.pageHeight(for: data, paperSize: paperSize)
+        var mediaBox = CGRect(x: 0, y: 0, width: spec.width, height: height)
+        let pdfData = NSMutableData()
+        guard let consumer = CGDataConsumer(data: pdfData as CFMutableData) else {
+            throw PDFGeneratorError.couldNotCreateConsumer
+        }
+        guard let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
+            throw PDFGeneratorError.couldNotCreateContext
+        }
+        context.beginPDFPage(nil)
+        context.setShouldAntialias(true)
+        context.setAllowsAntialiasing(true)
+        let canvas = PDFCanvas(context: context, pageWidth: spec.width, pageHeight: height)
+        draw(canvas: canvas)
+        context.endPDFPage()
+        context.closePDF()
+        return pdfData as Data
+    }
+}
+
+private extension InvoicePDFRenderer {
+    func draw(canvas: PDFCanvas) {
+        let palette = PDFStyle.palette(
+            template: template, accentHex: data.accentHex, secondaryHex: data.secondaryHex
+        )
+        let sz = data.fontSize
+        let family = data.fontFamily
+        let margin = PDFStyle.margin
+        let contentWidth = canvas.pageWidth - margin * 2
+        let fmt: (Double) -> String = { CurrencyFormatter.shared.string(from: $0, currencyCode: data.currencyCode) }
+
+        // Background + grain
+        canvas.fill(x: 0, top: 0, width: canvas.pageWidth, height: canvas.pageHeight, color: palette.background)
+        if let tile = PDFGrainTile.image(dot: palette.grainDot, density: 8000) {
+            canvas.context.saveGState()
+            canvas.context.setAlpha(palette.grainOpacity)
+            canvas.context.setBlendMode(palette.grainBlend)
+            canvas.context.draw(
+                tile,
+                in: canvas.rect(x: 0, top: 0, width: canvas.pageWidth, height: canvas.pageHeight),
+                byTiling: true
+            )
+            canvas.context.restoreGState()
+        }
+
+        var y: CGFloat = 0
+
+        // Header: [ Type — Total ], centered
+        y += 24
+        let header = "\(data.invoiceTypeDisplayName) — \(fmt(data.total))"
+        let headerFont = PDFStyle.font(size: sz + 1, weight: .medium, family: family)
+        let headerHeight = canvas.height(of: header, font: headerFont, width: contentWidth)
+        drawBracket(header, canvas: canvas, x: margin, top: y, width: contentWidth,
+                    font: headerFont, palette: palette, alignment: .center)
+        y += headerHeight + 20
+
+        // Logo + reference rows
+        let refLines = referenceLines()
+        let refFont = PDFStyle.font(size: sz, family: family)
+        let refHeight = refLines.reduce(CGFloat.zero) { partial, row in
+            partial + canvas.height(of: "\(row.0) \(row.1)", font: refFont, width: contentWidth / 2) + 4
+        }
+        let logoHeight = max(PDFStyle.logoHeight, refHeight)
+        let logoWidth = drawLogo(canvas: canvas, x: margin, top: y, palette: palette)
+        let refFontValue = PDFStyle.font(size: sz, weight: .medium, family: family)
+        let refWidth = contentWidth - logoWidth - 16
+        let refX = margin + logoWidth + 16
+        var refTop = y
+        for (label, value) in refLines {
+            // SwiftUI lays these out as "[label] [value]" right-aligned as a pair,
+            // so the label ends 8pt before the value starts.
+            let valueWidth = canvas.width(of: value, font: refFontValue)
+            let valueHeight = canvas.text(value, font: refFontValue, color: palette.bold,
+                                          x: refX, top: refTop, width: refWidth, alignment: .right)
+            let labelHeight = canvas.text(label, font: refFont, color: palette.text.withAlphaComponent(0.5),
+                                          x: refX, top: refTop,
+                                          width: max(refWidth - valueWidth - 8, 0), alignment: .right)
+            refTop += max(valueHeight, labelHeight, 1) + 4
+        }
+        y += logoHeight
+
+        // Accent rule
+        y += 20
+        canvas.fill(x: margin, top: y, width: contentWidth, height: 1,
+                    color: palette.accent.withAlphaComponent(0.4).cgColor)
+        y += 1 + 20
+
+        // From / Bill to
+        y += 8
+        let columnWidth = (contentWidth - 200) / 2
+        let fromHeight = drawFrom(canvas: canvas, x: margin, top: y, width: columnWidth,
+                                  font: PDFStyle.font(size: sz, family: family), palette: palette)
+        let toHeight = drawBillTo(canvas: canvas, x: margin + columnWidth + 200, top: y, width: columnWidth,
+                                  font: PDFStyle.font(size: sz, family: family), palette: palette)
+        y += max(fromHeight, toHeight)
+
+        // Accent rule
+        y += 20
+        canvas.fill(x: margin, top: y, width: contentWidth, height: 1,
+                    color: palette.accent.withAlphaComponent(0.4).cgColor)
+        y += 1 + 20
+
+        // Table
+        y = drawTable(canvas: canvas, top: y, palette: palette, sz: sz, family: family,
+                      contentWidth: contentWidth, fmt: fmt)
+
+        // Totals
+        y += 16
+        y = drawTotals(canvas: canvas, top: y, palette: palette, sz: sz, family: family,
+                       width: contentWidth, fmt: fmt)
+
+        // Notes
+        y += 32
+        let noteFont = PDFStyle.font(size: sz - 0.5, family: family)
+        let note = (data.showNote && !data.notes.isEmpty)
+            ? data.notes
+            : "Thank you for your business! Payment is due within 14 days of invoice date."
+        let noteColor = palette.text.withAlphaComponent(data.showNote && !data.notes.isEmpty ? 0.6 : 0.4)
+        _ = canvas.text(note, font: noteFont, color: noteColor, x: margin, top: y,
+                        width: contentWidth, alignment: .center, lineSpacing: 4)
+    }
+}
+
+private extension InvoicePDFRenderer {
+    func referenceLines() -> [(String, String)] {
+        var rows: [(String, String)] = [
+            ("Ref", data.invoiceNumber),
+            ("Issued", DateFormatHelper.string(from: data.issueDate, format: data.dateFormat))
+        ]
+        if data.showDueDate, let due = data.dueDate {
+            rows.append(("Due", "\(DateFormatHelper.string(from: due, format: data.dateFormat)) · Net 14"))
+        }
+        return rows
+    }
+
+    /// SwiftUI's BracketLabel paints "[" and "]" in the accent color and the
+    /// inner text in the bold color, so it must be drawn as three segments.
+    func drawBracket(_ text: String, canvas: PDFCanvas, x: CGFloat, top: CGFloat, width: CGFloat,
+                     font: NSFont, palette: PDFPalette, alignment: NSTextAlignment) {
+        let open = "[", inner = " \(text) ", close = "]"
+        let openWidth = canvas.width(of: open, font: font)
+        let innerWidth = canvas.width(of: inner, font: font)
+        let closeWidth = canvas.width(of: close, font: font)
+        let total = openWidth + innerWidth + closeWidth
+        let startX: CGFloat
+        switch alignment {
+        case .center: startX = x + (width - total) / 2
+        case .right: startX = x + width - total
+        default: startX = x
+        }
+        _ = canvas.text(open, font: font, color: palette.accent, x: startX, top: top, width: openWidth)
+        _ = canvas.text(inner, font: font, color: palette.bold, x: startX + openWidth, top: top, width: innerWidth)
+        _ = canvas.text(close, font: font, color: palette.accent, x: startX + openWidth + innerWidth, top: top, width: closeWidth)
+    }
+
+    func drawLogo(canvas: PDFCanvas, x: CGFloat, top: CGFloat, palette: PDFPalette) -> CGFloat {
+        if let raw = data.logoData,
+           let image = LogoImage.prepare(raw, maxDimension: 600) {
+            let scale = min(PDFStyle.logoHeight / CGFloat(image.height),
+                            PDFStyle.logoMaxWidth / CGFloat(image.width), 1)
+            let width = CGFloat(image.width) * scale
+            canvas.image(image, x: x, top: top, width: width, height: CGFloat(image.height) * scale)
+            return width
+        }
+        let size: CGFloat = 20
+        canvas.context.setStrokeColor(palette.accent.cgColor)
+        canvas.context.setLineWidth(2)
+        canvas.context.strokeEllipse(in: canvas.rect(x: x, top: top + 35, width: size, height: size))
+        canvas.context.setFillColor(palette.accent.cgColor)
+        canvas.context.fillEllipse(in: canvas.rect(x: x + 5, top: top + 40, width: 10, height: 10))
+        guard !data.companyName.isEmpty else { return size }
+        let font = PDFStyle.font(size: 16, weight: .bold, family: data.fontFamily)
+        _ = canvas.text(data.companyName, font: font, color: palette.bold,
+                        x: x + size + 8, top: top + 35, width: 240)
+        return size
+    }
+
+    func drawFrom(canvas: PDFCanvas, x: CGFloat, top: CGFloat, width: CGFloat,
+                  font: NSFont, palette: PDFPalette) -> CGFloat {
+        var y = top
+        let labelHeight = canvas.height(of: "From", font: font, width: width)
+        drawBracket("From", canvas: canvas, x: x, top: y, width: width,
+                    font: font, palette: palette, alignment: .left)
+        y += labelHeight
+        if !data.companyName.isEmpty {
+            y += canvas.text(data.companyName, font: PDFStyle.font(size: data.fontSize + 2, weight: .bold, family: data.fontFamily),
+                             color: palette.bold, x: x, top: y, width: width) + 2
+        }
+        for line in data.companyAddress.components(separatedBy: "\n") where !line.isEmpty {
+            y += canvas.text(line, font: font, color: palette.text, x: x, top: y, width: width) + 2
+        }
+        if !data.companyEmail.isEmpty {
+            y += canvas.text(data.companyEmail, font: font, color: palette.text.withAlphaComponent(0.7),
+                             x: x, top: y, width: width) + 2
+        }
+        if !data.companyPhone.isEmpty {
+            y += canvas.text(data.companyPhone, font: font, color: palette.text.withAlphaComponent(0.7),
+                             x: x, top: y, width: width) + 2
+        }
+        return y - top
+    }
+
+    func drawBillTo(canvas: PDFCanvas, x: CGFloat, top: CGFloat, width: CGFloat,
+                    font: NSFont, palette: PDFPalette) -> CGFloat {
+        var y = top
+        let labelHeight = canvas.height(of: "Bill to", font: font, width: width)
+        drawBracket("Bill to", canvas: canvas, x: x, top: y, width: width,
+                    font: font, palette: palette, alignment: .left)
+        y += labelHeight
+        if !data.clientName.isEmpty {
+            y += canvas.text(data.clientName, font: PDFStyle.font(size: data.fontSize + 2, weight: .bold, family: data.fontFamily),
+                             color: palette.bold, x: x, top: y, width: width) + 2
+        }
+        if !data.clientCompany.isEmpty {
+            y += canvas.text(data.clientCompany, font: font, color: palette.text, x: x, top: y, width: width) + 2
+        }
+        if !data.clientEmail.isEmpty {
+            y += canvas.text(data.clientEmail, font: font, color: palette.text.withAlphaComponent(0.7),
+                             x: x, top: y, width: width) + 2
+        }
+        return y - top
+    }
+}
+
+private extension InvoicePDFRenderer {
+    struct Columns {
+        let origin: CGFloat
+        let inset: CGFloat
+        let contentWidth: CGFloat
+        var flex: CGFloat { (contentWidth - PDFStyle.qtyWidth - PDFStyle.moneyWidth * 2) / 3 }
+        var descriptionX: CGFloat { origin }
+        var descriptionWidth: CGFloat { flex }
+        var qtyX: CGFloat { origin + flex }
+        var unitX: CGFloat { origin + flex + PDFStyle.qtyWidth + flex }
+        var amountX: CGFloat { origin + flex + PDFStyle.qtyWidth + flex + PDFStyle.moneyWidth + flex }
+        var moneyWidth: CGFloat { PDFStyle.moneyWidth }
+    }
+
+    func drawTable(canvas: PDFCanvas, top: CGFloat, palette: PDFPalette, sz: CGFloat, family: String,
+                   contentWidth: CGFloat, fmt: (Double) -> String) -> CGFloat {
+        let headerColumns = Columns(
+            origin: PDFStyle.margin + PDFStyle.tableHeaderInset,
+            inset: PDFStyle.tableHeaderInset,
+            contentWidth: contentWidth - PDFStyle.tableHeaderInset * 2
+        )
+        let rowColumns = Columns(
+            origin: PDFStyle.rowInset,
+            inset: PDFStyle.rowInset,
+            contentWidth: canvas.pageWidth - PDFStyle.rowInset * 2
+        )
+        let headerFont = PDFStyle.font(size: sz, weight: .medium, family: family)
+        let bodyFont = PDFStyle.font(size: sz, family: family)
+        let headerHeight = canvas.height(of: "Description", font: headerFont, width: headerColumns.descriptionWidth) + 12
+
+        canvas.fill(
+            x: PDFStyle.margin, top: top, width: contentWidth, height: headerHeight,
+            color: palette.secondary.withAlphaComponent(palette.tableTint).cgColor
+        )
+        _ = canvas.text("Description", font: headerFont, color: palette.bold,
+                        x: headerColumns.descriptionX, top: top + 6, width: headerColumns.descriptionWidth)
+        _ = canvas.text("Qty", font: headerFont, color: palette.bold,
+                        x: headerColumns.qtyX, top: top + 6, width: PDFStyle.qtyWidth, alignment: .right)
+        _ = canvas.text("Unit price", font: headerFont, color: palette.bold,
+                        x: headerColumns.unitX, top: top + 6, width: PDFStyle.moneyWidth, alignment: .right)
+        _ = canvas.text("Amount", font: headerFont, color: palette.bold,
+                        x: headerColumns.amountX, top: top + 6, width: PDFStyle.moneyWidth, alignment: .right)
+
+        var y = top + headerHeight
+        y += drawDashedSeparator(canvas: canvas, top: y, palette: palette)
+
+        for (index, item) in data.lineItems.enumerated() {
+            let description = item.description.isEmpty ? "—" : item.description
+            let rowHeight = max(
+                canvas.height(of: description, font: bodyFont, width: rowColumns.descriptionWidth),
+                canvas.height(of: fmt(item.total), font: bodyFont, width: PDFStyle.moneyWidth)
+            ) + 16
+            _ = canvas.text(description, font: bodyFont, color: palette.bold,
+                            x: rowColumns.descriptionX, top: y + 8, width: rowColumns.descriptionWidth)
+            _ = canvas.text("\(Int(item.quantity))", font: bodyFont, color: palette.bold,
+                            x: rowColumns.qtyX, top: y + 8, width: PDFStyle.qtyWidth, alignment: .right)
+            _ = canvas.text(fmt(item.price), font: bodyFont, color: palette.bold,
+                            x: rowColumns.unitX, top: y + 8, width: PDFStyle.moneyWidth, alignment: .right)
+            _ = canvas.text(fmt(item.total), font: bodyFont, color: palette.bold,
+                            x: rowColumns.amountX, top: y + 8, width: PDFStyle.moneyWidth, alignment: .right)
+            y += rowHeight
+            if index < data.lineItems.count - 1 {
+                y += drawDashedSeparator(canvas: canvas, top: y, palette: palette,
+                                         color: palette.border.copy(alpha: 0.5) ?? palette.border)
+            }
+        }
+        return y
+    }
+
+    func drawDashedSeparator(canvas: PDFCanvas, top: CGFloat, palette: PDFPalette,
+                             color: CGColor? = nil) -> CGFloat {
+        let font = PDFStyle.font(size: 9, family: data.fontFamily)
+        let text = String(repeating: "- ", count: 70)
+        return canvas.text(text, font: font, color: NSColor(cgColor: color ?? palette.border) ?? palette.text,
+                           x: PDFStyle.margin, top: top,
+                           width: canvas.pageWidth - PDFStyle.margin * 2)
+    }
+
+    func drawTotals(canvas: PDFCanvas, top: CGFloat, palette: PDFPalette, sz: CGFloat, family: String,
+                    width: CGFloat, fmt: (Double) -> String) -> CGFloat {
+        let blockWidth: CGFloat = 240
+        let x = canvas.pageWidth - PDFStyle.margin - blockWidth
+        var y = top
+        let bodyFont = PDFStyle.font(size: sz, family: family)
+        _ = canvas.text("Subtotal", font: bodyFont, color: palette.text.withAlphaComponent(0.6),
+                        x: x, top: y, width: blockWidth / 2)
+        y += canvas.text(fmt(data.subtotal), font: bodyFont, color: palette.bold,
+                         x: x + blockWidth / 2, top: y, width: blockWidth / 2, alignment: .right) + 4
+        if data.showDiscount && data.discount > 0 {
+            _ = canvas.text("Discount", font: bodyFont, color: palette.text.withAlphaComponent(0.6),
+                            x: x, top: y, width: blockWidth / 2)
+            y += canvas.text("-\(fmt(data.discount))", font: bodyFont, color: .systemRed,
+                             x: x + blockWidth / 2, top: y, width: blockWidth / 2, alignment: .right) + 4
+        }
+        y += 4
+        canvas.fill(x: x + blockWidth - 180, top: y, width: 180, height: 1, color: palette.border)
+        y += 6
+        let totalFont = PDFStyle.font(size: sz + 1, weight: .bold, family: family)
+        let amountFont = PDFStyle.font(size: sz + 2, weight: .bold, family: family)
+        let totalRowHeight = max(
+            canvas.height(of: "Total", font: totalFont, width: 80),
+            canvas.height(of: fmt(data.total), font: amountFont, width: blockWidth / 2)
+        )
+        _ = canvas.text("Total", font: totalFont, color: palette.accent,
+                        x: x, top: y, width: blockWidth / 2)
+        _ = canvas.text(fmt(data.total), font: amountFont, color: palette.accent,
+                        x: x + blockWidth / 2, top: y, width: blockWidth / 2, alignment: .right)
+        return y + totalRowHeight
+    }
+}
+
+enum LogoImage {
+    static func prepare(_ data: Data, maxDimension: CGFloat) -> CGImage? {
+        guard let source = NSImage(data: data) else { return nil }
+        let scale = min(maxDimension / max(source.size.width, source.size.height), 1)
+        let size = NSSize(width: source.size.width * scale, height: source.size.height * scale)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        source.draw(in: NSRect(origin: .zero, size: size))
+        image.unlockFocus()
+        guard let tiff = image.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff) else { return nil }
+        return rep.cgImage
+    }
+}
+
 struct InvoiceRenderLineItem {
     var description = ""
     var quantity = 1.0
