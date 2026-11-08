@@ -60,3 +60,7 @@ InvoiceFlow/dist/
 /prisma/*.db-journal
 /prisma/*.db-wal
 /prisma/*.db-shm
+
+# Xcode profiling artifacts
+*.profraw
+profile-data/
