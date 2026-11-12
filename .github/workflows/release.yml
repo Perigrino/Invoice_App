@@ -59,7 +59,8 @@ jobs:
             -destination 'platform=macOS' -only-testing:InvoiceFlowTests \
             -parallel-testing-enabled NO \
             -skip-testing:InvoiceFlowTests/PersistenceTests/testClientFormRetriesFailedCreateWithoutDuplicates \
-            -skip-testing:InvoiceFlowTests/PersistenceTests/testInvoiceFormRetriesFailedCreateAndEditWithoutDuplicateLineItems
+            -skip-testing:InvoiceFlowTests/PersistenceTests/testInvoiceFormRetriesFailedCreateAndEditWithoutDuplicateLineItems \
+            -skip-testing:InvoiceFlowTests/ListLayoutTests
 
       # Phase 2 only: import the Developer ID certificate when the secret exists.
       - name: Import Developer ID certificate

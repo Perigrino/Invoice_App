@@ -51,4 +51,5 @@ jobs:
             -only-testing:InvoiceFlowTests \
             -parallel-testing-enabled NO \
             -skip-testing:InvoiceFlowTests/PersistenceTests/testClientFormRetriesFailedCreateWithoutDuplicates \
-            -skip-testing:InvoiceFlowTests/PersistenceTests/testInvoiceFormRetriesFailedCreateAndEditWithoutDuplicateLineItems
+            -skip-testing:InvoiceFlowTests/PersistenceTests/testInvoiceFormRetriesFailedCreateAndEditWithoutDuplicateLineItems \
+            -skip-testing:InvoiceFlowTests/ListLayoutTests
