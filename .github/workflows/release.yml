@@ -46,7 +46,9 @@ jobs:
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Bad version: $VERSION" >&2; exit 1; }
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           # Monotonic, numeric-only build number: Sparkle compares this first.
-          echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          # Offset by 1000 so release builds always outrank local dev builds,
+          # whose CFBundleVersion still comes from the project file.
+          echo "build=$(( GITHUB_RUN_NUMBER + 1000 ))" >> "$GITHUB_OUTPUT"
 
       - name: Toolchain
         run: xcodebuild -version

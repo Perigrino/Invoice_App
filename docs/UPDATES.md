@@ -68,8 +68,11 @@ Generated once with Sparkle's `generate_keys`:
    `generate_appcast --ed-key-file -`, publishes the GitHub release, and
    deploys `appcast.xml` to Pages.
 
-CI uses `CURRENT_PROJECT_VERSION = $GITHUB_RUN_NUMBER`, which is monotonic — the
-only version number Sparkle really cares about.
+CI uses `CURRENT_PROJECT_VERSION = $GITHUB_RUN_NUMBER + 1000`, which is monotonic
+and always above the project file's build number — Sparkle compares the build
+number first, so a locally built app must never outrank a published release.
+(The first published release, 2.6.0, used plain run numbers before this offset
+was added.)
 
 ## Rollback
 
