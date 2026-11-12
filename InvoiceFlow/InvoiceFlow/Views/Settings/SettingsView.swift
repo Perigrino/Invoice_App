@@ -816,6 +816,8 @@ struct GeneralSettingsView: View {
                     }
                     .padding(.vertical, 10)
                 }
+
+                UpdateSettingsCard(updates: .shared)
             }
             .padding(.top, 4)
             .onChange(of: setting.darkMode) { _, _ in modelContext.persist() }

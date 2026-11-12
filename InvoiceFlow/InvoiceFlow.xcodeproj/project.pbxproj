@@ -40,6 +40,10 @@
 		SC02 /* StoreMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC_FR02 /* StoreMigrator.swift */; };
 		MN01 /* Money.swift in Sources */ = {isa = PBXBuildFile; fileRef = MN_FR01 /* Money.swift */; };
 		PM01 /* Payment.swift in Sources */ = {isa = PBXBuildFile; fileRef = PM_FR01 /* Payment.swift */; };
+		UP_BF01 /* UpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = UP_FR01 /* UpdateController.swift */; };
+		UP_BF02 /* UpdateBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = UP_FR02 /* UpdateBanner.swift */; };
+		UP_BF03 /* AutoUpdatingUserDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = UP_FR03 /* AutoUpdatingUserDriver.swift */; };
+		SP_BF01 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = SP_PROD01 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -96,6 +100,9 @@
 		MN_FR01 /* Money.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Money.swift; sourceTree = "<group>"; };
 		PM_FR01 /* Payment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Payment.swift; sourceTree = "<group>"; };
 		TB_PR01 /* InvoiceFlowTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InvoiceFlowTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		UP_FR01 /* UpdateController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateController.swift; sourceTree = "<group>"; };
+		UP_FR02 /* UpdateBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateBanner.swift; sourceTree = "<group>"; };
+		UP_FR03 /* AutoUpdatingUserDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoUpdatingUserDriver.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,6 +110,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				SP_BF01 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -222,6 +230,7 @@
 				FR01,
 				AA0000000000000000000002,
 				AA0000000000000000000003,
+				UP_GRP01,
 				SC_GRP01,
 				AA0000000000000000000008,
 				AA000000000000000000000A,
@@ -263,6 +272,16 @@
 			path = Schema;
 			sourceTree = "<group>";
 		};
+		UP_GRP01 /* Update */ = {
+			isa = PBXGroup;
+			children = (
+				UP_FR01,
+				UP_FR02,
+				UP_FR03,
+			);
+			path = Update;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -279,6 +298,9 @@
 			dependencies = (
 			);
 			name = InvoiceFlow;
+			packageProductDependencies = (
+				SP_PROD01 /* Sparkle */,
+			);
 			productName = InvoiceFlow;
 			productReference = AA000000000000000000000C /* InvoiceFlow.app */;
 			productType = "com.apple.product-type.application";
@@ -352,6 +374,9 @@
 			);
 			mainGroup = AA0000000000000000000001 /* Root */;
 			productRefGroup = AA000000000000000000000B /* Products */;
+			packageReferences = (
+				SP_PKG01 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -417,6 +442,9 @@
 				SC02 /* StoreMigrator.swift in Sources */,
 				MN01 /* Money.swift in Sources */,
 				PM01 /* Payment.swift in Sources */,
+				UP_BF01 /* UpdateController.swift in Sources */,
+				UP_BF02 /* UpdateBanner.swift in Sources */,
+				UP_BF03 /* AutoUpdatingUserDriver.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -515,15 +543,14 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				CURRENT_PROJECT_VERSION = 8;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = InvoiceFlow/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.5.0;
+				MARKETING_VERSION = 2.6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.invoiceflow.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -538,15 +565,14 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				CURRENT_PROJECT_VERSION = 8;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = InvoiceFlow/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.5.0;
+				MARKETING_VERSION = 2.6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.invoiceflow.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -666,6 +692,24 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+/* Begin XCRemoteSwiftPackageReference section */
+		SP_PKG01 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		SP_PROD01 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SP_PKG01 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AA0000000000000000000011 /* Project object */;
 }

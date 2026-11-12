@@ -8,6 +8,10 @@
 	<string>InvoiceFlow</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -17,12 +21,33 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.2.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.business</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>14.0</string>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 	<key>NSRequiresAquaSystemAppearance</key>
 	<false/>
+
+	<!-- Sparkle: update feed and the public half of the EdDSA key pair.
+	     The private key never ships; it lives in the login Keychain and in
+	     the GitHub Actions secret used by the release workflow. -->
+	<key>SUFeedURL</key>
+	<string>https://perigrino.github.io/Invoice_App/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>+uzDxPhsarOX2Pf4rLtPM6I2Kbe8MokL/5qbIqkYJdg=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<!-- Verify the archive's EdDSA signature before extracting it. -->
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 </dict>
 </plist>

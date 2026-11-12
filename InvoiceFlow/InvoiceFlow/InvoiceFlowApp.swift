@@ -100,6 +100,11 @@ struct InvoiceFlowApp: App {
         }
         .modelContainer(container)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    UpdateController.shared.checkForUpdates()
+                }
+            }
             CommandGroup(after: .newItem) {
                 Button("Export Backup…") {
                     BackupCoordinator.exportBackup(from: Self.sharedContainer?.mainContext ?? container.mainContext)

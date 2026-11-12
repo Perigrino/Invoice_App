@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main, InvoiceFlow_MacApp]
+    paths:
+      - "InvoiceFlow/**"
+      - "scripts/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "InvoiceFlow/**"
+      - "scripts/**"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build & test (macOS)
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: InvoiceFlow
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: xcodebuild -version
+
+      - name: Resolve packages
+        run: xcodebuild -resolvePackageDependencies -project InvoiceFlow.xcodeproj -scheme InvoiceFlow
+
+      - name: Build
+        run: |
+          xcodebuild -project InvoiceFlow.xcodeproj -scheme InvoiceFlow \
+            -configuration Debug -destination 'platform=macOS' build
+
+      - name: Unit tests
+        run: |
+          xcodebuild test -project InvoiceFlow.xcodeproj -scheme InvoiceFlow \
+            -destination 'platform=macOS' \
+            -only-testing:InvoiceFlowTests

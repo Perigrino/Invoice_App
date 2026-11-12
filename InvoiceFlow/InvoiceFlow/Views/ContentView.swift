@@ -919,13 +919,16 @@ struct ContentView: View {
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 sidebar
             } detail: {
-                switch selectedTab {
-                case .invoices:
-                    InvoiceListView()
-                case .clients:
-                    ClientListView()
-                case .settings:
-                    SettingsView()
+                VStack(spacing: 0) {
+                    UpdateBanner(updates: .shared)
+                    switch selectedTab {
+                    case .invoices:
+                        InvoiceListView()
+                    case .clients:
+                        ClientListView()
+                    case .settings:
+                        SettingsView()
+                    }
                 }
             }
             .navigationSplitViewStyle(.balanced)

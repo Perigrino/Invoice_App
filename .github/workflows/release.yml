@@ -1,0 +1,182 @@
+name: Release
+
+# Push a tag like v2.6.0 to ship a build. The `release` environment is where
+# GitHub asks for manual approval (Settings → Environments → release).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 2.6.0"
+        required: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+env:
+  SPARKLE_VERSION: "2.10.1"
+  XCODE_PROJECT: InvoiceFlow/InvoiceFlow.xcodeproj
+
+jobs:
+  release:
+    name: Build, sign, publish
+    runs-on: macos-15
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Bad version: $VERSION" >&2; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # Monotonic, numeric-only build number: Sparkle compares this first.
+          echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Toolchain
+        run: xcodebuild -version
+
+      - name: Unit tests
+        run: |
+          xcodebuild test -project "$XCODE_PROJECT" -scheme InvoiceFlow \
+            -destination 'platform=macOS' -only-testing:InvoiceFlowTests
+
+      # Phase 2 only: import the Developer ID certificate when the secret exists.
+      - name: Import Developer ID certificate
+        env:
+          DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${DEVELOPER_ID_P12_BASE64:-}" ]]; then
+            echo "No Developer ID certificate configured — building ad-hoc (Phase 1)."
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          echo "$DEVELOPER_ID_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+            -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: Build DMG
+        id: build
+        env:
+          # Empty in Phase 1 → the script signs ad-hoc.
+          SIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+        run: |
+          set -euo pipefail
+          SIGN_IDENTITY="${SIGN_IDENTITY:--}" \
+            scripts/build-dmg.sh "${{ steps.version.outputs.version }}" "${{ steps.version.outputs.build }}"
+          echo "dmg=dist/InvoiceFlow-${{ steps.version.outputs.version }}.dmg" >> "$GITHUB_OUTPUT"
+
+      # Phase 2 only.
+      - name: Notarise and staple
+        env:
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${APPSTORE_API_KEY_ID:-}" ]]; then
+            echo "Notarisation not configured — skipping."
+            exit 0
+          fi
+          KEY="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$APPSTORE_API_PRIVATE_KEY" > "$KEY"
+          xcrun notarytool submit "${{ steps.build.outputs.dmg }}" \
+            --key "$KEY" --key-id "$APPSTORE_API_KEY_ID" \
+            --issuer "$APPSTORE_API_ISSUER_ID" --wait
+          xcrun stapler staple "${{ steps.build.outputs.dmg }}"
+          spctl --assess --type open --context context:primary-signature \
+            -v "${{ steps.build.outputs.dmg }}"
+
+      - name: Fetch Sparkle tools
+        run: |
+          set -euo pipefail
+          curl -sSL -o "$RUNNER_TEMP/sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
+          mkdir -p "$RUNNER_TEMP/sparkle"
+          tar -xJf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
+
+      - name: Generate appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          FEED_DIR="$RUNNER_TEMP/feed"
+          mkdir -p "$FEED_DIR"
+          cp "dist/InvoiceFlow-$VERSION.dmg" "$FEED_DIR/"
+
+          if [[ -f "docs/release-notes-$VERSION.md" ]]; then
+            cp "docs/release-notes-$VERSION.md" "$FEED_DIR/InvoiceFlow-$VERSION.md"
+          else
+            printf 'Fixes and improvements in %s.\n' "$VERSION" > "$FEED_DIR/InvoiceFlow-$VERSION.md"
+          fi
+
+          cd "$FEED_DIR"
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | \
+            "$RUNNER_TEMP/sparkle/bin/generate_appcast" \
+              --ed-key-file - \
+              --embed-release-notes \
+              --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/v$VERSION/" \
+              --link "https://github.com/${GITHUB_REPOSITORY}/releases/tag/v$VERSION" \
+              --maximum-versions 5 \
+              -o appcast.xml \
+              .
+
+          test -f appcast.xml
+          grep -q "sparkle:edSignature" appcast.xml || { echo "appcast unsigned" >&2; exit 1; }
+          grep -q "<sparkle:shortVersionString>$VERSION<" appcast.xml || { echo "appcast missing $VERSION" >&2; exit 1; }
+          echo "--- appcast ---"
+          cat appcast.xml
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          NOTES="docs/release-notes-$VERSION.md"
+          if [[ ! -f "$NOTES" ]]; then
+            printf 'Build %s (%s).\n' "$VERSION" "${GITHUB_RUN_NUMBER}" > "$RUNNER_TEMP/notes.md"
+            NOTES="$RUNNER_TEMP/notes.md"
+          fi
+          gh release create "v$VERSION" \
+            "dist/InvoiceFlow-$VERSION.dmg" \
+            --title "InvoiceFlow $VERSION" \
+            --notes-file "$NOTES"
+
+      - name: Stage appcast for Pages
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/site"
+          cp "$RUNNER_TEMP/feed/appcast.xml" "$RUNNER_TEMP/site/appcast.xml"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/site
+
+      - uses: actions/deploy-pages@v4

@@ -7,8 +7,14 @@
 # stage with an Applications symlink → hdiutil into dist/.
 #
 # Usage:
-#   scripts/build-dmg.sh            # version read from MARKETING_VERSION
-#   scripts/build-dmg.sh 2.1.1      # override the version label
+#   scripts/build-dmg.sh                # version read from MARKETING_VERSION
+#   scripts/build-dmg.sh 2.1.1          # override the version label
+#   scripts/build-dmg.sh 2.1.1 42       # …and the build number Sparkle compares
+#
+# Environment:
+#   SIGN_IDENTITY=""                    # default "-" (ad-hoc). Set to
+#                                       # "Developer ID Application: …" for
+#                                       # notarised production builds.
 #
 set -euo pipefail
 
@@ -25,6 +31,7 @@ ARCHIVE="$WORK_DIR/$APP_NAME.xcarchive"
 EXPORT_APP="$WORK_DIR/export/$APP_NAME"
 STAGE="$WORK_DIR/stage"
 VERSION="${1:-}"
+BUILD_NUMBER="${2:-}"
 
 # --- 1. Version: argument override, else read from the Xcode project -------
 if [[ -z "$VERSION" ]]; then
@@ -38,6 +45,11 @@ echo "==> Version: $VERSION"
 
 # --- 2. Archive (Release, universal) ---------------------------------------
 echo "==> Archiving (universal: arm64 + x86_64)…"
+ARCHIVE_VERSION_ARGS=(MARKETING_VERSION="$VERSION")
+if [[ -n "$BUILD_NUMBER" ]]; then
+  ARCHIVE_VERSION_ARGS+=(CURRENT_PROJECT_VERSION="$BUILD_NUMBER")
+fi
+
 if ! xcodebuild archive \
   -project "$XCODEPROJ" \
   -scheme "$SCHEME" \
@@ -45,6 +57,7 @@ if ! xcodebuild archive \
   -destination 'generic/platform=macOS' \
   -archivePath "$ARCHIVE" \
   ARCHS="arm64 x86_64" \
+  "${ARCHIVE_VERSION_ARGS[@]}" \
   > "$WORK_DIR/archive.log" 2>&1; then
   grep -E "error:" "$WORK_DIR/archive.log" | head -5 >&2
   echo "error: archive failed (full log: $WORK_DIR/archive.log)" >&2
@@ -54,14 +67,39 @@ fi
 ARCHIVED_APP="$ARCHIVE/Products/Applications/$APP_NAME"
 [[ -d "$ARCHIVED_APP" ]] || { echo "error: no app in archive" >&2; exit 1; }
 
-# --- 3. Export: copy out of the archive, then ad-hoc sign ------------------
+# --- 3. Export: copy out of the archive, then sign ------------------------
 # xcodebuild -exportArchive needs a signing team; this repo ships ad-hoc
 # signed apps, so replicate that with codesign.
 mkdir -p "$WORK_DIR/export"
 cp -R "$ARCHIVED_APP" "$EXPORT_APP"
-codesign --force --deep --sign - "$EXPORT_APP" >/dev/null
-echo "==> Ad-hoc signed: $(codesign -dv "$EXPORT_APP" 2>&1 | awk -F'=' '/^Identifier=/ { print $2 }')"
 
+# Never sign with --deep: Sparkle ships nested helpers (Autoupdate,
+# Updater.app, XPC services) and a deep sign corrupts their signatures.
+# Sign innermost first, then the framework, then the app.
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+SIGN_ARGS=(--force --sign "$SIGN_IDENTITY")
+if [[ "$SIGN_IDENTITY" == "-" ]]; then
+  echo "==> Signing ad-hoc (development / free distribution)"
+else
+  echo "==> Signing with: $SIGN_IDENTITY"
+  SIGN_ARGS+=(--options runtime --timestamp)
+fi
+
+sign_path() { codesign "${SIGN_ARGS[@]}" "$1" >/dev/null; }
+
+SPARKLE_FW="$EXPORT_APP/Contents/Frameworks/Sparkle.framework"
+if [[ -d "$SPARKLE_FW" ]]; then
+  for xpc in "$SPARKLE_FW"/*/XPCServices/*.xpc; do
+    [[ -e "$xpc" ]] && sign_path "$xpc"
+  done
+  for helper in "$SPARKLE_FW"/Versions/B/Autoupdate "$SPARKLE_FW"/Versions/B/Updater.app; do
+    [[ -e "$helper" ]] && sign_path "$helper"
+  done
+  sign_path "$SPARKLE_FW"
+fi
+sign_path "$EXPORT_APP"
+
+echo "==> Signed: $(codesign -dv "$EXPORT_APP" 2>&1 | awk -F'=' '/^Identifier=/ { print $2 }') ($(codesign -dv "$EXPORT_APP" 2>&1 | awk -F'=' '/^Signature=/ { print $2 }'))"
 # --- 4. Package -------------------------------------------------------------
 echo "==> Building DMG: ${DMG_PATH#$PROJECT_ROOT/}"
 mkdir -p "$STAGE"
@@ -98,6 +136,18 @@ echo "    version:    $DMG_VERSION"
 DMG_ID="$(codesign -dv "$DMG_APP" 2>&1 | awk -F'=' '/^Identifier=/ { print $2 }')"
 [[ "$DMG_ID" == "com.invoiceflow.app" ]] || fail "unexpected bundle id: $DMG_ID"
 echo "    bundle id:  $DMG_ID"
+
+codesign --verify --strict "$DMG_APP" 2>/dev/null \
+  || fail "code signature does not verify"
+echo "    signature:  valid"
+
+DMG_PUBKEY="$(plutil -extract SUPublicEDKey raw "$DMG_APP/Contents/Info.plist" 2>/dev/null || true)"
+[[ -n "$DMG_PUBKEY" ]] || fail "SUPublicEDKey missing — appcast updates would be refused"
+echo "    ed key:     ${DMG_PUBKEY:0:12}…"
+
+DMG_FEED="$(plutil -extract SUFeedURL raw "$DMG_APP/Contents/Info.plist" 2>/dev/null || true)"
+[[ "$DMG_FEED" == https://* ]] || fail "SUFeedURL must be https (got: ${DMG_FEED:-none})"
+echo "    feed:       $DMG_FEED"
 
 hdiutil detach "$MNT" >/dev/null
 

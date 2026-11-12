@@ -6,6 +6,8 @@ A native macOS invoice generator. Create clients, build invoices, and export cle
 
 [**InvoiceFlow-2.1.1.dmg**](dist/InvoiceFlow-2.1.1.dmg) — requires macOS 14.0+ (universal: Apple Silicon & Intel)
 
+Releases ship from [GitHub Releases](https://github.com/Perigrino/Invoice_App/releases) and the app updates itself with Sparkle from a feed on GitHub Pages. The release/rollback runbook lives in [`docs/UPDATES.md`](docs/UPDATES.md).
+
 ## What It Does
 
 **Clients** — Store client name, company, email, phone, and address. Search by any field.
