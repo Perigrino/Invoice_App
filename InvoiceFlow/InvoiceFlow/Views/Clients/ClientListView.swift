@@ -40,7 +40,7 @@ struct ClientListView: View {
                 inlineSearch
             }
             .padding(.horizontal, 28)
-            .padding(.top, 4)
+            .padding(.top, 12)
 
             // Hoisted above the list (instead of a section header) so the
             // list opens on a data row — see InvoiceListView for why.

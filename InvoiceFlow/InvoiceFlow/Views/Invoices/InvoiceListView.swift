@@ -42,6 +42,7 @@ struct InvoiceListView: View {
                 inlineSearch
             }
             .padding(.horizontal, 28)
+            .padding(.top, 12)
 
             // Same hoisted label as the client list, so both lists open on a
             // data row and read identically.

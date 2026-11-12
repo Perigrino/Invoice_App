@@ -66,7 +66,7 @@ struct SettingsView: View {
                     // accent-gradient pill on the active tab.
                     tabstrip
                         .padding(.horizontal, 28)
-                        .padding(.top, 14)
+                        .padding(.top, 12)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     Group {

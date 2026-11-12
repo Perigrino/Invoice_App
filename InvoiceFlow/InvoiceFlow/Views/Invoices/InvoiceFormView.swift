@@ -62,6 +62,7 @@ struct InvoiceFormView: View {
             .padding(.top, 22)
 
             Divider().overlay(Theme.hairline)
+                .padding(.top, 12)
             
             // MARK: - Form Content
             ScrollView {

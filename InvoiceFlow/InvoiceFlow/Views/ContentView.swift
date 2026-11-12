@@ -399,7 +399,7 @@ struct PageHeader<Actions: View>: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(title)
                     .font(.system(size: 26, weight: .bold))
                     .kerning(-0.39)
