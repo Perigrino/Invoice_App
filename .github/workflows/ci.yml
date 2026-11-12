@@ -44,4 +44,5 @@ jobs:
         run: |
           xcodebuild test -project InvoiceFlow.xcodeproj -scheme InvoiceFlow \
             -destination 'platform=macOS' \
-            -only-testing:InvoiceFlowTests
+            -only-testing:InvoiceFlowTests \
+            -parallel-testing-enabled NO

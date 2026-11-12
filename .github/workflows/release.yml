@@ -54,7 +54,8 @@ jobs:
       - name: Unit tests
         run: |
           xcodebuild test -project "$XCODE_PROJECT" -scheme InvoiceFlow \
-            -destination 'platform=macOS' -only-testing:InvoiceFlowTests
+            -destination 'platform=macOS' -only-testing:InvoiceFlowTests \
+            -parallel-testing-enabled NO
 
       # Phase 2 only: import the Developer ID certificate when the secret exists.
       - name: Import Developer ID certificate
