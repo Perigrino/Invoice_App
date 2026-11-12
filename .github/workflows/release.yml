@@ -27,7 +27,7 @@ env:
 jobs:
   release:
     name: Build, sign, publish
-    runs-on: macos-15
+    runs-on: macos-15-intel  # arm64 runners queue for 15+ min; Intel is reliably available
     environment: release
     steps:
       - uses: actions/checkout@v4

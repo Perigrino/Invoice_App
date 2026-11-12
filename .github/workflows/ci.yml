@@ -22,7 +22,7 @@ permissions:
 jobs:
   build-and-test:
     name: Build & test (macOS)
-    runs-on: macos-15
+    runs-on: macos-15-intel  # arm64 runners queue for 15+ min; Intel is reliably available
     defaults:
       run:
         working-directory: InvoiceFlow
