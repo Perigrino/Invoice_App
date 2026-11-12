@@ -418,6 +418,25 @@ struct PageHeader<Actions: View>: View {
     }
 }
 
+/// Quiet developer signature along the bottom of the detail column. One
+/// insertion covers every screen, so it never duplicates.
+struct AttributionFooter: View {
+    var body: some View {
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            Text("Made with ❤️ by Perigrino")
+                .font(.system(size: 10.5))
+                .kerning(0.1)
+                .foregroundColor(Theme.textSecondary)
+                .lineLimit(1)
+                .accessibilityLabel("Made with love by Perigrino")
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+    }
+}
+
 /// Uppercase, tracked micro-label that opens a group of rows (prototype
 /// `.section-label` / `.k`).
 struct SectionLabel: View {
@@ -929,6 +948,9 @@ struct ContentView: View {
                     case .settings:
                         SettingsView()
                     }
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    AttributionFooter()
                 }
             }
             .navigationSplitViewStyle(.balanced)
