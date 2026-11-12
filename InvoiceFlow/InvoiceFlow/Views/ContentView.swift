@@ -44,7 +44,9 @@ enum GradientPalette: String, CaseIterable, Identifiable {
 
     /// Component glow (prototype `--glow`): the accent at 32 %, in both
     /// themes — used by the gradient surfaces (tiles, pills, primary caps).
-    var glowStrong: Color { themedAlpha(light: hexes.lightA, dark: hexes.darkA, (0.32, 0.32)) }
+    /// Behind primary buttons. A 32 % halo blooms into a smudge on the light
+    /// canvas, so light mode gets half of it.
+    var glowStrong: Color { themedAlpha(light: hexes.lightA, dark: hexes.darkA, (0.16, 0.32)) }
     /// Hover glow (prototype `--glow-2`): the second hue at 30 %.
     var glowAltStrong: Color { themedAlpha(light: hexes.lightB, dark: hexes.darkB, (0.30, 0.30)) }
 
@@ -171,10 +173,13 @@ enum Theme {
     static let rowSeparator = dyn(light: "#000000", dark: "#FFFFFF", alpha: (0.06, 0.05))
     static let chip = dyn(light: "#000000", dark: "#FFFFFF", alpha: (0.05, 0.08))
     static let hover = dyn(light: "#000000", dark: "#FFFFFF", alpha: (0.045, 0.06))
+    /// Lift shadow for hovered cards. A 35 % black shadow reads as a dirty smudge
+    /// on the light canvas, so light mode gets a quarter of that.
+    static let hoverShadow = dyn(light: "#000000", dark: "#000000", alpha: (0.09, 0.35))
     static let hoverStrong = dyn(light: "#000000", dark: "#FFFFFF", alpha: (0.09, 0.14))
     static let field = dyn(light: "#FFFFFF", dark: "#FFFFFF", alpha: (1.0, 0.05))
     static let placeholder = dyn(light: "#000000", dark: "#FFFFFF", alpha: (0.04, 0.06))
-    static let controlBorder = dyn(light: "#000000", dark: "#FFFFFF", alpha: (0.14, 0.18))
+    static let controlBorder = dyn(light: "#000000", dark: "#FFFFFF", alpha: (0.18, 0.18))
     static let toggleOff = dyn(light: "#000000", dark: "#FFFFFF", alpha: (0.14, 0.12))
     static let avatarBase = dyn(light: "#FFFFFF", dark: "#FFFFFF", alpha: (0.90, 0.05))
 
@@ -350,7 +355,7 @@ struct HoverLiftModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .scaleEffect(hovering ? 1.006 : 1)
-            .shadow(color: .black.opacity(0.35), radius: 14, x: 0, y: 6)
+            .shadow(color: hovering ? Theme.hoverShadow : .clear, radius: 14, x: 0, y: 6)
             .animation(Theme.smooth, value: hovering)
             .onHover { hovering = $0 }
     }
@@ -507,28 +512,142 @@ struct StatusPill: View {
 
 // MARK: - Form field styles
 
-/// Single-line field (prototype `.input`): 34 pt, radius 10, hairline border.
-struct GlassFieldStyle: TextFieldStyle {
-    func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration
+/// Field chrome shared by every input: no fill, 1 px hairline, and AppKit's own
+/// focus ring while editing. Fields sit directly on the page canvas — a filled
+/// slab at full row width read as a panel rather than an input.
+private struct FieldChrome: ViewModifier {
+    let multiline: Bool
+    @State private var isEditing = false
+
+    func body(content: Content) -> some View {
+        content
             .font(.system(size: 12.5))
             .foregroundColor(Theme.textPrimary)
             .padding(.horizontal, 12)
-            .frame(height: 34)
-            .background(RoundedRectangle(cornerRadius: Theme.radiusControl, style: .continuous).fill(Theme.field))
+            .padding(.vertical, multiline ? 8 : 0)
+            .frame(height: multiline ? nil : 34, alignment: multiline ? .top : .center)
+            .frame(minHeight: 34, alignment: .topLeading)
+            .background {
+                RoundedRectangle(cornerRadius: Theme.radiusControl, style: .continuous)
+                    .strokeBorder(
+                        isEditing ? Theme.accent : Theme.controlBorder,
+                        lineWidth: isEditing ? 1.5 : 1
+                    )
+            }
+            .background {
+                EditingWatcher(isEditing: $isEditing)
+                    .allowsHitTesting(false)
+            }
     }
 }
 
-/// Multiline variant — same surface, no fixed height.
+/// SwiftUI never surfaces focus to a custom `TextFieldStyle`, so watch the
+/// backing `NSTextField` directly. Event-driven: the window's field editor posts
+/// begin/end editing notifications, and the notification's text view names the
+/// field being edited. No timers, so an idle app does no per-field work.
+private struct EditingWatcher: NSViewRepresentable {
+    @Binding var isEditing: Bool
+
+    func makeNSView(context: Context) -> NSView {
+        let view = WatcherView()
+        view.onChange = Self.handler(for: $isEditing)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? WatcherView)?.onChange = Self.handler(for: $isEditing)
+    }
+
+    private static func handler(for binding: Binding<Bool>) -> (Bool) -> Void { { editing in
+        guard editing != binding.wrappedValue else { return }
+        DispatchQueue.main.async { binding.wrappedValue = editing }
+    } }
+
+    final class WatcherView: NSView {
+        var onChange: ((Bool) -> Void)?
+        private var observers: [NSObjectProtocol] = []
+        private weak var field: NSTextField?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            stopObserving()
+            guard let window else { return }
+
+            let center = NotificationCenter.default
+            // Any begin/end of editing in this window re-checks our own field.
+            for name in [NSText.didBeginEditingNotification, NSText.didEndEditingNotification] {
+                observers.append(center.addObserver(
+                    forName: name, object: nil, queue: .main
+                ) { [weak self] _ in
+                    // The notification lands before the field editor is attached
+                    // or detached, so read our field on the next runloop turn.
+                    DispatchQueue.main.async { self?.refresh() }
+                })
+            }
+            // Focus moves with the window, and resigning key drops the editor
+            // without an end-editing post.
+            for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
+                observers.append(center.addObserver(
+                    forName: name, object: window, queue: .main
+                ) { [weak self] _ in
+                    self?.onChange?(false)
+                })
+            }
+
+            DispatchQueue.main.async { [weak self] in self?.refresh() }
+        }
+
+        deinit { stopObserving() }
+
+        private func stopObserving() {
+            observers.forEach(NotificationCenter.default.removeObserver)
+            observers.removeAll()
+        }
+
+        private func refresh() {
+            guard let field = resolvedField else { return }
+            onChange?(field.currentEditor() != nil)
+        }
+
+        /// The watcher lives in SwiftUI's own platform-view host, so it cannot
+        /// walk up to its field — match by frame overlap in window space instead.
+        private var resolvedField: NSTextField? {
+            if let field { return field }
+            guard let window, let root = window.contentView, let chrome = superview else { return nil }
+            let target = chrome.convert(chrome.bounds, to: nil).insetBy(dx: -2, dy: -2)
+            let match = Self.textFields(in: root).first { candidate in
+                candidate.convert(candidate.bounds, to: nil).intersects(target)
+            }
+            field = match
+            return match
+        }
+
+        private static func textFields(in view: NSView) -> [NSTextField] {
+            var found: [NSTextField] = []
+            if let field = view as? NSTextField { found.append(field) }
+            for sub in view.subviews { found.append(contentsOf: textFields(in: sub)) }
+            return found
+        }
+    }
+}
+
+/// Single-line field (prototype `.input`): 34 pt, radius 10, hairline border.
+struct GlassFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        // `.plain` strips the native AppKit bezel/background; without it the
+        // platform paints a filled inset inside our hairline.
+        configuration
+            .textFieldStyle(.plain)
+            .modifier(FieldChrome(multiline: false))
+    }
+}
+
+/// Multiline variant — same chrome, no fixed height.
 struct GlassFieldMultilineStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
-            .font(.system(size: 12.5))
-            .foregroundColor(Theme.textPrimary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(minHeight: 34, alignment: .top)
-            .background(RoundedRectangle(cornerRadius: Theme.radiusControl, style: .continuous).fill(Theme.field))
+            .textFieldStyle(.plain)
+            .modifier(FieldChrome(multiline: true))
     }
 }
 

@@ -215,6 +215,10 @@ struct ClientRow: View {
             ZStack {
                 shape.fill(.ultraThinMaterial)
                 shape.fill(Theme.cardFill)
+                if hovering {
+                    // Tint on hover; a dark shadow smudges on the light canvas.
+                    shape.fill(Theme.hover)
+                }
                 // PosterTint port: deterministic per-client wash.
                 LinearGradient(
                     colors: [Theme.tint(for: client.fullName).opacity(0.18), .clear],
@@ -235,7 +239,6 @@ struct ClientRow: View {
             )
         }
         .clipShape(shape)
-        .shadow(color: hovering ? .black.opacity(0.35) : .clear, radius: 14, x: 0, y: 6)
         .scaleEffect(hovering ? 1.006 : 1)
         .animation(Theme.quick, value: hovering)
         .onHover { hovering = $0 }

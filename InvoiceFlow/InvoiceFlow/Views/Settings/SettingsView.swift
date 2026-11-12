@@ -60,12 +60,13 @@ struct SettingsView: View {
                         profileMenu
                     }
                     .padding(.horizontal, 28)
+                    .padding(.top, 22)
 
                     // Prototype `.tabstrip`: one dark capsule, inline width,
                     // accent-gradient pill on the active tab.
                     tabstrip
                         .padding(.horizontal, 28)
-                        .padding(.top, 2)
+                        .padding(.top, 14)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     Group {
@@ -82,7 +83,7 @@ struct SettingsView: View {
                         }
                     }
                     .padding(.horizontal, 28)
-                    .padding(.top, 12)
+                    .padding(.top, 20)
                     .padding(.bottom, 24)
                     .frame(maxHeight: .infinity)
                 }
@@ -237,7 +238,8 @@ struct SettingRow<Trailing: View>: View {
     }
 }
 
-/// Section card wrapping `SettingRow`s (prototype `card card-lg card-pad`).
+/// Section group wrapping `SettingRow`s. No card surface: the rows sit
+/// directly on the page canvas so settings don't read as stacked grey boxes.
 struct SettingsCard<Content: View>: View {
     private let content: Content
 
@@ -248,9 +250,7 @@ struct SettingsCard<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) { content }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
             .padding(.vertical, 4)
-            .glassCard(radius: Theme.radiusLarge)
     }
 }
 
@@ -335,7 +335,7 @@ struct ProfileSettingsView: View {
                                 }
                             logoActions
                         }
-                        .padding(.vertical, 12)
+                        .padding(.top, 2)
                     } else {
                         // Prototype layout: 74 × 74 dashed box + copy + action.
                         HStack(alignment: .top, spacing: 14) {
@@ -362,7 +362,7 @@ struct ProfileSettingsView: View {
                             }
                             Spacer(minLength: 0)
                         }
-                        .padding(.vertical, 12)
+                        .padding(.top, 2)
                     }
                 }
 
@@ -379,7 +379,7 @@ struct ProfileSettingsView: View {
                         }
                         field(label: "Address", placeholder: "14 Ridgeway Terrace, Lisbon, Portugal", text: $companyAddress, multiline: true)
                     }
-                    .padding(.bottom, 14)
+                    .padding(.bottom, 2)
                 }
 
                 SettingsCard {

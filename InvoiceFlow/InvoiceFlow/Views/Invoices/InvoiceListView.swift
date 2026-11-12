@@ -327,6 +327,11 @@ struct InvoiceRow: View {
             ZStack {
                 shape.fill(.ultraThinMaterial)
                 shape.fill(Theme.cardFill)
+                if hovering {
+                    // Hover reads as a faint tint, not a drop shadow: a blurred
+                    // dark shadow turns into a smudge on the light canvas.
+                    shape.fill(Theme.hover)
+                }
                 if let wash = wash {
                     shape.fill(wash)
                 }
@@ -350,7 +355,6 @@ struct InvoiceRow: View {
             )
         }
         .clipShape(shape)
-        .shadow(color: hovering ? .black.opacity(0.35) : .clear, radius: 14, x: 0, y: 6)
         .scaleEffect(hovering ? 1.006 : 1)
         .animation(Theme.quick, value: hovering)
         .onHover { hovering = $0 }

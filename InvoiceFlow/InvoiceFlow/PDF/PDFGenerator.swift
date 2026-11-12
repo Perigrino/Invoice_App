@@ -37,6 +37,10 @@ struct PDFStyle {
     static let moneyWidth: CGFloat = 130
     static let logoHeight: CGFloat = 90
     static let logoMaxWidth: CGFloat = 280
+    /// Dots per 256 pt grain tile. 40% of the original 8000: the speckle read as
+    /// noise on a printed page, so the texture is a soft hint rather than grain.
+    /// Shared by the PDF canvas and the SwiftUI preview so both keep matching.
+    static let grainDensity = 3200
 
     static func pageHeight(for data: InvoiceRenderData, paperSize: String) -> CGFloat {
         let base = PDFPageSpec.size(for: paperSize).height
@@ -234,7 +238,7 @@ private extension InvoicePDFRenderer {
 
         // Background + grain
         canvas.fill(x: 0, top: 0, width: canvas.pageWidth, height: canvas.pageHeight, color: palette.background)
-        if let tile = PDFGrainTile.image(dot: palette.grainDot, density: 8000) {
+        if let tile = PDFGrainTile.image(dot: palette.grainDot, density: PDFStyle.grainDensity) {
             canvas.context.saveGState()
             canvas.context.setAlpha(palette.grainOpacity)
             canvas.context.setBlendMode(palette.grainBlend)
@@ -893,7 +897,7 @@ private struct DarkTheme: View {
                 NoiseTexture(
                     dotColor: Color.white.opacity(0.06),
                     opacity: 0.35,
-                    density: 8000,
+                    density: PDFStyle.grainDensity,
                     blendMode: .screen
                 )
                 .allowsHitTesting(false)
@@ -1076,7 +1080,7 @@ private struct LightTheme: View {
                 NoiseTexture(
                     dotColor: Color.black.opacity(0.05),
                     opacity: 0.35,
-                    density: 8000,
+                    density: PDFStyle.grainDensity,
                     blendMode: .multiply
                 )
                 .allowsHitTesting(false)

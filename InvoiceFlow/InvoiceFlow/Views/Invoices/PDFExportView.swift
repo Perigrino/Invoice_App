@@ -42,7 +42,8 @@ struct PDFExportView: View {
                 previewPanel
             }
         }
-        .frame(minWidth: 1000, idealWidth: 1400, maxWidth: .infinity, minHeight: 700, idealHeight: 900, maxHeight: .infinity)
+        .frame(minWidth: 1280, idealWidth: 1720, maxWidth: .infinity, minHeight: 740, idealHeight: 980, maxHeight: .infinity)
+        .background { ThemeCanvas().ignoresSafeArea() }
         .navigationTitle("Export PDF")
         .onAppear {
             loadFromSource()
@@ -116,7 +117,7 @@ struct PDFExportView: View {
     
     private var editPanel: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 22) {
                 documentSection
                 styleSection
                 lineItemsSection
@@ -134,13 +135,14 @@ struct PDFExportView: View {
             .onChange(of: selectedClientIndex) { _, _ in renderPreview() }
             .padding(16)
         }
-        .frame(minWidth: 340, idealWidth: 380)
+        .frame(minWidth: 400, idealWidth: 470)
     }
     
     private var documentSection: some View {
         section("Document") {
             labeledField("Invoice Number") {
                 TextField("", text: $invoiceNumber)
+                    .textFieldStyle(GlassFieldStyle())
             }
             labeledField("Type") {
                 Picker("", selection: $invoiceType) {
@@ -231,9 +233,11 @@ struct PDFExportView: View {
         section("Totals") {
             labeledField("Discount (%)") {
                 TextField("", value: $discount, format: .number)
+                    .textFieldStyle(GlassFieldStyle())
             }
             labeledField("Tax (%)") {
                 TextField("", value: $tax, format: .number)
+                    .textFieldStyle(GlassFieldStyle())
             }
             totalsSummary
         }
@@ -243,8 +247,7 @@ struct PDFExportView: View {
         section("Notes") {
             TextField("Notes", text: $notes, axis: .vertical)
                 .lineLimit(2...8)
-                .textFieldStyle(.roundedBorder)
-                .font(.body)
+                .textFieldStyle(GlassFieldMultilineStyle())
         }
     }
     
@@ -291,16 +294,15 @@ struct PDFExportView: View {
         return (subtotal, total)
     }
     
+    /// Section group for the left panel. No card surface — like the invoice and
+    /// client forms, the controls sit directly on the panel and the label alone
+    /// separates one group from the next.
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.system(.body, weight: .semibold))
+            SectionLabel(title)
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     
     private func labeledField(_ label: String, @ViewBuilder content: () -> some View) -> some View {
@@ -440,27 +442,28 @@ struct LineItemDraftRow: View {
     var currencyCode: String = "USD"
     
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 TextField("Description", text: $item.description, axis: .vertical)
                     .lineLimit(1...3)
+                    .textFieldStyle(GlassFieldMultilineStyle())
                 Spacer()
             }
             HStack(spacing: 6) {
                 TextField("Qty", value: $item.quantity, format: .number)
+                    .textFieldStyle(GlassFieldStyle())
                     .frame(width: 50)
                 TextField("Price", value: $item.price, format: .number)
+                    .textFieldStyle(GlassFieldStyle())
                     .frame(width: 80)
                 TextField("Tax %", value: $item.tax, format: .number)
+                    .textFieldStyle(GlassFieldStyle())
                     .frame(width: 60)
                 Text(itemTotal)
                     .font(.system(.body, design: .monospaced))
                     .frame(width: 90, alignment: .trailing)
             }
         }
-        .padding(8)
-        .background(Color(nsColor: .textBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
     
     private var itemTotal: String {

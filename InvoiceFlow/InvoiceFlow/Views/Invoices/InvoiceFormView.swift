@@ -66,7 +66,7 @@ struct InvoiceFormView: View {
             // MARK: - Form Content
             ScrollView {
                 VStack(spacing: 24) {
-                    // Invoice Details (prototype card: no header)
+                    // Invoice Details (no section header, no card surface)
                     formSection {
                         VStack(spacing: 14) {
                             HStack(alignment: .top, spacing: 16) {
@@ -75,6 +75,7 @@ struct InvoiceFormView: View {
                                     TextField("INV-001", text: $invoiceNumber)
                                         .textFieldStyle(GlassFieldStyle())
                                 }
+                                .frame(maxWidth: 380, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text("Type").modifier(FieldLabelStyle())
                                     Picker("", selection: $invoiceType) {
@@ -84,6 +85,8 @@ struct InvoiceFormView: View {
                                     .labelsHidden()
                                     .tint(Theme.accent)
                                 }
+                                .frame(width: 220, alignment: .leading)
+                                Spacer(minLength: 0)
                             }
 
                             HStack(alignment: .top, spacing: 16) {
@@ -102,12 +105,14 @@ struct InvoiceFormView: View {
                                         generateInvoiceNumber(for: clients[newIndex - 1])
                                     }
                                 }
+                                .frame(maxWidth: 300, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text("Issue Date").modifier(FieldLabelStyle())
                                     DatePicker("", selection: $issueDate, displayedComponents: .date)
                                         .labelsHidden()
                                         .tint(Theme.accent)
                                 }
+                                .frame(width: 150, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 6) {
                                     HStack(spacing: 8) {
                                         Text("Due Date").modifier(FieldLabelStyle())
@@ -121,6 +126,8 @@ struct InvoiceFormView: View {
                                         .disabled(!hasDueDate)
                                         .opacity(hasDueDate ? 1 : 0.5)
                                 }
+                                .frame(width: 160, alignment: .leading)
+                                Spacer(minLength: 0)
                             }
                         }
                     }
@@ -186,10 +193,11 @@ struct InvoiceFormView: View {
                     }
                 }
                 .padding(.horizontal, 28)
+                .padding(.top, 24)
                 .padding(.bottom, 28)
             }
         }
-        .frame(minWidth: 800, minHeight: 650)
+        .frame(minWidth: 1180, idealWidth: 1360, minHeight: 720, idealHeight: 940)
         .background { ThemeCanvas().ignoresSafeArea() }
         .onAppear { loadInvoice() }
         .animation(.default, value: showValidationError)
@@ -285,9 +293,9 @@ struct InvoiceFormView: View {
             if let title { SectionLabel(title) }
             content()
         }
+        // Fields sit directly on the page canvas: their own glass styling is
+        // the only surface, so no grey outer rectangle is drawn here.
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(18)
-        .glassCard(radius: Theme.radiusLarge)
     }
 
     @ViewBuilder

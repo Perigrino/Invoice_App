@@ -92,7 +92,7 @@ struct ClientFormView: View {
                 .padding(.bottom, 28)
             }
         }
-        .frame(minWidth: 560, minHeight: 480)
+        .frame(minWidth: 920, idealWidth: 1060, minHeight: 540, idealHeight: 680)
         .background { ThemeCanvas().ignoresSafeArea() }
         .onAppear { loadClient() }
         .animation(.default, value: showValidationError)
@@ -133,9 +133,9 @@ struct ClientFormView: View {
             if let title { SectionLabel(title) }
             content()
         }
+        // Fields sit directly on the page canvas: their own glass styling is
+        // the only surface, so no grey outer rectangle is drawn here.
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(18)
-        .glassCard(radius: Theme.radiusLarge)
     }
 
     private func loadClient() {
