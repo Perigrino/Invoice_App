@@ -140,7 +140,9 @@ struct UpdateSettingsCard: View {
                     Text(message)
                         .font(.system(size: 11))
                         .foregroundColor(Theme.negative)
-                        .lineLimit(2)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }

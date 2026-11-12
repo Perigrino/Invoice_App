@@ -158,7 +158,54 @@ final class UpdateController: ObservableObject {
     }
 
     func handleAbort(_ error: Error) {
-        phase = .failed(error.localizedDescription)
+        let message = Self.failureMessage(for: error)
+        updateLog("aborted: \(message)")
+        phase = .failed(message)
+    }
+
+    /// Sparkle reports a wrapped, generic sentence ("…please try again later")
+    /// while the actual cause sits in the underlying error chain. Show both, so
+    /// a failed feed fetch says it timed out instead of hiding behind the wrap.
+    static func failureMessage(for error: Error) -> String {
+        var chain: [NSError] = []
+        var current = error as NSError
+        while true {
+            chain.append(current)
+            guard let underlying = current.userInfo[NSUnderlyingErrorKey] as? NSError else { break }
+            current = underlying
+        }
+
+        let headline = trimmedPeriod(chain[0].localizedDescription)
+        // CFNetwork ends the chain with a filler node ("The operation couldn’t
+        // be completed…"); the node above it carries the real reason.
+        let generic = chain.dropFirst().filter { !isMeaningful($0.localizedDescription) }
+        let candidates = chain.dropFirst().filter { isMeaningful($0.localizedDescription) }
+        guard let detail = candidates.last ?? generic.last ?? chain.dropFirst().last else {
+            return describe(headline, domain: chain[0].domain, code: chain[0].code)
+        }
+
+        let cause = trimmedPeriod(detail.localizedDescription)
+        if headline.localizedCaseInsensitiveContains(cause) {
+            return describe(headline, domain: detail.domain, code: detail.code)
+        }
+        return "\(headline). Cause: \(describe(cause, domain: detail.domain, code: detail.code))"
+    }
+
+    /// Appends domain and code unless the sentence already names them.
+    private static func describe(_ text: String, domain: String, code: Int) -> String {
+        guard !text.localizedCaseInsensitiveContains(domain) else { return text }
+        return "\(text) (\(domain) \(code))"
+    }
+
+    private static func isMeaningful(_ text: String) -> Bool {
+        let lowercased = text.lowercased()
+        return !(lowercased.contains("couldn") && lowercased.contains("be completed"))
+    }
+
+    private static func trimmedPeriod(_ text: String) -> String {
+        var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        while result.hasSuffix(".") { result.removeLast() }
+        return result
     }
 
     /// Fallback link when an appcast item carries no `releaseNotesLink`.
