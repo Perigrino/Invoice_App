@@ -109,3 +109,28 @@ same appcast, same bundle id.
   what Sparkle enforces for a bundle update).
 - The app must live in `/Applications`; Sparkle will not update a copy running
   from a DMG or a translocated path.
+
+## Troubleshooting: the update check hangs, then times out
+
+Because the app is ad-hoc signed, a third-party outbound firewall (LuLu, Little
+Snitch, Radio Silence) treats it as an unknown program. Depending on its mode it
+either prompts on first connection or blocks silently — a silent block looks
+exactly like a broken feed: `Check for Updates…` spins for ~60 s and then fails
+with "An error occurred in retrieving update information" (`NSURLErrorDomain
+-1001`), and no bytes are ever requested from the appcast.
+
+Check whether the app can reach the feed at all:
+
+```sh
+curl -sS -o /dev/null -w '%{http_code}\n' https://perigrino.github.io/Invoice_App/appcast.xml
+```
+
+If curl works but the app times out, the block is per-application. Allow the
+installed bundle, not the DMG and not a build in DerivedData:
+
+- Path: `/Applications/InvoiceFlow.app` (bundle id `com.invoiceflow.app`)
+- Direction: **outgoing**, TCP 443 to `perigrino.github.io` and
+  `github.com`/`objects.githubusercontent.com` (the release DMG).
+
+Without signing the app with a Developer ID (Phase 2), every new signature the
+firewall has not seen before may need allowing again after a rebuild.
