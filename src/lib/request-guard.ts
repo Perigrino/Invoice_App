@@ -25,6 +25,7 @@ export const LIMITS = {
   clientWrite: { name: "client:write", perWorkspace: 60, perIp: 120, windowSeconds: 60, maxBytes: 256 * 1024 },
   profileWrite: { name: "profile:write", perWorkspace: 30, perIp: 60, windowSeconds: 60, maxBytes: 2 * 1024 * 1024 },
   pdfExport: { name: "pdf:export", perWorkspace: 20, perIp: 40, windowSeconds: 60, maxBytes: 512 * 1024 },
+  shareWrite: { name: "share:write", perWorkspace: 20, perIp: 40, windowSeconds: 60, maxBytes: 1024 },
   dataImport: { name: "data:import", perWorkspace: 3, perIp: 6, windowSeconds: 3600, maxBytes: 4 * 1024 * 1024 },
 } satisfies Record<string, MutationLimits>;
 

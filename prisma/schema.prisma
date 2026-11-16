@@ -79,6 +79,14 @@ model Invoice {
   updatedAt     DateTime          @updatedAt
   lineItems     InvoiceLineItem[]
 
+  /// A read-only share link. `shareToken` null means not shared; revoking
+  /// clears the token but keeps the timestamps so the UI can say so.
+  shareToken        String?   @unique
+  shareCreatedAt    DateTime?
+  shareRevokedAt    DateTime?
+  shareViews        Int       @default(0)
+  shareLastViewedAt DateTime?
+
   @@index([workspaceId])
   @@index([workspaceId, createdAt])
   @@unique([workspaceId, invoiceNumber])
