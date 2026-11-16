@@ -22,14 +22,4 @@ extension Decimal {
             .decimalValue
     }
 
-    /// Percentage conversion used by percent-of-money math: percent operands
-    /// stay `Double` in the models, so `Decimal(value)` is the join point.
-    static func percent(_ value: Double) -> Decimal {
-        Decimal(value)
-    }
-
-    /// `value / 100` as a `Decimal`, for percent math on money amounts.
-    static func fraction(ofPercent value: Double) -> Decimal {
-        Decimal(value) / 100
-    }
 }
