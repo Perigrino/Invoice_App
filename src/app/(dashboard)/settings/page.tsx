@@ -5,6 +5,7 @@ import { ProfilesView } from "@/components/settings/profiles-view";
 import { InvoiceSettings } from "@/components/settings/invoice-settings";
 import { CurrencySettings } from "@/components/settings/currency-settings";
 import { GeneralSettings } from "@/components/settings/general-settings";
+import { DataSettings } from "@/components/settings/data-settings";
 import { Settings } from "lucide-react";
 
 export default function SettingsPage() {
@@ -48,6 +49,12 @@ export default function SettingsPage() {
           >
             General
           </TabsTrigger>
+          <TabsTrigger
+            value="data"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            Data
+          </TabsTrigger>
         </TabsList>
 
         <div className="mt-6">
@@ -62,6 +69,9 @@ export default function SettingsPage() {
           </TabsContent>
           <TabsContent value="general">
             <GeneralSettings />
+          </TabsContent>
+          <TabsContent value="data">
+            <DataSettings />
           </TabsContent>
         </div>
       </Tabs>

@@ -1,5 +1,6 @@
 import "server-only";
 import { NextResponse } from "next/server";
+import { clientIp } from "@/lib/client-ip";
 import { consume, pruneRateLimits } from "@/lib/rate-limit";
 import { isSameOriginMutation } from "@/lib/same-origin";
 import { getWorkspaceId } from "@/lib/workspace";
@@ -24,13 +25,8 @@ export const LIMITS = {
   clientWrite: { name: "client:write", perWorkspace: 60, perIp: 120, windowSeconds: 60, maxBytes: 256 * 1024 },
   profileWrite: { name: "profile:write", perWorkspace: 30, perIp: 60, windowSeconds: 60, maxBytes: 2 * 1024 * 1024 },
   pdfExport: { name: "pdf:export", perWorkspace: 20, perIp: 40, windowSeconds: 60, maxBytes: 512 * 1024 },
+  dataImport: { name: "data:import", perWorkspace: 3, perIp: 6, windowSeconds: 3600, maxBytes: 4 * 1024 * 1024 },
 } satisfies Record<string, MutationLimits>;
-
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]!.trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
-}
 
 /**
  * Runs before the body is read on every mutating route: rejects cross-origin

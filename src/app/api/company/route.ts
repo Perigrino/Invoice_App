@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureWorkspace, getWorkspaceId } from "@/lib/workspace";
+import { clientIp } from "@/lib/client-ip";
 import { LIMITS, guardMutation } from "@/lib/request-guard";
 
 export async function GET() {
@@ -27,7 +28,13 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   try {
-    await ensureWorkspace(workspaceId);
+    const created = await ensureWorkspace(workspaceId, clientIp(request));
+    if (!created.ok) {
+      return NextResponse.json(
+        { error: "Too many new workspaces" },
+        { status: 429, headers: { "Retry-After": String(created.retryAfterSeconds) } }
+      );
+    }
     const body = await request.json();
 
     const companyData = {
