@@ -3,12 +3,10 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "@/components/ui/theme-provider";
 import { Button } from "@/components/ui/button";
-import { UserMenu } from "./user-menu";
 import { Sun, Moon, Menu } from "lucide-react";
 import { useUIStore } from "@/store/ui-store";
-import type { DashboardUser } from "./dashboard-layout";
 
-export function Topbar({ user }: { user: DashboardUser }) {
+export function Topbar() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const openMobileNav = useUIStore((s) => s.openMobileNav);
   const [mounted, setMounted] = useState(false);
@@ -47,7 +45,6 @@ export function Topbar({ user }: { user: DashboardUser }) {
             <Moon className="h-5 w-5 lg:h-4 lg:w-4" />
           )}
         </Button>
-        <UserMenu user={user} />
       </div>
     </header>
   );

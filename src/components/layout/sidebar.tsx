@@ -12,7 +12,6 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  ShieldCheck,
 } from "lucide-react";
 import { useProfileStore } from "@/store/profile-store";
 
@@ -27,7 +26,6 @@ interface SidebarProps {
   onToggle: () => void;
   mobileOpen: boolean;
   onClose: () => void;
-  isAdmin: boolean;
 }
 
 function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
@@ -76,11 +74,9 @@ function ProfileSwitcher({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-export function Sidebar({ collapsed, onToggle, mobileOpen, onClose, isAdmin }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, mobileOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const items = isAdmin
-    ? [...navItems, { href: "/admin", label: "Admin", icon: ShieldCheck }]
-    : navItems;
+  const items = navItems;
 
   return (
     <aside

@@ -1,33 +1,18 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { getWorkspaceId } from "@/lib/workspace";
 
 export default async function Layout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    // Only reachable if src/proxy.ts stopped running for app routes.
+    throw new Error(
+      "No workspace cookie on this request — the proxy did not run."
+    );
+  }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { username: true, name: true, email: true, role: true },
-  });
-  if (!user) redirect("/login");
-
-  return (
-    <DashboardLayout
-      user={{
-        id: session.user.id,
-        name: user.name ?? "",
-        username: user.username ?? undefined,
-        email: user.email,
-        role: user.role ?? undefined,
-      }}
-    >
-      {children}
-    </DashboardLayout>
-  );
+  return <DashboardLayout workspaceId={workspaceId}>{children}</DashboardLayout>;
 }

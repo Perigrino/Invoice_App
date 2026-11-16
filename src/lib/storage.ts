@@ -1,12 +1,12 @@
-let _userId = "";
+let _workspaceId = "";
 let _profileId = "default";
 
-export function setUserNamespace(userId: string) {
-  _userId = userId;
+export function setWorkspaceNamespace(workspaceId: string) {
+  _workspaceId = workspaceId;
 }
 
-export function getUserNamespace() {
-  return _userId;
+export function getWorkspaceNamespace() {
+  return _workspaceId;
 }
 
 export function setProfileNamespace(id: string) {
@@ -17,12 +17,12 @@ export function getProfileNamespace() {
   return _profileId;
 }
 
-function userPrefix() {
-  return _userId ? `u_${_userId}_` : "";
+function workspacePrefix() {
+  return _workspaceId ? `w_${_workspaceId}_` : "";
 }
 
 export function profileKey(base: string) {
-  return `invoiceflow_${userPrefix()}p_${_profileId}_${base}`;
+  return `invoiceflow_${workspacePrefix()}p_${_profileId}_${base}`;
 }
 
 export function loadFromStorage<T>(key: string, fallback: T): T {
@@ -49,7 +49,7 @@ export function saveToStorage<T>(key: string, data: T): void {
 export function loadRaw<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try {
-    const raw = localStorage.getItem(`${userPrefix()}${key}`);
+    const raw = localStorage.getItem(`${workspacePrefix()}${key}`);
     if (!raw) return fallback;
     return JSON.parse(raw) as T;
   } catch {
@@ -60,7 +60,7 @@ export function loadRaw<T>(key: string, fallback: T): T {
 export function saveRaw<T>(key: string, data: T): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(`${userPrefix()}${key}`, JSON.stringify(data));
+    localStorage.setItem(`${workspacePrefix()}${key}`, JSON.stringify(data));
   } catch (e) {
     console.error("Failed to save to localStorage:", e);
   }

@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getUserId } from "@/lib/user";
+import { getWorkspaceId } from "@/lib/workspace";
 
 export async function GET() {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   try {
-    const company = await prisma.company.findUnique({ where: { userId } });
+    const company = await prisma.company.findUnique({ where: { workspaceId } });
     return NextResponse.json(company || {});
   } catch {
     return NextResponse.json(
@@ -19,9 +19,9 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   try {
     const body = await request.json();
@@ -37,9 +37,9 @@ export async function PUT(request: Request) {
     };
 
     const company = await prisma.company.upsert({
-      where: { userId },
+      where: { workspaceId },
       update: companyData,
-      create: { ...companyData, userId },
+      create: { ...companyData, workspaceId },
     });
     return NextResponse.json(company);
   } catch {

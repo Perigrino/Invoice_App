@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // CommonJS tooling: electron and build scripts are Node scripts, not app code.
+    "electron/**",
+    "scripts/**",
   ]),
 ]);
 

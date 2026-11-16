@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feature/mac-to-web-migration]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Lint, typecheck, build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: invoiceflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invoiceflow
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/invoiceflow
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # The schema is applied with `db push` (no migration history yet); the
+      # service container is disposable so this is safe in CI.
+      - name: Apply schema to the CI database
+        run: npx prisma db push --skip-generate
+
+      # `main` already carries six `react-hooks/set-state-in-effect` errors in
+      # components this migration has not touched, so lint reports but does not
+      # gate yet. Flip `continue-on-error` off once that debt is burned down
+      # (tracked as a Phase 4 item in the migration plan).
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build

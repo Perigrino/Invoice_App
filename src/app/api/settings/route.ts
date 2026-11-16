@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getUserId } from "@/lib/user";
+import { getWorkspaceId } from "@/lib/workspace";
 
 export async function GET() {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   try {
     const settings = await prisma.setting.findUnique({
-      where: { userId },
+      where: { workspaceId },
     });
     return NextResponse.json(settings || {});
   } catch {
@@ -21,22 +21,22 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   try {
     const body = await request.json();
-    const existing = await prisma.setting.findUnique({ where: { userId } });
+    const existing = await prisma.setting.findUnique({ where: { workspaceId } });
     if (existing) {
       const settings = await prisma.setting.update({
-        where: { userId },
+        where: { workspaceId },
         data: body,
       });
       return NextResponse.json(settings);
     } else {
       const settings = await prisma.setting.create({
-        data: { userId, ...body },
+        data: { workspaceId, ...body },
       });
       return NextResponse.json(settings);
     }

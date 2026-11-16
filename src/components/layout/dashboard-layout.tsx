@@ -9,20 +9,12 @@ import { StorageHydrator } from "./storage-hydrator";
 import { useUIStore } from "@/store/ui-store";
 import { cn } from "@/lib/utils";
 
-export interface DashboardUser {
-  id: string;
-  name: string;
-  username?: string;
-  email: string;
-  role?: string;
-}
-
 export function DashboardLayout({
   children,
-  user,
+  workspaceId,
 }: {
   children: React.ReactNode;
-  user: DashboardUser;
+  workspaceId: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const mobileNavOpen = useUIStore((s) => s.mobileNavOpen);
@@ -61,18 +53,14 @@ export function DashboardLayout({
 
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
-    posthog.identify(user.id, {
-      username: user.username,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    });
+    // Anonymous workspace id only: there is no account to identify.
+    posthog.identify(`workspace_${workspaceId}`);
     return () => posthog.reset();
-  }, [user.id, user.username, user.email, user.name, user.role]);
+  }, [workspaceId]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gradient-subtle dark:bg-gradient-subtle">
-      <StorageHydrator userId={user.id} />
+      <StorageHydrator workspaceId={workspaceId} />
       {mobileNavOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
@@ -85,10 +73,9 @@ export function DashboardLayout({
         onToggle={() => setCollapsed((c) => !c)}
         mobileOpen={mobileNavOpen}
         onClose={closeMobileNav}
-        isAdmin={user.role === "admin"}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Topbar user={user} />
+        <Topbar />
         <main className={cn("flex-1 overflow-auto p-4 lg:p-6")}>
           {children}
         </main>

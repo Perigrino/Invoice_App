@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { assemblePdfData } from "@/lib/pdf/assemble";
 import { generateInvoicePdfBuffer } from "@/lib/pdf/generate-pdf";
+import { getWorkspaceId } from "@/lib/workspace";
 
 export async function POST(request: Request) {
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
+  }
   try {
     const body = await request.json();
     const invoice = body?.invoice;

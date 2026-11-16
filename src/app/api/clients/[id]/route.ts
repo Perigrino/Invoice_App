@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getUserId } from "@/lib/user";
+import { getWorkspaceId } from "@/lib/workspace";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   const { id } = await params;
   try {
     const client = await prisma.client.findFirst({
-      where: { id, userId },
+      where: { id, workspaceId },
       include: {
         _count: { select: { invoices: true } },
       },
@@ -34,15 +34,15 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   const { id } = await params;
   try {
     const body = await request.json();
     const existing = await prisma.client.findFirst({
-      where: { id, userId },
+      where: { id, workspaceId },
     });
     if (!existing) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
@@ -71,14 +71,14 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   const { id } = await params;
   try {
     const existing = await prisma.client.findFirst({
-      where: { id, userId },
+      where: { id, workspaceId },
     });
     if (!existing) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });

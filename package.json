@@ -2,7 +2,7 @@
   "name": "invoiceflow",
   "version": "0.1.2",
   "private": true,
-  "description": "InvoiceFlow — a modern invoicing app for freelancers and small businesses.",
+  "description": "InvoiceFlow \u2014 a modern invoicing app for freelancers and small businesses.",
   "author": {
     "name": "InvoiceFlow"
   },
@@ -14,10 +14,10 @@
     "lint": "eslint",
     "electron:dev": "electron .",
     "dist": "npm run build && node scripts/electron-stage.cjs && electron-builder --mac",
-    "dist:arm64": "npm run build && node scripts/electron-stage.cjs && electron-builder --mac --arm64"
+    "dist:arm64": "npm run build && node scripts/electron-stage.cjs && electron-builder --mac --arm64",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "^2.11.3",
     "@hookform/resolvers": "^5.5.7",
     "@json-render/core": "^0.19.0",
     "@json-render/react-pdf": "^0.19.0",
@@ -38,7 +38,6 @@
     "@radix-ui/react-tooltip": "^1.2.16",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.1.0",
-    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
@@ -46,7 +45,6 @@
     "jspdf": "^4.2.1",
     "lucide-react": "^1.28.0",
     "next": "16.2.12",
-    "next-auth": "^5.0.0-beta.32",
     "next-themes": "^0.4.6",
     "posthog-js": "^1.414.0",
     "prisma": "^6.19.3",

@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getUserId } from "@/lib/user";
+import { getWorkspaceId } from "@/lib/workspace";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   const { id } = await params;
   try {
     const invoice = await prisma.invoice.findFirst({
-      where: { id, userId },
+      where: { id, workspaceId },
       include: { client: true, lineItems: true },
     });
     if (!invoice) {
@@ -32,9 +32,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   const { id } = await params;
   try {
@@ -42,13 +42,13 @@ export async function PUT(
     let clientId: string | null = body.clientId || null;
     if (clientId) {
       const client = await prisma.client.findFirst({
-        where: { id: clientId, userId },
+        where: { id: clientId, workspaceId },
         select: { id: true },
       });
       if (!client) clientId = null;
     }
     const existing = await prisma.invoice.findFirst({
-      where: { id, userId },
+      where: { id, workspaceId },
     });
     if (!existing) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
@@ -100,14 +100,14 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   const { id } = await params;
   try {
     const existing = await prisma.invoice.findFirst({
-      where: { id, userId },
+      where: { id, workspaceId },
     });
     if (!existing) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });

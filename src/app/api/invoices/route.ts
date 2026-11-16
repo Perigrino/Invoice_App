@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getUserId } from "@/lib/user";
+import { getWorkspaceId } from "@/lib/workspace";
 
 export async function GET() {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   try {
     const invoices = await prisma.invoice.findMany({
-      where: { userId },
+      where: { workspaceId },
       include: { client: true, lineItems: true },
       orderBy: { createdAt: "desc" },
     });
@@ -23,23 +23,23 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   try {
     const body = await request.json();
     let clientId: string | null = body.clientId || null;
     if (clientId) {
       const client = await prisma.client.findFirst({
-        where: { id: clientId, userId },
+        where: { id: clientId, workspaceId },
         select: { id: true },
       });
       if (!client) clientId = null;
     }
     const invoice = await prisma.invoice.create({
       data: {
-        userId,
+        workspaceId,
         invoiceNumber: body.invoiceNumber,
         invoiceType: body.invoiceType || "invoice",
         clientId,
