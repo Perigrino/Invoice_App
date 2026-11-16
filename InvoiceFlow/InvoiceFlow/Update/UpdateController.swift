@@ -158,9 +158,28 @@ final class UpdateController: ObservableObject {
     }
 
     func handleAbort(_ error: Error) {
+        // Sparkle reports a user-initiated check with nothing to install as an
+        // error (SUNoUpdateError). That is a success, not a failure.
+        if Self.isNoUpdate(error) {
+            updateLog("aborted: no update, already current")
+            handleNotFound()
+            return
+        }
+
         let message = Self.failureMessage(for: error)
-        updateLog("aborted: \(message)")
+        updateLog("aborted: \(message) [\((error as NSError).domain) \((error as NSError).code)]")
         phase = .failed(message)
+    }
+
+    static func isNoUpdate(_ error: Error) -> Bool {
+        var current: NSError? = error as NSError
+        while let node = current {
+            if node.domain == SUSparkleErrorDomain, node.code == Int(SUError.noUpdateError.rawValue) {
+                return true
+            }
+            current = node.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        return false
     }
 
     /// Sparkle reports a wrapped, generic sentence ("…please try again later")

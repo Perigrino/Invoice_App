@@ -81,6 +81,8 @@ struct UpdateSettingsCard: View {
 
     private var lastCheckedText: String {
         guard let date = updates.lastCheckDate else { return "Not checked yet" }
+        // RelativeDateTimeFormatter renders a fresh stamp as "in 0 seconds".
+        if Date().timeIntervalSince(date) < 60 { return "Just now" }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         return formatter.localizedString(for: date, relativeTo: Date())
