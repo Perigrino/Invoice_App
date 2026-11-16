@@ -49,10 +49,6 @@ final class UpdateController: ObservableObject {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
     }
 
-    var currentBuild: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
-    }
-
     var isUpdateAvailable: Bool {
         if case .available = phase, availableVersion != nil { return true }
         return false
@@ -182,9 +178,9 @@ final class UpdateController: ObservableObject {
         return false
     }
 
-    /// Sparkle reports a wrapped, generic sentence ("…please try again later")
-    /// while the actual cause sits in the underlying error chain. Show both, so
-    /// a failed feed fetch says it timed out instead of hiding behind the wrap.
+    /// One plain sentence for the card. Sparkle wraps its failures in generic
+    /// boilerplate ("An error occurred… please try again later") and tacks the
+    /// error domain on the end, so the useful reason is rebuilt from the chain.
     static func failureMessage(for error: Error) -> String {
         var chain: [NSError] = []
         var current = error as NSError
@@ -194,31 +190,38 @@ final class UpdateController: ObservableObject {
             current = underlying
         }
 
-        let headline = trimmedPeriod(chain[0].localizedDescription)
-        // CFNetwork ends the chain with a filler node ("The operation couldn’t
-        // be completed…"); the node above it carries the real reason.
-        let generic = chain.dropFirst().filter { !isMeaningful($0.localizedDescription) }
-        let candidates = chain.dropFirst().filter { isMeaningful($0.localizedDescription) }
-        guard let detail = candidates.last ?? generic.last ?? chain.dropFirst().last else {
-            return describe(headline, domain: chain[0].domain, code: chain[0].code)
+        // Sparkle wraps its failures in boilerplate and CFNetwork ends the
+        // chain with a filler node ("The operation couldn’t be completed…");
+        // isMeaningful skips both so the deepest real reason survives.
+        let causes = chain.filter { isMeaningful($0.localizedDescription) }
+        guard let cause = causes.last else {
+            return "Couldn't check for updates. Try again in a moment."
         }
 
-        let cause = trimmedPeriod(detail.localizedDescription)
-        if headline.localizedCaseInsensitiveContains(cause) {
-            return describe(headline, domain: detail.domain, code: detail.code)
+        switch (cause.domain, cause.code) {
+        case (NSURLErrorDomain, NSURLErrorTimedOut),
+             ("kCFErrorDomainCFNetwork", NSURLErrorTimedOut):
+            return "The update server didn't respond in time. Check your connection and try again."
+        case (NSURLErrorDomain, NSURLErrorNotConnectedToInternet),
+             (NSURLErrorDomain, NSURLErrorNetworkConnectionLost):
+            return "You appear to be offline. Reconnect and try again."
+        case (NSURLErrorDomain, NSURLErrorCannotFindHost),
+             (NSURLErrorDomain, NSURLErrorCannotConnectToHost):
+            return "The update server couldn't be reached. Check your connection and try again."
+        default:
+            let reason = trimmedPeriod(cause.localizedDescription)
+            guard !reason.isEmpty else { return "Couldn't check for updates. Try again in a moment." }
+            let sentence = String(reason.prefix(1)).lowercased() + String(reason.dropFirst())
+            return "Couldn't check for updates: \(sentence)."
         }
-        return "\(headline). Cause: \(describe(cause, domain: detail.domain, code: detail.code))"
-    }
-
-    /// Appends domain and code unless the sentence already names them.
-    private static func describe(_ text: String, domain: String, code: Int) -> String {
-        guard !text.localizedCaseInsensitiveContains(domain) else { return text }
-        return "\(text) (\(domain) \(code))"
     }
 
     private static func isMeaningful(_ text: String) -> Bool {
         let lowercased = text.lowercased()
-        return !(lowercased.contains("couldn") && lowercased.contains("be completed"))
+        if lowercased.contains("couldn") && lowercased.contains("be completed") { return false }
+        if lowercased.contains("please try again later") { return false }
+        if lowercased.contains("an error occurred") { return false }
+        return true
     }
 
     private static func trimmedPeriod(_ text: String) -> String {
@@ -234,14 +237,6 @@ final class UpdateController: ObservableObject {
     }
 
     #if DEBUG
-    /// Snapshot-test seam: renders the banner in its "update available" state
-    /// without touching Sparkle.
-    func debugPresentUpdate(version: String, notes: URL?) {
-        availableVersion = version
-        releaseNotesURL = notes
-        phase = .available
-    }
-
     private func runAutomatedUpdateCheck() {
         let driver = AutoUpdatingUserDriver()
         driver.owner = self

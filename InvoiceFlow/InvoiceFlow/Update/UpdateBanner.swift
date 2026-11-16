@@ -80,7 +80,7 @@ struct UpdateSettingsCard: View {
     @ObservedObject var updates: UpdateController
 
     private var lastCheckedText: String {
-        guard let date = updates.lastCheckDate else { return "Not checked yet" }
+        guard let date = updates.lastCheckDate else { return "Never" }
         // RelativeDateTimeFormatter renders a fresh stamp as "in 0 seconds".
         if Date().timeIntervalSince(date) < 60 { return "Just now" }
         let formatter = RelativeDateTimeFormatter()
@@ -96,7 +96,7 @@ struct UpdateSettingsCard: View {
         case .installing: return "Installing…"
         case .upToDate: return "Up to date"
         case .failed: return "Check failed"
-        case .idle: return "Idle"
+        case .idle: return "Not checked yet"
         }
     }
 
@@ -105,7 +105,7 @@ struct UpdateSettingsCard: View {
             SettingsCardHeader(title: "Updates")
             SettingRow(
                 "Version",
-                description: "InvoiceFlow \(updates.currentVersion) (build \(updates.currentBuild))."
+                description: "InvoiceFlow \(updates.currentVersion)."
             ) {
                 StatusPill(text: statusText)
             }
@@ -135,16 +135,19 @@ struct UpdateSettingsCard: View {
                     .disabled(!updates.canCheckForUpdates)
             }
             SettingRow("Last checked", showsDivider: false) {
-                Text(lastCheckedText)
-                    .font(.system(size: 11.5))
-                    .foregroundColor(Theme.textSecondary)
-                if case let .failed(message) = updates.phase {
-                    Text(message)
-                        .font(.system(size: 11))
-                        .foregroundColor(Theme.negative)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(lastCheckedText)
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.textSecondary)
+                    if case let .failed(message) = updates.phase {
+                        Text(message)
+                            .font(.system(size: 11))
+                            .foregroundColor(Theme.negative)
+                            .lineLimit(3)
+                            .multilineTextAlignment(.trailing)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: 430, alignment: .trailing)
+                    }
                 }
             }
         }
