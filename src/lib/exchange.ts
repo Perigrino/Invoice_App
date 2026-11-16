@@ -160,14 +160,21 @@ export function validateExportFile(raw: unknown): Validation {
 
   let lineItemCount = 0;
   const invoices: ExportedInvoice[] = [];
+  const seenNumbers = new Set<string>();
   rawInvoices.forEach((entry, index) => {
     if (!isRecord(entry)) {
       errors.push(`invoices[${index}] is not an object`);
       return;
     }
-    if (!str(entry.invoiceNumber)?.trim()) {
+    const invoiceNumber = str(entry.invoiceNumber)?.trim() ?? "";
+    if (!invoiceNumber) {
       errors.push(`invoices[${index}].invoiceNumber is required`);
+    } else if (seenNumbers.has(invoiceNumber)) {
+      // The database enforces this per workspace; reporting it here turns a
+      // rolled-back import into an actionable message.
+      errors.push(`Duplicate invoice number ${invoiceNumber}`);
     }
+    seenNumbers.add(invoiceNumber);
     const rawItems = Array.isArray(entry.lineItems) ? entry.lineItems : [];
     if (rawItems.length > MAX_LINE_ITEMS) {
       errors.push(`invoices[${index}] has more than ${MAX_LINE_ITEMS} line items`);

@@ -29,8 +29,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const payload = (body as { file?: unknown; export?: unknown });
-  const validation = validateExportFile(payload.file ?? payload.export ?? body);
+  // A bare export file is also accepted; the UI always posts `{ file }`.
+  const validation = validateExportFile((body as { file?: unknown }).file ?? body);
   if (!validation.ok) {
     return NextResponse.json({ error: "Invalid export file", issues: validation.errors }, { status: 400 });
   }

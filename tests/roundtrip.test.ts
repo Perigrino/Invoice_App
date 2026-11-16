@@ -129,6 +129,20 @@ describe("export file", () => {
   });
 });
 
+describe("validation", () => {
+  it("rejects a file whose invoice numbers repeat, before any write", () => {
+    const file = workspaceFile();
+    const duplicated = {
+      ...file,
+      invoices: [file.invoices[0], { ...file.invoices[2], invoiceNumber: file.invoices[0].invoiceNumber }],
+    };
+    const validation = validateExportFile(JSON.parse(JSON.stringify(duplicated)));
+    expect(validation.ok).toBe(false);
+    if (validation.ok) return;
+    expect(validation.errors.join(" ")).toContain("Duplicate invoice number INV-26-0001");
+  });
+});
+
 describe("round trip", () => {
   it("keeps client links as positions, including a missing client", () => {
     const file = workspaceFile();

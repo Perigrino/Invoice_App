@@ -32,16 +32,16 @@ export const LIMITS = {
    * actual import should have.
    */
   dataImportCheck: { name: "data:import-check", perWorkspace: 30, perIp: 60, windowSeconds: 3600, maxBytes: 4 * 1024 * 1024 },
+  dataImport: { name: "data:import", perWorkspace: 3, perIp: 6, windowSeconds: 3600, maxBytes: 4 * 1024 * 1024 },
   snapshotCreate: { name: "snapshot:create", perWorkspace: 6, perIp: 12, windowSeconds: 3600, maxBytes: 1024 },
   snapshotRestore: { name: "snapshot:restore", perWorkspace: 6, perIp: 12, windowSeconds: 3600, maxBytes: 1024 },
-  dataImport: { name: "data:import", perWorkspace: 3, perIp: 6, windowSeconds: 3600, maxBytes: 4 * 1024 * 1024 },
 } satisfies Record<string, MutationLimits>;
 
 /**
  * Rejects cross-origin requests and oversized payloads before the body is
  * read. Returns `null` when the request may proceed.
  */
-export function guardRequestShape(
+function guardShape(
   request: Request,
   limits: MutationLimits
 ): NextResponse | null {
@@ -64,23 +64,9 @@ export function guardRequestShape(
 }
 
 /**
- * Runs before the body is read on every mutating route: rejects cross-origin
- * requests, oversized payloads and callers over their budget. Returns `null`
- * when the request may proceed.
- */
-export async function guardMutation(
-  request: Request,
-  limits: MutationLimits
-): Promise<NextResponse | null> {
-  const shape = guardRequestShape(request, limits);
-  if (shape) return shape;
-  return guardRateLimit(request, limits);
-}
-
-/**
- * Spends one request from the caller's budget. Separate from
- * `guardRequestShape` for routes that need to tell two kinds of request apart
- * before deciding which budget to charge (see the import route).
+ * Spends one request from the caller's budget, without the shape check. Only
+ * routes that must read the body to know which budget applies use this (the
+ * import route: a dry run is cheap, a real import is not).
  */
 export async function guardRateLimit(
   request: Request,
@@ -114,4 +100,18 @@ export async function guardRateLimit(
   }
 
   return null;
+}
+
+/**
+ * The normal entry point for a mutating route, called before the body is read:
+ * rejects cross-origin requests, oversized payloads and callers over budget.
+ * Returns `null` when the request may proceed.
+ */
+export async function guardMutation(
+  request: Request,
+  limits: MutationLimits
+): Promise<NextResponse | null> {
+  const shape = guardShape(request, limits);
+  if (shape) return shape;
+  return guardRateLimit(request, limits);
 }

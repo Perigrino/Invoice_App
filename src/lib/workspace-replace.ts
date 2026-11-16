@@ -4,11 +4,15 @@ import { prisma } from "@/lib/prisma";
 import type { ExportFile } from "@/lib/exchange";
 import { recalculate, toCents } from "@/lib/money";
 
-/** Postgres caps a statement at 65535 parameters, so rows go in batches. */
-const CLIENT_BATCH = 1_000;
-const INVOICE_BATCH = 500;
-const LINE_ITEM_BATCH = 2_000;
+/**
+ * Postgres caps a statement at 65,535 parameters. The widest row here is an
+ * invoice at 15 columns, so 500 rows is under 8,000 parameters — comfortably
+ * safe for all three tables, and large enough that a 20,000-invoice file is a
+ * few dozen statements.
+ */
+const BATCH_SIZE = 500;
 
+/** The default 5s is too short once the database is not on localhost. */
 const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 60_000 };
 
 function batches<T>(items: T[], size: number): T[][] {
@@ -86,7 +90,8 @@ export async function replaceWorkspace(workspaceId: string, file: ExportFile): P
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.invoiceLineItem.deleteMany({ where: { invoice: { workspaceId } } });
+    // Line items go with their invoices (onDelete: Cascade), so they need no
+    // delete of their own; everything here commits or rolls back together.
     await tx.invoice.deleteMany({ where: { workspaceId } });
     await tx.client.deleteMany({ where: { workspaceId } });
     await tx.setting.deleteMany({ where: { workspaceId } });
@@ -99,13 +104,13 @@ export async function replaceWorkspace(workspaceId: string, file: ExportFile): P
       await tx.company.create({ data: { ...file.company, workspaceId } });
     }
 
-    for (const batch of batches(clientRows, CLIENT_BATCH)) {
+    for (const batch of batches(clientRows, BATCH_SIZE)) {
       await tx.client.createMany({ data: batch });
     }
-    for (const batch of batches(invoiceRows, INVOICE_BATCH)) {
+    for (const batch of batches(invoiceRows, BATCH_SIZE)) {
       await tx.invoice.createMany({ data: batch });
     }
-    for (const batch of batches(lineItemRows, LINE_ITEM_BATCH)) {
+    for (const batch of batches(lineItemRows, BATCH_SIZE)) {
       await tx.invoiceLineItem.createMany({ data: batch });
     }
   }, TRANSACTION_OPTIONS);
