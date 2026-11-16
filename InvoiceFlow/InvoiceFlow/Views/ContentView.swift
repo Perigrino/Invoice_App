@@ -86,9 +86,6 @@ enum GradientPalette: String, CaseIterable, Identifiable {
 
     var accent: Color { Theme.dyn(light: hexes.lightA, dark: hexes.darkA) }
     var accentAlt: Color { Theme.dyn(light: hexes.lightB, dark: hexes.darkB) }
-    /// Solid pair for swatches/dots — same value in both appearances.
-    var dotTop: Color { Color(hex: hexes.darkA) }
-    var dotBottom: Color { Color(hex: hexes.darkB) }
     var glow: Color { themedAlpha(light: hexes.lightA, dark: hexes.darkA, (0.15, 0.22)) }
     var glowAlt: Color { themedAlpha(light: hexes.lightB, dark: hexes.darkB, (0.11, 0.16)) }
 
@@ -131,25 +128,13 @@ enum Theme {
     static var accentAlt: Color { palette.accentAlt }
     static var accentDeep: Color { palette.accent }
 
-    /// Toolbar swatch pair (appearance-independent).
-    static var dotTop: Color { palette.dotTop }
-    static var dotBottom: Color { palette.dotBottom }
-
     static var gradient: LinearGradient {
         LinearGradient(colors: [accent, accentAlt], startPoint: .top, endPoint: .bottom)
-    }
-
-    static var gradientHorizontal: LinearGradient {
-        LinearGradient(colors: [accent, accentAlt], startPoint: .leading, endPoint: .trailing)
     }
 
     static var gradientDiagonal: LinearGradient {
         LinearGradient(colors: [accent, accentAlt], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
-
-    // Selection fill: one solid accent-derived colour, deep enough to hold a
-    // white label at a readable contrast in both appearances.
-    static let selection = dyn(light: "#0B7C6F", dark: "#0E8B7C")
 
     /// Content drawn on the gradient stays white in both themes.
     static let onAccent = Color.white
@@ -348,19 +333,6 @@ struct AppearModifier: ViewModifier {
     }
 }
 
-/// A restrained lift on hover, shared by cards and primary actions.
-struct HoverLiftModifier: ViewModifier {
-    @State private var hovering = false
-
-    func body(content: Content) -> some View {
-        content
-            .scaleEffect(hovering ? 1.006 : 1)
-            .shadow(color: hovering ? Theme.hoverShadow : .clear, radius: 14, x: 0, y: 6)
-            .animation(Theme.smooth, value: hovering)
-            .onHover { hovering = $0 }
-    }
-}
-
 extension View {
     /// Translucent glass card with a lit top edge.
     func glassCard(radius: CGFloat = Theme.radiusCard) -> some View {
@@ -369,10 +341,6 @@ extension View {
 
     func appear(quick: Bool = false) -> some View {
         modifier(AppearModifier(quick: quick))
-    }
-
-    func hoverLift() -> some View {
-        modifier(HoverLiftModifier())
     }
 
     /// Capsule button surface (prototype `.btn`): primary = gradient + glow,
@@ -425,9 +393,9 @@ struct AttributionFooter: View {
         HStack(spacing: 0) {
             Spacer(minLength: 0)
             Text("Made with ❤️ by Perigrino")
-                .font(.system(size: 10.5))
+                .font(.system(size: 10))
                 .kerning(0.1)
-                .foregroundColor(Theme.textSecondary)
+                .foregroundColor(Theme.textSecondary.opacity(0.7))
                 .lineLimit(1)
                 .accessibilityLabel("Made with love by Perigrino")
         }
@@ -869,52 +837,6 @@ func formatCurrency(_ amount: Double, currencyCode: String = "USD") -> String {
 
 func formatCurrency(_ amount: Decimal, currencyCode: String = "USD") -> String {
     CurrencyFormatter.shared.string(from: amount, currencyCode: currencyCode)
-}
-
-struct SettingsUI {
-    static func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.system(.body, weight: .semibold))
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .glassCard()
-    }
-    
-    static func row(label: String, value: Binding<String>, placeholder: String) -> some View {
-        HStack {
-            Text(label)
-                .frame(width: 120, alignment: .leading)
-            TextField(placeholder, text: value)
-                .textFieldStyle(.roundedBorder)
-            Spacer()
-        }
-    }
-    
-    static func toggle(label: String, isOn: Binding<Bool>) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            Toggle("", isOn: isOn)
-                .labelsHidden()
-        }
-    }
-    
-    static func pickerRow(label: String, selection: Binding<String>, options: [(String, String)]) -> some View {
-        HStack {
-            Text(label)
-                .frame(width: 120, alignment: .leading)
-            Picker("", selection: selection) {
-                ForEach(options, id: \.0) { value, display in
-                    Text(display).tag(value)
-                }
-            }
-            .labelsHidden()
-            Spacer()
-        }
-    }
 }
 
 // MARK: - ContentView
