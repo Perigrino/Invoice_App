@@ -61,11 +61,14 @@ model Invoice {
   clientId      String?
   client        Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
   status        String            @default("draft")
-  subtotal      Float             @default(0)
-  discount      Float             @default(0)
-  tax           Float             @default(0)
-  total         Float             @default(0)
-  balanceDue    Float             @default(0)
+  /// All money columns are integer cents; percentages are stored separately.
+  subtotalCents   Int             @default(0)
+  discountPercent Float           @default(0)
+  discountCents   Int             @default(0)
+  taxPercent      Float           @default(0)
+  taxCents        Int             @default(0)
+  totalCents      Int             @default(0)
+  balanceDueCents Int             @default(0)
   notes         String?           @db.Text
   issueDate     DateTime          @default(now())
   dueDate       DateTime?
@@ -75,19 +78,20 @@ model Invoice {
 
   @@index([workspaceId])
   @@index([workspaceId, createdAt])
+  @@unique([workspaceId, invoiceNumber])
 }
 
 model InvoiceLineItem {
   id          String  @id @default(cuid())
   invoiceId   String
   invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  description String
-  price       Float   @default(0)
-  quantity    Float   @default(1)
-  discount    Float   @default(0)
-  tax         Float   @default(0)
-  total       Float   @default(0)
-  sortOrder   Int     @default(0)
+  description     String
+  priceCents      Int     @default(0)
+  quantity        Float   @default(1)
+  discountPercent Float   @default(0)
+  taxPercent      Float   @default(0)
+  totalCents      Int     @default(0)
+  sortOrder       Int     @default(0)
 }
 
 model Tax {

@@ -54,6 +54,31 @@ function uid() {
   return Math.random().toString(36).substring(2, 9);
 }
 
+/**
+ * The server owns the invoice number and the totals, so once it answers the
+ * optimistic row is corrected in place (the local id stays, because routes and
+ * the editor address invoices by it).
+ */
+function reconcile(id: string): (synced: SavedInvoice | null) => void {
+  return (synced) => {
+    if (!synced) return;
+    const invoices = useInvoiceStore.getState().invoices.map((invoice) =>
+      invoice.id === id
+        ? {
+            ...invoice,
+            invoiceNumber: synced.invoiceNumber,
+            subtotal: synced.subtotal,
+            discount: synced.discount,
+            total: synced.total,
+            balanceDue: synced.balanceDue,
+          }
+        : invoice
+    );
+    persist(invoices);
+    useInvoiceStore.setState({ invoices });
+  };
+}
+
 export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   invoices: [],
   currentInvoice: null,
@@ -88,7 +113,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     const updated = [saved, ...get().invoices];
     persist(updated);
     set({ invoices: updated, currentInvoice: null, isDirty: false });
-    apiCreateInvoice(saved);
+    apiCreateInvoice(saved).then(reconcile(saved.id));
     return saved;
   },
 
@@ -118,7 +143,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     );
     persist(updated);
     set({ invoices: updated, currentInvoice: null, isDirty: false });
-    apiUpdateInvoice(id, updatedInvoice);
+    apiUpdateInvoice(id, updatedInvoice).then(reconcile(id));
     return updatedInvoice;
   },
 
@@ -135,13 +160,14 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     const dup: SavedInvoice = {
       ...target,
       id: uid(),
-      invoiceNumber: `${target.invoiceNumber}-copy`,
+      // The server assigns the real number for a duplicate.
+      invoiceNumber: "",
       createdAt: new Date().toISOString(),
     };
     const updated = [dup, ...get().invoices];
     persist(updated);
     set({ invoices: updated });
-    apiCreateInvoice(dup);
+    apiCreateInvoice(dup).then(reconcile(dup.id));
   },
 
   setCurrentInvoice: (invoice) =>

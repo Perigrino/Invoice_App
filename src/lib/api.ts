@@ -124,20 +124,24 @@ export async function fetchInvoices(): Promise<SavedInvoice[]> {
   return (data || []).map(mapInvoice);
 }
 
-export async function createInvoice(invoice: SavedInvoice): Promise<boolean> {
-  const res = await fetchApi<{ id: string }>("/api/invoices", {
+/**
+ * The server assigns the invoice number and recomputes totals, so the saved
+ * record is returned and used to correct the optimistic local copy.
+ */
+export async function createInvoice(invoice: SavedInvoice): Promise<SavedInvoice | null> {
+  const res = await fetchApi<RawInvoice>("/api/invoices", {
     method: "POST",
     body: JSON.stringify(invoice),
   });
-  return Boolean(res);
+  return res ? mapInvoice(res) : null;
 }
 
-export async function updateInvoice(id: string, invoice: SavedInvoice): Promise<boolean> {
-  const res = await fetchApi<{ id: string }>(`/api/invoices/${id}`, {
+export async function updateInvoice(id: string, invoice: SavedInvoice): Promise<SavedInvoice | null> {
+  const res = await fetchApi<RawInvoice>(`/api/invoices/${id}`, {
     method: "PUT",
     body: JSON.stringify(invoice),
   });
-  return Boolean(res);
+  return res ? mapInvoice(res) : null;
 }
 
 export async function deleteInvoice(id: string): Promise<boolean> {
