@@ -41,6 +41,7 @@ import { track } from "@/lib/analytics";
 import type { PdfExportParams } from "@/lib/pdf/export-invoice";
 import Link from "next/link";
 import type { PreviewInvoiceData } from "./template-editor/preview/types";
+import { markRecoveryPending } from "@/lib/recovery-notice";
 
 
 function genId() {
@@ -203,6 +204,8 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
       updateInvoice(invoiceId, data, clientName);
     } else {
       saveInvoice(data, clientName);
+      // The key is shown once, after the first save, wherever this lands.
+      markRecoveryPending();
     }
     track(invoiceId ? "invoice_updated" : "invoice_created", {
       invoice_type: invoiceType,

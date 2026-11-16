@@ -1,7 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  RECOVERY_PENDING_EVENT,
+  clearRecoveryPending,
+  isRecoveryPending,
+  isRecoverySeen,
+  markRecoverySeen,
+} from "@/lib/recovery-notice";
 import { Check, Copy, KeyRound } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 interface WorkspaceRecoveryInfo {
@@ -31,47 +45,6 @@ function useRecoveryInfo() {
   return { info, failed };
 }
 
-/**
- * Dismissal lives in localStorage, per workspace. Read through
- * `useSyncExternalStore` so the server and first client render agree and no
- * state is set from an effect.
- */
-const dismissalListeners = new Set<() => void>();
-
-function notifyDismissal() {
-  for (const listener of dismissalListeners) listener();
-}
-
-function useDismissed(recoveryKey: string | null): boolean {
-  const storageKey = recoveryKey ? `invoiceflow_recovery_seen:${recoveryKey}` : "";
-  const subscribe = useCallback((onChange: () => void) => {
-    dismissalListeners.add(onChange);
-    window.addEventListener("storage", onChange);
-    return () => {
-      dismissalListeners.delete(onChange);
-      window.removeEventListener("storage", onChange);
-    };
-  }, []);
-  const getSnapshot = useCallback(() => {
-    if (!storageKey) return true;
-    try {
-      return window.localStorage.getItem(storageKey) === "1";
-    } catch {
-      return true;
-    }
-  }, [storageKey]);
-  return useSyncExternalStore(subscribe, getSnapshot, () => true);
-}
-
-function dismiss(recoveryKey: string) {
-  try {
-    window.localStorage.setItem(`invoiceflow_recovery_seen:${recoveryKey}`, "1");
-  } catch {
-    // Private mode: the banner simply comes back next time.
-  }
-  notifyDismissal();
-}
-
 function useCopy() {
   const [copied, setCopied] = useState<"key" | "link" | null>(null);
   const copy = useCallback(async (text: string, which: "key" | "link") => {
@@ -87,44 +60,100 @@ function useCopy() {
 }
 
 /**
- * Shown above the invoice list until dismissed: the one moment a new workspace
- * needs its key, right after the first save. Dismissal is per workspace, so a
- * recovered or new workspace shows it again.
+ * Shown once, immediately after the first saved invoice, and it does not go
+ * away until the key has been copied or explicitly acknowledged. Dismissal is
+ * per workspace, so a recovered workspace asks again.
  */
-export function RecoveryBanner() {
-  const { info } = useRecoveryInfo();
-  const { copied, copy } = useCopy();
-  const dismissed = useDismissed(info?.recoveryKey ?? null);
+export function RecoveryKeyGate() {
+  const [info, setInfo] = useState<WorkspaceRecoveryInfo | null>(null);
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  if (!info || dismissed) return null;
+  useEffect(() => {
+    let cancelled = false;
+
+    const check = () => {
+      if (!isRecoveryPending()) return;
+      fetch("/api/workspace", { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+        .then((body: WorkspaceRecoveryInfo) => {
+          if (cancelled) return;
+          if (isRecoverySeen(body.recoveryKey)) {
+            clearRecoveryPending();
+            return;
+          }
+          setInfo(body);
+          setOpen(true);
+        })
+        .catch(() => {
+          // Retried on the next save; never blocks the app.
+        });
+    };
+
+    check();
+    window.addEventListener(RECOVERY_PENDING_EVENT, check);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(RECOVERY_PENDING_EVENT, check);
+    };
+  }, []);
+
+  const acknowledge = () => {
+    if (info) markRecoverySeen(info.recoveryKey);
+    setCopied(false);
+    setOpen(false);
+  };
+
+  const copy = async () => {
+    if (!info) return;
+    try {
+      await navigator.clipboard.writeText(info.recoveryKey);
+      setCopied(true);
+      markRecoverySeen(info.recoveryKey);
+      setTimeout(() => setOpen(false), 1200);
+    } catch {
+      // Clipboard denied: the key stays on screen and "I've saved it" is the way out.
+    }
+  };
 
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/40">
-      <div className="flex flex-wrap items-start gap-3">
-        <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+    <Dialog open={open} onOpenChange={() => { /* acknowledged only */ }}>
+      <DialogContent
+        className="sm:max-w-md [&>button.absolute]:hidden"
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             Save your recovery key
-          </p>
-          <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
-            There are no accounts. This key is the only way back to your invoices if
-            you clear cookies or switch browsers.
-          </p>
-          <p className="mt-2 select-all font-mono text-base tracking-wider text-amber-900 dark:text-amber-100">
-            {info.recoveryKey}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={() => copy(info.recoveryKey, "key")}>
-            {copied === "key" ? <Check className="mr-1 h-4 w-4" /> : <Copy className="mr-1 h-4 w-4" />}
-            {copied === "key" ? "Copied" : "Copy key"}
+          </DialogTitle>
+          <DialogDescription>
+            Your invoice is saved. There are no accounts, so this key is the only way
+            back to your invoices if you clear cookies or switch browsers.
+          </DialogDescription>
+        </DialogHeader>
+
+        <p className="select-all rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-center font-mono text-lg tracking-wider text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+          {info?.recoveryKey ?? "…"}
+        </p>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={copy} disabled={!info}>
+            {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+            {copied ? "Copied" : "Copy key"}
           </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={() => dismiss(info.recoveryKey)}>
-            Done
+          <Button type="button" onClick={acknowledge} disabled={!info}>
+            I&rsquo;ve saved it
           </Button>
         </div>
-      </div>
-    </div>
+
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          You can find it again in Settings → Data.
+        </p>
+      </DialogContent>
+    </Dialog>
   );
 }
 
