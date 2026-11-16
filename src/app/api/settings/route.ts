@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getWorkspaceId } from "@/lib/workspace";
+import { ensureWorkspace, getWorkspaceId } from "@/lib/workspace";
 
 export async function GET() {
   const workspaceId = await getWorkspaceId();
@@ -26,6 +26,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   try {
+    await ensureWorkspace(workspaceId);
     const body = await request.json();
     const existing = await prisma.setting.findUnique({ where: { workspaceId } });
     if (existing) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getWorkspaceId } from "@/lib/workspace";
+import { ensureWorkspace, getWorkspaceId } from "@/lib/workspace";
 import { balanceCents } from "@/lib/money";
 import { nextInvoiceNumber } from "@/lib/numbering";
 import { buildLineItemWrites, serializeInvoice } from "@/lib/invoice-mapping";
@@ -34,6 +34,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   try {
+    await ensureWorkspace(workspaceId);
     const body = await request.json();
     let clientId: string | null = body.clientId || null;
     if (clientId) {

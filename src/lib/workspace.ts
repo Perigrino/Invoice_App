@@ -1,34 +1,27 @@
 import "server-only";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { WORKSPACE_COOKIE, isWorkspaceId } from "@/lib/workspace-cookie";
 
 /**
- * The cookie that identifies an anonymous workspace. There are no accounts on
- * this app: the browser is handed one of these on its first request (see
- * `src/proxy.ts`) and every row it creates is filed under that value.
- */
-export const WORKSPACE_COOKIE = "invoiceflow_ws";
-
-/** Header the proxy uses to hand the resolved id to server code. */
-export const WORKSPACE_HEADER = "x-workspace-id";
-
-/**
- * Resolves the caller's workspace, creating the row on first use so foreign
- * keys never point at a missing workspace. Returns `null` only if the proxy did
- * not run for this request (which would be a configuration bug, not a user
- * error).
+ * The caller's workspace id, or `null` when the request carries no valid
+ * cookie (see `src/proxy.ts`, which issues one). Reads only — nothing is
+ * created here, so a forged-but-well-formed id can never mint a row.
  */
 export async function getWorkspaceId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  const fromCookie = cookieStore.get(WORKSPACE_COOKIE)?.value;
-  const id = fromCookie ?? (await headers()).get(WORKSPACE_HEADER);
-  if (!id) return null;
+  const value = (await cookies()).get(WORKSPACE_COOKIE)?.value;
+  return isWorkspaceId(value) ? value : null;
+}
 
+/**
+ * Creates the workspace row if this is the first write from that browser.
+ * Needed only on paths that insert rows referencing it; the foreign key makes
+ * a missing workspace visible instead of silently orphaning data.
+ */
+export async function ensureWorkspace(workspaceId: string): Promise<void> {
   await prisma.workspace.upsert({
-    where: { id },
+    where: { id: workspaceId },
     update: {},
-    create: { id },
+    create: { id: workspaceId },
   });
-
-  return id;
 }

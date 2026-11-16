@@ -1,38 +1,47 @@
 import { NextResponse, type NextRequest } from "next/server";
-
-const WORKSPACE_COOKIE = "invoiceflow_ws";
-const WORKSPACE_HEADER = "x-workspace-id";
-const ONE_YEAR = 60 * 60 * 24 * 365;
+import {
+  WORKSPACE_COOKIE,
+  WORKSPACE_COOKIE_MAX_AGE,
+  isWorkspaceId,
+  newWorkspaceId,
+} from "@/lib/workspace-cookie";
 
 /**
  * Issues the anonymous workspace cookie. There is no sign-in on this app, so
  * the first request a browser makes mints an id and everything that browser
- * creates afterwards is filed under it.
+ * creates afterwards is filed under it. A missing or malformed cookie is
+ * replaced, which is also how a tampered value heals itself.
  *
- * Must stay dependency-free: the proxy runs before (and separately from) the
- * app, so no Prisma or `server-only` imports belong in this file.
+ * The proxy only manages the cookie; it never decides access. Scoping happens
+ * in server code, where every query is filtered by this id.
  */
 export function proxy(request: NextRequest) {
   const existing = request.cookies.get(WORKSPACE_COOKIE)?.value;
-  const workspaceId = existing ?? crypto.randomUUID();
+  if (isWorkspaceId(existing)) return NextResponse.next();
 
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set(WORKSPACE_HEADER, workspaceId);
+  // The browser only stores the cookie for its *next* request, so the current
+  // one is forwarded with the new id appended. Without this, a write arriving
+  // before any page load (a first-request POST) would have no workspace.
+  const id = newWorkspaceId();
+  const headers = new Headers(request.headers);
+  const existingCookieHeader = request.headers.get("cookie");
+  headers.set(
+    "cookie",
+    existingCookieHeader
+      ? `${existingCookieHeader}; ${WORKSPACE_COOKIE}=${id}`
+      : `${WORKSPACE_COOKIE}=${id}`
+  );
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
-
-  if (!existing) {
-    response.cookies.set({
-      name: WORKSPACE_COOKIE,
-      value: workspaceId,
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: ONE_YEAR,
-    });
-  }
-
+  const response = NextResponse.next({ request: { headers } });
+  response.cookies.set({
+    name: WORKSPACE_COOKIE,
+    value: id,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: WORKSPACE_COOKIE_MAX_AGE,
+  });
   return response;
 }
 
