@@ -7,7 +7,8 @@
  * with cents recovered exactly by `toCents` on import.
  */
 
-import { toCents } from "@/lib/money";
+import { fromCents, toCents } from "@/lib/money";
+import type { InvoiceRow } from "@/lib/invoice-mapping";
 
 export const EXPORT_VERSION = 1;
 
@@ -217,6 +218,79 @@ export function validateExportFile(raw: unknown): Validation {
       invoices,
     },
     counts: { clients: clients.length, invoices: invoices.length, lineItems: lineItemCount },
+  };
+}
+
+export interface ExportSources {
+  company: Record<string, unknown> | null;
+  settings: Record<string, unknown> | null;
+  clients: ExportedClient[];
+  invoices: ExportedInvoice[];
+}
+
+/**
+ * Assembles the file. Kept pure so the export route, snapshots and the tests
+ * all produce byte-identical shapes from the same data.
+ */
+export function buildExportFile(sources: ExportSources): ExportFile {
+  return {
+    version: EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    company: pick(sources.company, COMPANY_KEYS),
+    settings: pick(sources.settings, SETTING_KEYS),
+    clients: sources.clients,
+    invoices: sources.invoices,
+  };
+}
+
+export function toExportedClient(client: {
+  fullName: string;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  taxId?: string | null;
+}): ExportedClient {
+  return {
+    fullName: client.fullName,
+    company: client.company ?? null,
+    email: client.email ?? null,
+    phone: client.phone ?? null,
+    address: client.address ?? null,
+    taxId: client.taxId ?? null,
+  };
+}
+
+/**
+ * Database row → exported invoice. The client link travels as a position in
+ * the client list, because ids are not portable across workspaces.
+ */
+export function toExportedInvoice(invoice: InvoiceRow, clients: Array<{ id: string }>): ExportedInvoice {
+  const index = invoice.clientId
+    ? clients.findIndex((client) => client.id === invoice.clientId)
+    : -1;
+
+  return {
+    invoiceNumber: invoice.invoiceNumber,
+    invoiceType: invoice.invoiceType,
+    clientIndex: index >= 0 ? index : null,
+    status: invoice.status,
+    subtotal: fromCents(invoice.subtotalCents),
+    discount: invoice.discountPercent,
+    tax: invoice.taxPercent,
+    total: fromCents(invoice.totalCents),
+    balanceDue: fromCents(invoice.balanceDueCents),
+    notes: invoice.notes,
+    issueDate: invoice.issueDate.toISOString(),
+    dueDate: invoice.dueDate?.toISOString() ?? null,
+    lineItems: invoice.lineItems.map((item) => ({
+      description: item.description,
+      price: fromCents(item.priceCents),
+      quantity: item.quantity,
+      discount: item.discountPercent,
+      tax: item.taxPercent,
+      total: fromCents(item.totalCents),
+    })),
   };
 }
 

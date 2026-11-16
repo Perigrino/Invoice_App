@@ -21,6 +21,7 @@ model Workspace {
   clients   Client[]
   invoices  Invoice[]
   settings  Setting?
+  snapshots Snapshot[]
 }
 
 model Company {
@@ -153,4 +154,20 @@ model Setting {
   darkMode           Boolean   @default(false)
 
   @@index([workspaceId])
+}
+
+/// A point-in-time copy of the workspace, stored in the export format so a
+/// restore is exactly an import. Only the most recent few are kept.
+model Snapshot {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  /// The export file at capture time.
+  data        String    @db.Text
+  counts      Json
+  sizeBytes   Int
+  totalCents  Int       @default(0)
+
+  @@index([workspaceId, createdAt])
 }

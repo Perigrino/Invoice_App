@@ -5,6 +5,7 @@ import { Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorkspaceRecoveryCard } from "@/components/settings/recovery";
+import { SnapshotSettings } from "@/components/settings/snapshot-settings";
 
 interface Counts {
   clients: number;
@@ -102,6 +103,15 @@ export function DataSettings() {
         </CardHeader>
         <CardContent>
           <WorkspaceRecoveryCard />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Backups</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SnapshotSettings />
         </CardContent>
       </Card>
 

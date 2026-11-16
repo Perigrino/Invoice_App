@@ -32,6 +32,8 @@ export const LIMITS = {
    * actual import should have.
    */
   dataImportCheck: { name: "data:import-check", perWorkspace: 30, perIp: 60, windowSeconds: 3600, maxBytes: 4 * 1024 * 1024 },
+  snapshotCreate: { name: "snapshot:create", perWorkspace: 6, perIp: 12, windowSeconds: 3600, maxBytes: 1024 },
+  snapshotRestore: { name: "snapshot:restore", perWorkspace: 6, perIp: 12, windowSeconds: 3600, maxBytes: 1024 },
   dataImport: { name: "data:import", perWorkspace: 3, perIp: 6, windowSeconds: 3600, maxBytes: 4 * 1024 * 1024 },
 } satisfies Record<string, MutationLimits>;
 
