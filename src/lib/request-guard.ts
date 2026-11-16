@@ -26,18 +26,23 @@ export const LIMITS = {
   profileWrite: { name: "profile:write", perWorkspace: 30, perIp: 60, windowSeconds: 60, maxBytes: 2 * 1024 * 1024 },
   pdfExport: { name: "pdf:export", perWorkspace: 20, perIp: 40, windowSeconds: 60, maxBytes: 512 * 1024 },
   shareWrite: { name: "share:write", perWorkspace: 20, perIp: 40, windowSeconds: 60, maxBytes: 1024 },
+  /**
+   * Every import request, dry runs included: parsing and validating a 4 MB file
+   * is real work, but it must not spend the budget that only the destructive,
+   * actual import should have.
+   */
+  dataImportCheck: { name: "data:import-check", perWorkspace: 30, perIp: 60, windowSeconds: 3600, maxBytes: 4 * 1024 * 1024 },
   dataImport: { name: "data:import", perWorkspace: 3, perIp: 6, windowSeconds: 3600, maxBytes: 4 * 1024 * 1024 },
 } satisfies Record<string, MutationLimits>;
 
 /**
- * Runs before the body is read on every mutating route: rejects cross-origin
- * requests, oversized payloads and callers over their budget. Returns `null`
- * when the request may proceed.
+ * Rejects cross-origin requests and oversized payloads before the body is
+ * read. Returns `null` when the request may proceed.
  */
-export async function guardMutation(
+export function guardRequestShape(
   request: Request,
   limits: MutationLimits
-): Promise<NextResponse | null> {
+): NextResponse | null {
   if (
     !isSameOriginMutation({
       origin: request.headers.get("origin"),
@@ -53,6 +58,32 @@ export async function guardMutation(
     return NextResponse.json({ error: "Payload too large" }, { status: 413 });
   }
 
+  return null;
+}
+
+/**
+ * Runs before the body is read on every mutating route: rejects cross-origin
+ * requests, oversized payloads and callers over their budget. Returns `null`
+ * when the request may proceed.
+ */
+export async function guardMutation(
+  request: Request,
+  limits: MutationLimits
+): Promise<NextResponse | null> {
+  const shape = guardRequestShape(request, limits);
+  if (shape) return shape;
+  return guardRateLimit(request, limits);
+}
+
+/**
+ * Spends one request from the caller's budget. Separate from
+ * `guardRequestShape` for routes that need to tell two kinds of request apart
+ * before deciding which budget to charge (see the import route).
+ */
+export async function guardRateLimit(
+  request: Request,
+  limits: MutationLimits
+): Promise<NextResponse | null> {
   const workspaceId = await getWorkspaceId();
   const ip = clientIp(request);
 
