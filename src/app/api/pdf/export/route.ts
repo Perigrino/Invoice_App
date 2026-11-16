@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { assemblePdfData } from "@/lib/pdf/assemble";
 import { generateInvoicePdfBuffer } from "@/lib/pdf/generate-pdf";
 import { getWorkspaceId } from "@/lib/workspace";
+import { LIMITS, guardMutation } from "@/lib/request-guard";
 
 export async function POST(request: Request) {
+  const blocked = await guardMutation(request, LIMITS.pdfExport);
+  if (blocked) return blocked;
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) {
     return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });

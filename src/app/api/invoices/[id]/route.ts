@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceId } from "@/lib/workspace";
+import { LIMITS, guardMutation } from "@/lib/request-guard";
 import { balanceCents } from "@/lib/money";
 import { buildLineItemWrites, serializeInvoice } from "@/lib/invoice-mapping";
 
@@ -34,6 +35,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const blocked = await guardMutation(request, LIMITS.invoiceUpdate);
+  if (blocked) return blocked;
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) {
     return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
@@ -102,6 +105,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const blocked = await guardMutation(request, LIMITS.invoiceUpdate);
+  if (blocked) return blocked;
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) {
     return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });

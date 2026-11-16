@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureWorkspace, getWorkspaceId } from "@/lib/workspace";
+import { LIMITS, guardMutation } from "@/lib/request-guard";
 import { balanceCents } from "@/lib/money";
 import { nextInvoiceNumber } from "@/lib/numbering";
 import { buildLineItemWrites, serializeInvoice } from "@/lib/invoice-mapping";
@@ -29,6 +30,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const blocked = await guardMutation(request, LIMITS.invoiceCreate);
+  if (blocked) return blocked;
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) {
     return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });

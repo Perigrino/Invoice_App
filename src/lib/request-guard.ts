@@ -1,0 +1,87 @@
+import "server-only";
+import { NextResponse } from "next/server";
+import { consume, pruneRateLimits } from "@/lib/rate-limit";
+import { isSameOriginMutation } from "@/lib/same-origin";
+import { getWorkspaceId } from "@/lib/workspace";
+
+/**
+ * Per-route limits for mutations. `perWorkspace` protects one browser from
+ * itself (and from a script in its own origin); `perIp` protects the service
+ * from a client that keeps minting fresh cookies.
+ */
+export interface MutationLimits {
+  name: string;
+  perWorkspace: number;
+  perIp: number;
+  windowSeconds: number;
+  /** Largest accepted body, in bytes. Also enforced by the proxy buffer cap. */
+  maxBytes: number;
+}
+
+export const LIMITS = {
+  invoiceCreate: { name: "invoice:create", perWorkspace: 60, perIp: 120, windowSeconds: 60, maxBytes: 256 * 1024 },
+  invoiceUpdate: { name: "invoice:update", perWorkspace: 120, perIp: 240, windowSeconds: 60, maxBytes: 256 * 1024 },
+  clientWrite: { name: "client:write", perWorkspace: 60, perIp: 120, windowSeconds: 60, maxBytes: 256 * 1024 },
+  profileWrite: { name: "profile:write", perWorkspace: 30, perIp: 60, windowSeconds: 60, maxBytes: 2 * 1024 * 1024 },
+  pdfExport: { name: "pdf:export", perWorkspace: 20, perIp: 40, windowSeconds: 60, maxBytes: 512 * 1024 },
+} satisfies Record<string, MutationLimits>;
+
+function clientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]!.trim();
+  return request.headers.get("x-real-ip") ?? "unknown";
+}
+
+/**
+ * Runs before the body is read on every mutating route: rejects cross-origin
+ * requests, oversized payloads and callers over their budget. Returns `null`
+ * when the request may proceed.
+ */
+export async function guardMutation(
+  request: Request,
+  limits: MutationLimits
+): Promise<NextResponse | null> {
+  if (
+    !isSameOriginMutation({
+      origin: request.headers.get("origin"),
+      host: request.headers.get("host"),
+      secFetchSite: request.headers.get("sec-fetch-site"),
+    })
+  ) {
+    return NextResponse.json({ error: "Cross-origin request rejected" }, { status: 403 });
+  }
+
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > limits.maxBytes) {
+    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+  }
+
+  const workspaceId = await getWorkspaceId();
+  const ip = clientIp(request);
+
+  const [workspaceResult, ipResult] = await Promise.all([
+    workspaceId
+      ? consume(`ws:${workspaceId}:${limits.name}`, limits.perWorkspace, limits.windowSeconds)
+      : Promise.resolve(null),
+    consume(`ip:${ip}:${limits.name}`, limits.perIp, limits.windowSeconds),
+  ]);
+
+  void pruneRateLimits();
+
+  const blocked = [workspaceResult, ipResult].find((result) => result && !result.allowed);
+  if (blocked) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(blocked.retryAfterSeconds),
+          "X-RateLimit-Limit": String(blocked.limit),
+          "X-RateLimit-Remaining": "0",
+        },
+      }
+    );
+  }
+
+  return null;
+}

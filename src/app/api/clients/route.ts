@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureWorkspace, getWorkspaceId } from "@/lib/workspace";
+import { LIMITS, guardMutation } from "@/lib/request-guard";
 
 export async function GET() {
   const workspaceId = await getWorkspaceId();
@@ -25,6 +26,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const blocked = await guardMutation(request, LIMITS.clientWrite);
+  if (blocked) return blocked;
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) {
     return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });

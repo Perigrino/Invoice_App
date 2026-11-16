@@ -94,6 +94,17 @@ model InvoiceLineItem {
   sortOrder       Int     @default(0)
 }
 
+/// Fixed-window counters for the write routes. Rows are cheap and pruned.
+model RateLimit {
+  id          String   @id
+  bucketKey   String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@unique([bucketKey, windowStart])
+  @@index([windowStart])
+}
+
 model Tax {
   id         String @id @default(cuid())
   name       String
