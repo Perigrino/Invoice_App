@@ -23,15 +23,20 @@ interface WorkspaceRecoveryInfo {
   url: string;
 }
 
+async function fetchRecoveryInfo(): Promise<WorkspaceRecoveryInfo> {
+  const res = await fetch("/api/workspace", { cache: "no-store" });
+  if (!res.ok) throw new Error(String(res.status));
+  return res.json();
+}
+
 function useRecoveryInfo() {
   const [info, setInfo] = useState<WorkspaceRecoveryInfo | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
-    fetch("/api/workspace", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((body: WorkspaceRecoveryInfo) => {
+    fetchRecoveryInfo()
+      .then((body) => {
         if (active) setInfo(body);
       })
       .catch(() => {
@@ -67,16 +72,14 @@ function useCopy() {
 export function RecoveryKeyGate() {
   const [info, setInfo] = useState<WorkspaceRecoveryInfo | null>(null);
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     const check = () => {
       if (!isRecoveryPending()) return;
-      fetch("/api/workspace", { cache: "no-store" })
-        .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-        .then((body: WorkspaceRecoveryInfo) => {
+      fetchRecoveryInfo()
+        .then((body) => {
           if (cancelled) return;
           if (isRecoverySeen(body.recoveryKey)) {
             clearRecoveryPending();
@@ -100,7 +103,6 @@ export function RecoveryKeyGate() {
 
   const acknowledge = () => {
     if (info) markRecoverySeen(info.recoveryKey);
-    setCopied(false);
     setOpen(false);
   };
 
@@ -108,9 +110,7 @@ export function RecoveryKeyGate() {
     if (!info) return;
     try {
       await navigator.clipboard.writeText(info.recoveryKey);
-      setCopied(true);
-      markRecoverySeen(info.recoveryKey);
-      setTimeout(() => setOpen(false), 1200);
+      acknowledge();
     } catch {
       // Clipboard denied: the key stays on screen and "I've saved it" is the way out.
     }
@@ -141,8 +141,8 @@ export function RecoveryKeyGate() {
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={copy} disabled={!info}>
-            {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
-            {copied ? "Copied" : "Copy key"}
+            <Copy className="mr-2 h-4 w-4" />
+            Copy key
           </Button>
           <Button type="button" onClick={acknowledge} disabled={!info}>
             I&rsquo;ve saved it

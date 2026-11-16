@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { consume } from "@/lib/rate-limit";
-import { generateRecoveryKey, normalizeRecoveryKey } from "@/lib/recovery";
+import { generateRecoveryKey } from "@/lib/recovery";
 import { WORKSPACE_COOKIE, isWorkspaceId } from "@/lib/workspace-cookie";
 
 /**
@@ -52,8 +52,7 @@ export async function ensureWorkspace(
 
   try {
     await prisma.workspace.create({
-      // Stored without the display dashes; lookups normalise in the same way.
-      data: { id: workspaceId, recoveryKey: normalizeRecoveryKey(generateRecoveryKey()) },
+      data: { id: workspaceId, recoveryKey: generateRecoveryKey() },
     });
   } catch {
     // A concurrent request created it first; that is success for this caller.
@@ -68,10 +67,9 @@ export async function ensureWorkspace(
 }
 
 /**
- * The workspace's recovery key. Created on first use — including for a
+ * The workspace's recovery key, created on first use — including for a
  * workspace row that does not exist yet, because a reader can arrive before
- * the first write — so this doubles as the workspace's creation point for
- * read-only visitors.
+ * the first write. An existing key is never replaced.
  */
 export async function getRecoveryKey(workspaceId: string): Promise<string> {
   const existing = await prisma.workspace.findUnique({
@@ -81,17 +79,22 @@ export async function getRecoveryKey(workspaceId: string): Promise<string> {
   if (existing?.recoveryKey) return existing.recoveryKey;
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const recoveryKey = normalizeRecoveryKey(generateRecoveryKey());
+    const recoveryKey = generateRecoveryKey();
     try {
-      const workspace = await prisma.workspace.upsert({
+      if (existing) {
+        // A row from before keys shipped: fill in the missing one.
+        await prisma.workspace.update({ where: { id: workspaceId }, data: { recoveryKey } });
+      } else {
+        await prisma.workspace.create({ data: { id: workspaceId, recoveryKey } });
+      }
+      return recoveryKey;
+    } catch {
+      // Lost a race, or the key clashed: keep whichever key now exists.
+      const current = await prisma.workspace.findUnique({
         where: { id: workspaceId },
-        update: { recoveryKey },
-        create: { id: workspaceId, recoveryKey },
         select: { recoveryKey: true },
       });
-      if (workspace.recoveryKey) return workspace.recoveryKey;
-    } catch {
-      // Unique clash or a lost upsert race: try another key.
+      if (current?.recoveryKey) return current.recoveryKey;
     }
   }
 

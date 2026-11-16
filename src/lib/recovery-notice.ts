@@ -11,7 +11,7 @@ const PENDING = "invoiceflow_recovery_pending";
 /** Fired when a save marks the notice pending, for a gate already mounted. */
 export const RECOVERY_PENDING_EVENT = "invoiceflow:recovery-pending";
 
-export function recoverySeenKey(recoveryKey: string): string {
+function seenKey(recoveryKey: string): string {
   return `invoiceflow_recovery_seen:${recoveryKey}`;
 }
 
@@ -25,7 +25,7 @@ export function isRecoveryPending(): boolean {
 
 export function markRecoveryPending(): void {
   try {
-    window.localStorage.setItem(PENDING, String(Date.now()));
+    window.localStorage.setItem(PENDING, "1");
   } catch {
     // Without storage the notice simply cannot be shown.
     return;
@@ -43,7 +43,7 @@ export function clearRecoveryPending(): void {
 
 export function isRecoverySeen(recoveryKey: string): boolean {
   try {
-    return window.localStorage.getItem(recoverySeenKey(recoveryKey)) === "1";
+    return window.localStorage.getItem(seenKey(recoveryKey)) === "1";
   } catch {
     return true;
   }
@@ -51,7 +51,7 @@ export function isRecoverySeen(recoveryKey: string): boolean {
 
 export function markRecoverySeen(recoveryKey: string): void {
   try {
-    window.localStorage.setItem(recoverySeenKey(recoveryKey), "1");
+    window.localStorage.setItem(seenKey(recoveryKey), "1");
   } catch {
     // Ignored: the key is still on screen and in Settings.
   }
