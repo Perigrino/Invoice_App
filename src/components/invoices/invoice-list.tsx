@@ -268,6 +268,14 @@ export function InvoiceList() {
                   {item.invoiceNumber}
                 </Link>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{item.clientName}</p>
+                {item.syncError && (
+                  <span
+                    title="The server rejected this save. It exists only in this browser."
+                    className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-950/60 dark:text-red-300"
+                  >
+                    Not saved
+                  </span>
+                )}
               </div>
             ),
           },
@@ -334,6 +342,15 @@ export function InvoiceList() {
                 <p className="truncate text-sm text-gray-500 dark:text-gray-400">
                   {item.clientName}
                 </p>
+                {item.syncError && (
+                  <span
+                    title="The server rejected this save. It exists only in this browser."
+                    className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-950/60 dark:text-red-300"
+                  >
+                    Not saved
+                  </span>
+                )}
+
               </Link>
               <div className="flex shrink-0 items-center gap-1">
                 <span className={cn(

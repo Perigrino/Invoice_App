@@ -2,21 +2,39 @@ import type { SavedClient } from "@/store/client-store";
 import type { SavedInvoice } from "@/store/invoice-store";
 import type { AppSettings, CompanySettings, LineItem } from "@/types";
 
-export async function fetchApi<T>(url: string, init?: RequestInit): Promise<T | null> {
-  try {
-    const res = await fetch(url, {
-      ...init,
-      headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-    });
-    if (!res.ok) {
-      if (res.status === 401) return null;
-      throw new Error(`Request failed: ${res.status}`);
-    }
-    return (await res.json()) as T;
-  } catch (e) {
-    console.error("API request failed:", url, e);
-    return null;
+/**
+ * A failed write. Reads treat a failure as "no data"; writes must not, because
+ * a write that silently did nothing looks exactly like success to the user.
+ */
+export class ApiError extends Error {
+  constructor(readonly status: number) {
+    super(messageFor(status));
+    this.name = "ApiError";
   }
+}
+
+function messageFor(status: number): string {
+  if (status === 403) return "The request was blocked. Reload the page and try again.";
+  if (status === 404) return "It no longer exists on the server.";
+  if (status === 413) return "That is too large for the server to accept.";
+  if (status === 429) return "Too many changes at once. Wait a moment and try again.";
+  if (status >= 500) return "The server could not save that. Nothing was changed.";
+  return `The server rejected that (${status}).`;
+}
+
+/** One sentence a user can act on, whatever went wrong. */
+export function describeWriteError(error: unknown): string {
+  if (error instanceof ApiError) return error.message;
+  return "Could not reach the server. Check your connection — nothing was saved.";
+}
+
+export async function fetchApi<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+  });
+  if (!res.ok) throw new ApiError(res.status);
+  return (await res.json()) as T;
 }
 
 interface RawLineItem {
@@ -91,86 +109,100 @@ export function mapInvoice(raw: RawInvoice): SavedInvoice {
   };
 }
 
-export async function fetchClients(): Promise<SavedClient[]> {
-  const data = await fetchApi<RawClient[]>("/api/clients");
-  return (data || []).map(mapClient);
+/* Reads: a failure means "nothing to show", which the stores already handle. */
+
+export async function fetchClients(): Promise<SavedClient[] | null> {
+  try {
+    return (await fetchApi<RawClient[]>("/api/clients")).map(mapClient);
+  } catch (error) {
+    console.error("Could not load clients:", error);
+    return null;
+  }
 }
 
-export async function createClient(client: SavedClient): Promise<boolean> {
-  const res = await fetchApi<{ id: string }>("/api/clients", {
+export async function fetchInvoices(): Promise<SavedInvoice[] | null> {
+  try {
+    return (await fetchApi<RawInvoice[]>("/api/invoices")).map(mapInvoice);
+  } catch (error) {
+    console.error("Could not load invoices:", error);
+    return null;
+  }
+}
+
+export async function fetchSettings(): Promise<Partial<AppSettings> | null> {
+  try {
+    return await fetchApi<Partial<AppSettings>>("/api/settings");
+  } catch (error) {
+    console.error("Could not load settings:", error);
+    return null;
+  }
+}
+
+export async function fetchCompany(): Promise<CompanySettings | null> {
+  try {
+    return await fetchApi<CompanySettings>("/api/company");
+  } catch (error) {
+    console.error("Could not load company:", error);
+    return null;
+  }
+}
+
+/* Writes: every one throws, so a caller cannot mistake failure for success. */
+
+export async function createClient(client: SavedClient): Promise<void> {
+  await fetchApi<{ id: string }>("/api/clients", {
     method: "POST",
     body: JSON.stringify(client),
   });
-  return Boolean(res);
 }
 
-export async function updateClient(id: string, client: Partial<SavedClient>): Promise<boolean> {
-  const res = await fetchApi<{ id: string }>(`/api/clients/${id}`, {
+export async function updateClient(id: string, client: Partial<SavedClient>): Promise<void> {
+  await fetchApi<{ id: string }>(`/api/clients/${id}`, {
     method: "PUT",
     body: JSON.stringify(client),
   });
-  return Boolean(res);
 }
 
-export async function deleteClient(id: string): Promise<boolean> {
-  const res = await fetchApi<{ success: boolean }>(`/api/clients/${id}`, {
-    method: "DELETE",
-  });
-  return Boolean(res);
-}
-
-export async function fetchInvoices(): Promise<SavedInvoice[]> {
-  const data = await fetchApi<RawInvoice[]>("/api/invoices");
-  return (data || []).map(mapInvoice);
+export async function deleteClient(id: string): Promise<void> {
+  await fetchApi<{ success: boolean }>(`/api/clients/${id}`, { method: "DELETE" });
 }
 
 /**
  * The server assigns the invoice number and recomputes totals, so the saved
  * record is returned and used to correct the optimistic local copy.
  */
-export async function createInvoice(invoice: SavedInvoice): Promise<SavedInvoice | null> {
-  const res = await fetchApi<RawInvoice>("/api/invoices", {
-    method: "POST",
-    body: JSON.stringify(invoice),
-  });
-  return res ? mapInvoice(res) : null;
+export async function createInvoice(invoice: SavedInvoice): Promise<SavedInvoice> {
+  return mapInvoice(
+    await fetchApi<RawInvoice>("/api/invoices", {
+      method: "POST",
+      body: JSON.stringify(invoice),
+    })
+  );
 }
 
-export async function updateInvoice(id: string, invoice: SavedInvoice): Promise<SavedInvoice | null> {
-  const res = await fetchApi<RawInvoice>(`/api/invoices/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(invoice),
-  });
-  return res ? mapInvoice(res) : null;
+export async function updateInvoice(id: string, invoice: SavedInvoice): Promise<SavedInvoice> {
+  return mapInvoice(
+    await fetchApi<RawInvoice>(`/api/invoices/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(invoice),
+    })
+  );
 }
 
-export async function deleteInvoice(id: string): Promise<boolean> {
-  const res = await fetchApi<{ success: boolean }>(`/api/invoices/${id}`, {
-    method: "DELETE",
-  });
-  return Boolean(res);
+export async function deleteInvoice(id: string): Promise<void> {
+  await fetchApi<{ success: boolean }>(`/api/invoices/${id}`, { method: "DELETE" });
 }
 
-export async function fetchSettings(): Promise<Partial<AppSettings> | null> {
-  return await fetchApi<Partial<AppSettings>>("/api/settings");
-}
-
-export async function saveSettings(settings: Partial<AppSettings>): Promise<boolean> {
-  const res = await fetchApi<{ id: string }>("/api/settings", {
+export async function saveSettings(settings: Partial<AppSettings>): Promise<void> {
+  await fetchApi<{ id: string }>("/api/settings", {
     method: "PUT",
     body: JSON.stringify(settings),
   });
-  return Boolean(res);
 }
 
-export async function fetchCompany(): Promise<CompanySettings | null> {
-  return await fetchApi<CompanySettings>("/api/company");
-}
-
-export async function saveCompany(company: Partial<CompanySettings>): Promise<boolean> {
-  const res = await fetchApi<{ id: string }>("/api/company", {
+export async function saveCompany(company: Partial<CompanySettings>): Promise<void> {
+  await fetchApi<{ id: string }>("/api/company", {
     method: "PUT",
     body: JSON.stringify(company),
   });
-  return Boolean(res);
 }

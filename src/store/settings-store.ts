@@ -3,6 +3,7 @@ import type { AppSettings } from "@/types";
 import { loadFromStorage, saveToStorage } from "@/lib/storage";
 import { fetchSettings, saveSettings as apiSaveSettings } from "@/lib/api";
 import { useProfileStore } from "./profile-store";
+import { notifyWriteFailure } from "@/store/toast-store";
 
 interface SettingsState {
   settings: AppSettings;
@@ -58,7 +59,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const updated = { ...get().settings, ...newSettings };
     saveToStorage("settings", updated);
     set({ settings: updated });
-    apiSaveSettings(updated);
+    apiSaveSettings(updated).catch((error) =>
+      notifyWriteFailure("Your settings were not saved.", error)
+    );
   },
 
   reset: () => {

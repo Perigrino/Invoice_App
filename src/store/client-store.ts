@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { loadFromStorage, saveToStorage } from "@/lib/storage";
+import { notifyWriteFailure } from "@/store/toast-store";
 import {
   fetchClients,
   createClient as apiCreateClient,
@@ -54,24 +55,39 @@ export const useClientStore = create<ClientState>((set, get) => ({
     const updated = [client, ...get().clients];
     persist(updated);
     set({ clients: updated });
-    apiCreateClient(client);
+    apiCreateClient(client).catch((error) => {
+      // Nothing was saved, so the row must not stay on screen.
+      const reverted = get().clients.filter((c) => c.id !== client.id);
+      persist(reverted);
+      set({ clients: reverted });
+      notifyWriteFailure("This client was not saved.", error);
+    });
     return client;
   },
 
   updateClient: (id, data) => {
-    const updated = get().clients.map((c) =>
-      c.id === id ? { ...c, ...data } : c
-    );
+    const previous = get().clients;
+    const updated = previous.map((c) => (c.id === id ? { ...c, ...data } : c));
     persist(updated);
     set({ clients: updated });
     const target = updated.find((c) => c.id === id);
-    if (target) apiUpdateClient(id, target);
+    if (!target) return;
+    apiUpdateClient(id, target).catch((error) => {
+      persist(previous);
+      set({ clients: previous });
+      notifyWriteFailure("Those client changes were not saved.", error);
+    });
   },
 
   deleteClient: (id) => {
-    const updated = get().clients.filter((c) => c.id !== id);
+    const previous = get().clients;
+    const updated = previous.filter((c) => c.id !== id);
     persist(updated);
     set({ clients: updated });
-    apiDeleteClient(id);
+    apiDeleteClient(id).catch((error) => {
+      persist(previous);
+      set({ clients: previous });
+      notifyWriteFailure("This client was not deleted.", error);
+    });
   },
 }));

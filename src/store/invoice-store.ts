@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { InvoiceFormData, LineItem, InvoiceStatus, InvoiceType } from "@/types";
 import { loadFromStorage, saveToStorage } from "@/lib/storage";
+import { notifyWriteFailure } from "@/store/toast-store";
 import {
   fetchInvoices,
   createInvoice as apiCreateInvoice,
@@ -24,6 +25,8 @@ export interface SavedInvoice {
   dueDate: string | null;
   lineItems: LineItem[];
   createdAt: string;
+  /** Set when the server refused a write: the row exists only in this browser. */
+  syncError?: boolean;
 }
 
 interface InvoiceState {
@@ -71,11 +74,28 @@ function reconcile(id: string): (synced: SavedInvoice | null) => void {
             discount: synced.discount,
             total: synced.total,
             balanceDue: synced.balanceDue,
+            syncError: false,
           }
         : invoice
     );
     persist(invoices);
     useInvoiceStore.setState({ invoices });
+  };
+}
+
+/** Keeps the row (the user's typing may not exist anywhere else) but marks it. */
+function markSyncFailed(id: string) {
+  const invoices = useInvoiceStore
+    .getState()
+    .invoices.map((invoice) => (invoice.id === id ? { ...invoice, syncError: true } : invoice));
+  persist(invoices);
+  useInvoiceStore.setState({ invoices });
+}
+
+function writeFailed(action: string, id: string) {
+  return (error: unknown) => {
+    markSyncFailed(id);
+    notifyWriteFailure(action, error);
   };
 }
 
@@ -113,7 +133,9 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     const updated = [saved, ...get().invoices];
     persist(updated);
     set({ invoices: updated, currentInvoice: null, isDirty: false });
-    apiCreateInvoice(saved).then(reconcile(saved.id));
+    apiCreateInvoice(saved)
+      .then(reconcile(saved.id))
+      .catch(writeFailed("This invoice was not saved to the server.", saved.id));
     return saved;
   },
 
@@ -143,15 +165,23 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     );
     persist(updated);
     set({ invoices: updated, currentInvoice: null, isDirty: false });
-    apiUpdateInvoice(id, updatedInvoice).then(reconcile(id));
+    apiUpdateInvoice(id, updatedInvoice)
+      .then(reconcile(id))
+      .catch(writeFailed("Your changes were not saved to the server.", id));
     return updatedInvoice;
   },
 
   deleteInvoice: (id) => {
-    const updated = get().invoices.filter((inv) => inv.id !== id);
+    const previous = get().invoices;
+    const updated = previous.filter((inv) => inv.id !== id);
     persist(updated);
     set({ invoices: updated });
-    apiDeleteInvoice(id);
+    apiDeleteInvoice(id).catch((error) => {
+      // Put it back: the server still has it, so hiding it would be a lie.
+      persist(previous);
+      set({ invoices: previous });
+      notifyWriteFailure("This invoice was not deleted.", error);
+    });
   },
 
   duplicateInvoice: (id) => {
@@ -167,7 +197,9 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     const updated = [dup, ...get().invoices];
     persist(updated);
     set({ invoices: updated });
-    apiCreateInvoice(dup).then(reconcile(dup.id));
+    apiCreateInvoice(dup)
+      .then(reconcile(dup.id))
+      .catch(writeFailed("The duplicate was not saved to the server.", dup.id));
   },
 
   setCurrentInvoice: (invoice) =>

@@ -9,6 +9,7 @@ import { StorageHydrator } from "./storage-hydrator";
 import { useUIStore } from "@/store/ui-store";
 import { cn } from "@/lib/utils";
 import { RecoveryKeyGate } from "@/components/settings/recovery";
+import { Toaster } from "@/components/ui/toaster";
 
 export function DashboardLayout({
   children,
@@ -63,6 +64,7 @@ export function DashboardLayout({
     <div className="flex h-screen overflow-hidden bg-gradient-subtle dark:bg-gradient-subtle">
       <StorageHydrator workspaceId={workspaceId} />
       <RecoveryKeyGate />
+      <Toaster />
       {mobileNavOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"

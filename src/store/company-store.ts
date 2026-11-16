@@ -3,6 +3,7 @@ import type { CompanySettings } from "@/types";
 import { loadFromStorage, saveToStorage } from "@/lib/storage";
 import { fetchCompany, saveCompany as apiSaveCompany } from "@/lib/api";
 import { useProfileStore } from "./profile-store";
+import { notifyWriteFailure } from "@/store/toast-store";
 
 interface CompanyState {
   company: CompanySettings;
@@ -40,7 +41,9 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
     const updated = { ...get().company, ...data };
     saveToStorage("company", updated);
     set({ company: updated });
-    apiSaveCompany(updated);
+    apiSaveCompany(updated).catch((error) =>
+      notifyWriteFailure("Your company details were not saved.", error)
+    );
   },
 
   reset: () => {
