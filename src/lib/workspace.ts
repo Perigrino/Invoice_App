@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { consume } from "@/lib/rate-limit";
+import { generateRecoveryKey, normalizeRecoveryKey } from "@/lib/recovery";
 import { WORKSPACE_COOKIE, isWorkspaceId } from "@/lib/workspace-cookie";
 
 /**
@@ -50,7 +51,10 @@ export async function ensureWorkspace(
   if (blocked) return { ok: false, retryAfterSeconds: blocked.retryAfterSeconds };
 
   try {
-    await prisma.workspace.create({ data: { id: workspaceId } });
+    await prisma.workspace.create({
+      // Stored without the display dashes; lookups normalise in the same way.
+      data: { id: workspaceId, recoveryKey: normalizeRecoveryKey(generateRecoveryKey()) },
+    });
   } catch {
     // A concurrent request created it first; that is success for this caller.
     const raced = await prisma.workspace.findUnique({
@@ -61,4 +65,35 @@ export async function ensureWorkspace(
   }
 
   return { ok: true };
+}
+
+/**
+ * The workspace's recovery key. Created on first use — including for a
+ * workspace row that does not exist yet, because a reader can arrive before
+ * the first write — so this doubles as the workspace's creation point for
+ * read-only visitors.
+ */
+export async function getRecoveryKey(workspaceId: string): Promise<string> {
+  const existing = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { recoveryKey: true },
+  });
+  if (existing?.recoveryKey) return existing.recoveryKey;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const recoveryKey = normalizeRecoveryKey(generateRecoveryKey());
+    try {
+      const workspace = await prisma.workspace.upsert({
+        where: { id: workspaceId },
+        update: { recoveryKey },
+        create: { id: workspaceId, recoveryKey },
+        select: { recoveryKey: true },
+      });
+      if (workspace.recoveryKey) return workspace.recoveryKey;
+    } catch {
+      // Unique clash or a lost upsert race: try another key.
+    }
+  }
+
+  throw new Error("Could not create a recovery key");
 }

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WorkspaceRecoveryCard } from "@/components/settings/recovery";
 
 interface Counts {
   clients: number;
@@ -95,6 +96,15 @@ export function DataSettings() {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Recover this workspace</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <WorkspaceRecoveryCard />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Export</CardTitle>

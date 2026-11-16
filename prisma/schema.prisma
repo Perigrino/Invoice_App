@@ -13,6 +13,9 @@ datasource db {
 /// one workspace. Nothing else identifies a visitor.
 model Workspace {
   id        String    @id
+  /// Short code that can be typed back to reach this workspace again. The
+  /// cookie is the primary key for a browser; this is the way back to it.
+  recoveryKey String? @unique
   createdAt DateTime  @default(now())
   company   Company?
   clients   Client[]
