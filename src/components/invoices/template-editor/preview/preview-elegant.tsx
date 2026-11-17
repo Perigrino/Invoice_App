@@ -201,6 +201,12 @@ export function PreviewElegant({ data, config }: PreviewProps) {
                   <span style={{ color: "#B22222" }}>-{formatMoney(data.discount, data.currency)}</span>
                 </div>
               )}
+              {data.tax > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: pt(config.fontSize), color: gray, marginTop: px(2) }}>
+                  <span>Tax</span>
+                  <span>{formatMoney(data.tax, data.currency)}</span>
+                </div>
+              )}
               {comp.total && (
                 <>
                   <div style={{ borderTop: `0.3px solid ${accent}`, marginTop: px(3), paddingTop: px(3) }} />

@@ -145,6 +145,12 @@ export function PreviewMinimal({ data, config }: PreviewProps) {
               <span style={{ color: "#B91C1C" }}>-{formatMoney(data.discount, data.currency)}</span>
             </div>
           )}
+          {data.tax > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: pt(config.fontSize), color: gray, marginTop: px(2) }}>
+              <span>Tax</span>
+              <span>{formatMoney(data.tax, data.currency)}</span>
+            </div>
+          )}
           {comp.total && (
             <>
               <div style={{ borderTop: "0.4px solid #94A3B8", marginTop: px(4) }} />

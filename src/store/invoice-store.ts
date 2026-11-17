@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { InvoiceFormData, LineItem, InvoiceStatus, InvoiceType } from "@/types";
+import { fromCents, percentOfCents, toCents } from "@/lib/money";
 import { loadFromStorage, saveToStorage } from "@/lib/storage";
 import { beginWrite, isLatestWrite } from "@/lib/latest-write";
 import {
@@ -7,6 +8,7 @@ import {
   createInvoice as apiCreateInvoice,
   updateInvoice as apiUpdateInvoice,
   deleteInvoice as apiDeleteInvoice,
+  convertInvoice as apiConvertInvoice,
 } from "@/lib/api";
 import { notifyWriteFailure } from "@/store/toast-store";
 
@@ -19,6 +21,9 @@ export interface SavedInvoice {
   invoiceType: InvoiceType;
   subtotal: number;
   discount: number;
+  taxPercent: number;
+  /** Tax amount in currency units, as printed on the invoice. */
+  tax: number;
   total: number;
   balanceDue: number;
   notes: string;
@@ -41,6 +46,7 @@ interface InvoiceState {
   updateInvoice: (id: string, data: InvoiceFormData, clientName: string) => Promise<boolean>;
   deleteInvoice: (id: string) => void;
   duplicateInvoice: (id: string) => void;
+  convertInvoice: (id: string) => Promise<boolean>;
   setCurrentInvoice: (invoice: InvoiceFormData | null) => void;
   addLineItem: (item: LineItem) => void;
   removeLineItem: (id: string) => void;
@@ -82,6 +88,8 @@ function reconcile(id: string, token: number): (synced: SavedInvoice | null) => 
         invoiceNumber: synced.invoiceNumber,
         subtotal: synced.subtotal,
         discount: synced.discount,
+        taxPercent: synced.taxPercent,
+        tax: synced.tax,
         total: synced.total,
         balanceDue: synced.balanceDue,
       };
@@ -122,6 +130,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
   saveInvoice: async (data, clientName) => {
     const subtotal = data.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const tax = data.tax || 0;
+    const total = fromCents(toCents(subtotal) + percentOfCents(toCents(subtotal), tax));
     const saved: SavedInvoice = {
       id: uid(),
       invoiceNumber: data.invoiceNumber,
@@ -131,8 +141,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       invoiceType: data.invoiceType,
       subtotal,
       discount: data.discount,
-      total: subtotal,
-      balanceDue: subtotal,
+      taxPercent: tax,
+      tax: fromCents(percentOfCents(toCents(subtotal), tax)),
+      total,
+      balanceDue: total,
       notes: data.notes || "",
       issueDate: data.issueDate.toISOString(),
       dueDate: data.dueDate?.toISOString() || null,
@@ -157,6 +169,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     if (!existing) return false;
 
     const subtotal = data.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const tax = data.tax || 0;
+    const total = fromCents(toCents(subtotal) + percentOfCents(toCents(subtotal), tax));
     const updatedInvoice: SavedInvoice = {
       ...existing,
       invoiceNumber: data.invoiceNumber,
@@ -166,8 +180,9 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       invoiceType: data.invoiceType,
       subtotal,
       discount: data.discount,
-      total: subtotal,
-      balanceDue: subtotal,
+      taxPercent: tax,
+      total,
+      balanceDue: total,
       notes: data.notes || "",
       issueDate: data.issueDate.toISOString(),
       dueDate: data.dueDate?.toISOString() || null,
@@ -230,6 +245,19 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     apiCreateInvoice(dup)
       .then(reconcile(dup.id, token))
       .catch(writeFailed("The duplicate was not saved to the server.", dup.id, token));
+  },
+
+  convertInvoice: async (id) => {
+    try {
+      await apiConvertInvoice(id);
+      // The invoice is server-assigned, so the list is refreshed rather than
+      // guessed at.
+      await get().hydrate();
+      return true;
+    } catch (error) {
+      notifyWriteFailure("This proforma could not be converted.", error);
+      return false;
+    }
   },
 
   setCurrentInvoice: (invoice) =>

@@ -64,3 +64,8 @@ InvoiceFlow/dist/
 # Xcode profiling artifacts
 *.profraw
 profile-data/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/

@@ -57,10 +57,12 @@ interface InvoiceRowMenuProps {
   onExport: (template: TemplateType) => void;
   onView: () => void;
   onShare: () => void;
+  onConvert: () => void;
   onDelete: () => void;
 }
 
 function InvoiceRowMenu({
+  item,
   open,
   onOpenChange,
   submenu,
@@ -69,6 +71,7 @@ function InvoiceRowMenu({
   onExport,
   onView,
   onShare,
+  onConvert,
   onDelete,
 }: InvoiceRowMenuProps) {
   const t = useTranslation();
@@ -156,6 +159,11 @@ function InvoiceRowMenu({
               >
                 <Link2 className="h-3.5 w-3.5" /> Share link
               </button>
+              {item.invoiceType === "proforma" && (
+                <button type="button" className={menuItemClass} onClick={onConvert}>
+                  <FileText className="h-3.5 w-3.5" /> Convert to invoice
+                </button>
+              )}
               <button
                 type="button"
                 className={cn(menuItemClass, "text-red-500 hover:bg-red-50 dark:hover:bg-red-950 dark:text-red-400")}
@@ -173,7 +181,7 @@ function InvoiceRowMenu({
 
 export function InvoiceList() {
   const t = useTranslation();
-  const { invoices, hydrate, deleteInvoice, duplicateInvoice } = useInvoiceStore();
+  const { invoices, hydrate, deleteInvoice, duplicateInvoice, convertInvoice } = useInvoiceStore();
   const { settings } = useSettingsStore();
   const { company } = useCompanyStore();
   const [search, setSearch] = useState("");
@@ -320,10 +328,11 @@ export function InvoiceList() {
                 onOpenChange={(o) => setMenuOpen(o ? item.id : null)}
                 submenu={templateSubmenu === item.id}
                 onSubmenuChange={(o) => setTemplateSubmenu(o ? item.id : null)}
-                                onDuplicate={() => { duplicateInvoice(item.id); track("invoice_duplicated"); setMenuOpen(null); }}
+                onDuplicate={() => { duplicateInvoice(item.id); track("invoice_duplicated"); setMenuOpen(null); }}
                 onExport={(tpl) => handleExportWithTemplate(item, tpl)}
                 onView={() => handleViewPdf(item)}
                 onShare={() => { setShareTarget(item); setMenuOpen(null); }}
+                onConvert={() => { void convertInvoice(item.id); setMenuOpen(null); }}
                 onDelete={() => { deleteInvoice(item.id); track("invoice_deleted"); setMenuOpen(null); }}
               />
             ),
@@ -369,6 +378,7 @@ export function InvoiceList() {
                   onExport={(tpl) => handleExportWithTemplate(item, tpl)}
                   onView={() => handleViewPdf(item)}
                   onShare={() => { setShareTarget(item); setMenuOpen(null); }}
+                  onConvert={() => { void convertInvoice(item.id); setMenuOpen(null); }}
                   onDelete={() => { deleteInvoice(item.id); track("invoice_deleted"); setMenuOpen(null); }}
                 />
               </div>

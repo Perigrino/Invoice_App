@@ -24,6 +24,7 @@ export interface PDFData {
   lineItems: PDFLineItem[];
   subtotal: number;
   discount: number;
+  tax: number;
   total: number;
   notes?: string;
   currency?: string;

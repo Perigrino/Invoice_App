@@ -42,13 +42,14 @@ export function serializeInvoice<T extends InvoiceRow>(invoice: T) {
   const { subtotalCents, discountCents, taxCents, totalCents, balanceDueCents, lineItems, ...rest } =
     invoice;
   void discountCents;
-  void taxCents;
 
   return {
     ...rest,
     subtotal: fromCents(subtotalCents),
     discount: invoice.discountPercent,
     tax: invoice.taxPercent,
+    /** The money, next to the percentage stored above. */
+    taxAmount: fromCents(taxCents),
     total: fromCents(totalCents),
     balanceDue: fromCents(balanceDueCents),
     issueDate: invoice.issueDate,
@@ -89,7 +90,11 @@ function asNumber(value: unknown, fallback = 0): number {
  * Body → rows ready for Prisma, with totals computed by `recalculate` rather
  * than trusted from the client.
  */
-export function buildLineItemWrites(body: { lineItems?: unknown }) {
+export function buildLineItemWrites(body: {
+  lineItems?: unknown;
+  discount?: unknown;
+  tax?: unknown;
+}) {
   const items = lineItemsFromBody(body);
   const inputs: LineItemInput[] = items.map((item) => ({
     price: asNumber(item.price),
@@ -98,7 +103,13 @@ export function buildLineItemWrites(body: { lineItems?: unknown }) {
     tax: asNumber(item.tax),
   }));
 
-  const totals = recalculate({ lineItems: inputs });
+  // Invoice-level discount and tax are part of the arithmetic, not labels: the
+  // stored percentages used to be written while the totals ignored them.
+  const totals = recalculate({
+    lineItems: inputs,
+    discount: asNumber(body.discount),
+    tax: asNumber(body.tax),
+  });
 
   const rows = items.map((item, index) => ({
     description: String(item.description ?? ""),

@@ -172,6 +172,12 @@ export function PreviewBusiness({ data, config }: PreviewProps) {
               <span style={{ color: "#DC2626" }}>-{formatMoney(data.discount, data.currency)}</span>
             </div>
           )}
+          {data.tax > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: pt(config.fontSize), color: gray, marginTop: px(2) }}>
+              <span>Tax</span>
+              <span>{formatMoney(data.tax, data.currency)}</span>
+            </div>
+          )}
           {comp.total && (
             <div style={{ marginTop: px(4), borderTop: `0.7px solid ${secondary}`, paddingTop: px(4), display: "flex", justifyContent: "space-between", fontSize: pt(config.fontSize * 1.2), fontWeight: 700, color: secondary }}>
               <span>TOTAL</span>

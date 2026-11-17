@@ -16,6 +16,7 @@ async function ownedInvoice(workspaceId: string, id: string) {
       shareToken: true,
       shareCreatedAt: true,
       shareRevokedAt: true,
+      shareExpiresAt: true,
       shareViews: true,
       shareLastViewedAt: true,
     },
@@ -26,6 +27,7 @@ function serialize(invoice: {
   shareToken: string | null;
   shareCreatedAt: Date | null;
   shareRevokedAt: Date | null;
+  shareExpiresAt: Date | null;
   shareViews: number;
   shareLastViewedAt: Date | null;
 }, origin: string) {
@@ -34,9 +36,18 @@ function serialize(invoice: {
     url: invoice.shareToken ? shareUrl(origin, invoice.shareToken) : null,
     createdAt: invoice.shareCreatedAt?.toISOString() ?? null,
     revokedAt: invoice.shareRevokedAt?.toISOString() ?? null,
+    expiresAt: invoice.shareExpiresAt?.toISOString() ?? null,
     views: invoice.shareViews,
     lastViewedAt: invoice.shareLastViewedAt?.toISOString() ?? null,
   };
+}
+
+/** Body `days`: a positive number puts an expiry on the link; null never. */
+function expiryFrom(value: unknown): Date | null {
+  const days = Number(value);
+  if (!Number.isFinite(days) || days <= 0) return null;
+  const capped = Math.min(Math.ceil(days), 365);
+  return new Date(Date.now() + capped * 86_400_000);
 }
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
@@ -65,6 +76,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const existing = await ownedInvoice(workspaceId, id);
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const body = await request.json().catch(() => ({}));
+  const shareExpiresAt = expiryFrom(body?.days);
+
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const invoice = await prisma.invoice.update({
@@ -73,6 +87,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           shareToken: generateShareToken(),
           shareCreatedAt: new Date(),
           shareRevokedAt: null,
+          shareExpiresAt,
           shareViews: 0,
           shareLastViewedAt: null,
         },
@@ -80,6 +95,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           shareToken: true,
           shareCreatedAt: true,
           shareRevokedAt: true,
+          shareExpiresAt: true,
           shareViews: true,
           shareLastViewedAt: true,
         },
@@ -105,11 +121,12 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
 
   const invoice = await prisma.invoice.update({
     where: { id: existing.id },
-    data: { shareToken: null, shareRevokedAt: new Date() },
+    data: { shareToken: null, shareRevokedAt: new Date(), shareExpiresAt: null },
     select: {
       shareToken: true,
       shareCreatedAt: true,
       shareRevokedAt: true,
+      shareExpiresAt: true,
       shareViews: true,
       shareLastViewedAt: true,
     },

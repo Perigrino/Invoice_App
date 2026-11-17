@@ -56,6 +56,8 @@ export interface InvoiceFormData {
   lineItems: LineItem[];
   notes: string;
   discount: number;
+  /** Invoice-level tax, as a percentage of the discounted subtotal. */
+  tax: number;
 }
 
 export interface ClientFormData {

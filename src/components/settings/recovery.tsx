@@ -8,7 +8,8 @@ import {
   isRecoverySeen,
   markRecoverySeen,
 } from "@/lib/recovery-notice";
-import { Check, Copy, KeyRound } from "lucide-react";
+import { Check, Copy, Download, KeyRound, RefreshCw } from "lucide-react";
+import { downloadRecoveryCard } from "@/lib/recovery-card";
 import {
   Dialog,
   DialogContent,
@@ -47,7 +48,7 @@ function useRecoveryInfo() {
     };
   }, []);
 
-  return { info, failed };
+  return { info, failed, setInfo };
 }
 
 function useCopy() {
@@ -177,8 +178,28 @@ export function RecoveryKeyGate() {
  * that adopts this workspace in any other browser.
  */
 export function WorkspaceRecoveryCard() {
-  const { info, failed } = useRecoveryInfo();
+  const { info, failed, setInfo } = useRecoveryInfo();
   const { copied, copy } = useCopy();
+  const [rotateOpen, setRotateOpen] = useState(false);
+  const [rotating, setRotating] = useState(false);
+  const [rotateError, setRotateError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  const rotate = async () => {
+    setRotating(true);
+    setRotateError(null);
+    try {
+      const res = await fetch("/api/workspace/rotate", { method: "POST" });
+      if (!res.ok) throw new Error(String(res.status));
+      setInfo(await res.json());
+      setRotateOpen(false);
+      setStatus("New key created. The old key no longer opens this workspace.");
+    } catch {
+      setRotateError("Could not create a new key. Your current key still works.");
+    } finally {
+      setRotating(false);
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -195,6 +216,8 @@ export function WorkspaceRecoveryCard() {
           Could not load the recovery key.
         </p>
       )}
+
+      {status && <p className="text-sm text-emerald-700 dark:text-emerald-400">{status}</p>}
 
       {info && (
         <>
@@ -216,8 +239,51 @@ export function WorkspaceRecoveryCard() {
               {copied === "link" ? "Copied" : "Copy link"}
             </Button>
           </div>
+
+          <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+            <Button type="button" size="sm" variant="outline" onClick={() => downloadRecoveryCard(info)}>
+              <Download className="mr-1 h-4 w-4" />
+              Download card
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setRotateError(null);
+                setRotateOpen(true);
+              }}
+            >
+              <RefreshCw className="mr-1 h-4 w-4" />
+              New key
+            </Button>
+          </div>
         </>
       )}
+
+      <Dialog open={rotateOpen} onOpenChange={setRotateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Replace your recovery key?</DialogTitle>
+            <DialogDescription>
+              A new key is generated and the current one stops working immediately. Useful if
+              the old key was seen by someone else — the trade is that every place you saved it
+              needs updating.
+            </DialogDescription>
+          </DialogHeader>
+          {rotateError && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">{rotateError}</p>
+          )}
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={() => setRotateOpen(false)} disabled={rotating}>
+              Keep the current key
+            </Button>
+            <Button type="button" onClick={rotate} disabled={rotating}>
+              {rotating ? "Creating…" : "Create a new key"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

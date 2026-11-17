@@ -2,7 +2,7 @@
   "name": "invoiceflow",
   "version": "0.1.2",
   "private": true,
-  "description": "InvoiceFlow — a modern invoicing app for freelancers and small businesses.",
+  "description": "InvoiceFlow \u2014 a modern invoicing app for freelancers and small businesses.",
   "author": {
     "name": "InvoiceFlow"
   },
@@ -16,7 +16,8 @@
     "dist": "npm run build && node scripts/electron-stage.cjs && electron-builder --mac",
     "dist:arm64": "npm run build && node scripts/electron-stage.cjs && electron-builder --mac --arm64",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
@@ -62,6 +63,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

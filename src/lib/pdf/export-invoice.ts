@@ -16,6 +16,7 @@ export interface ExportableInvoice {
   }>;
   subtotal: number;
   discount: number;
+  tax?: number;
   total: number;
   notes?: string;
 }

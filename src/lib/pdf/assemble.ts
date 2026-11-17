@@ -75,6 +75,7 @@ export function assemblePdfData(payload: PdfExportPayload): PDFData {
     })),
     subtotal: invoice.subtotal,
     discount: invoice.discount,
+    tax: invoice.tax ?? 0,
     total: invoice.total,
     notes: combinedNotes,
     currency,

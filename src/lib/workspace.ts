@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_COMPANY, DEFAULT_SETTINGS } from "@/lib/defaults";
 import { consume } from "@/lib/rate-limit";
 import { generateRecoveryKey } from "@/lib/recovery";
 import { WORKSPACE_COOKIE, isWorkspaceId } from "@/lib/workspace-cookie";
@@ -18,6 +19,62 @@ export async function getWorkspaceId(): Promise<string | null> {
 export type WorkspaceCreation =
   | { ok: true }
   | { ok: false; retryAfterSeconds: number };
+
+/** The settings row's columns, so a new workspace carries the app's defaults. */
+function settingsDefaults() {
+  return {
+    currency: DEFAULT_SETTINGS.currency,
+    separator: DEFAULT_SETTINGS.separator,
+    decimalPlaces: DEFAULT_SETTINGS.decimalPlaces,
+    signPlacement: DEFAULT_SETTINGS.signPlacement,
+    dateFormat: DEFAULT_SETTINGS.dateFormat,
+    pdfDirectory: DEFAULT_SETTINGS.pdfDirectory,
+    template: DEFAULT_SETTINGS.template,
+    paperSize: DEFAULT_SETTINGS.paperSize,
+    pdfAccentColor: DEFAULT_SETTINGS.pdfAccentColor,
+    pdfSecondaryColor: DEFAULT_SETTINGS.pdfSecondaryColor,
+    logo: DEFAULT_SETTINGS.logo,
+    notes: DEFAULT_SETTINGS.notes,
+    showInvoiceId: DEFAULT_SETTINGS.showInvoiceId,
+    showDueDate: DEFAULT_SETTINGS.showDueDate,
+    showCurrency: DEFAULT_SETTINGS.showCurrency,
+    showDiscount: DEFAULT_SETTINGS.showDiscount,
+    showTax: true,
+    showNote: DEFAULT_SETTINGS.showNote,
+    language: DEFAULT_SETTINGS.language,
+    sound: DEFAULT_SETTINGS.sound,
+    openPdfAfterExport: DEFAULT_SETTINGS.openPdfAfterExport,
+    autoSave: DEFAULT_SETTINGS.autoSave,
+    darkMode: DEFAULT_SETTINGS.darkMode,
+  };
+}
+
+function companyDefaults() {
+  return {
+    name: DEFAULT_COMPANY.name,
+    logo: DEFAULT_COMPANY.logo,
+    address: DEFAULT_COMPANY.address,
+    email: DEFAULT_COMPANY.email,
+    phone: DEFAULT_COMPANY.phone,
+    website: DEFAULT_COMPANY.website,
+  };
+}
+
+/**
+ * A workspace's settings and company are written with it, not when someone
+ * first opens Settings. Anything rendered on the server — the share page, a
+ * PDF, an export — otherwise has to guess the currency and template.
+ */
+export async function ensureWorkspaceDefaults(workspaceId: string): Promise<void> {
+  await prisma.setting.createMany({
+    data: [{ workspaceId, ...settingsDefaults() }],
+    skipDuplicates: true,
+  });
+  await prisma.company.createMany({
+    data: [{ workspaceId, ...companyDefaults() }],
+    skipDuplicates: true,
+  });
+}
 
 /** New workspaces allowed per IP per hour, and across the whole app per day. */
 const CREATIONS_PER_IP = 3;
@@ -41,7 +98,11 @@ export async function ensureWorkspace(
     where: { id: workspaceId },
     select: { id: true },
   });
-  if (existing) return { ok: true };
+  if (existing) {
+    // Older workspaces predate seeded defaults; fill them in on first write.
+    await ensureWorkspaceDefaults(workspaceId);
+    return { ok: true };
+  }
 
   const [byIp, global] = await Promise.all([
     consume(`wscreate:ip:${ip}`, CREATIONS_PER_IP, CREATION_WINDOW_SECONDS),
@@ -52,7 +113,12 @@ export async function ensureWorkspace(
 
   try {
     await prisma.workspace.create({
-      data: { id: workspaceId, recoveryKey: generateRecoveryKey() },
+      data: {
+        id: workspaceId,
+        recoveryKey: generateRecoveryKey(),
+        settings: { create: settingsDefaults() },
+        company: { create: companyDefaults() },
+      },
     });
   } catch {
     // A concurrent request created it first; that is success for this caller.
@@ -85,7 +151,14 @@ export async function getRecoveryKey(workspaceId: string): Promise<string> {
         // A row from before keys shipped: fill in the missing one.
         await prisma.workspace.update({ where: { id: workspaceId }, data: { recoveryKey } });
       } else {
-        await prisma.workspace.create({ data: { id: workspaceId, recoveryKey } });
+        await prisma.workspace.create({
+          data: {
+            id: workspaceId,
+            recoveryKey,
+            settings: { create: settingsDefaults() },
+            company: { create: companyDefaults() },
+          },
+        });
       }
       return recoveryKey;
     } catch {

@@ -227,6 +227,12 @@ export function PreviewProfessional({ data, config }: PreviewProps) {
                     </span>
                   </div>
                 )}
+                {data.tax > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: pt(config.fontSize), color: gray, marginTop: px(2) }}>
+                    <span>Tax</span>
+                    <span>{formatMoney(data.tax, data.currency)}</span>
+                  </div>
+                )}
                 {comp.total && (
                   <>
                     <div style={{ borderTop: `0.8px solid ${secondary}`, marginTop: px(4) }} />

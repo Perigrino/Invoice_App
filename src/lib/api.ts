@@ -63,6 +63,8 @@ interface RawInvoice {
   status: string;
   subtotal: number;
   discount: number;
+  tax?: number;
+  taxAmount?: number;
   total: number;
   balanceDue: number;
   notes: string | null;
@@ -94,6 +96,8 @@ export function mapInvoice(raw: RawInvoice): SavedInvoice {
     invoiceType: raw.invoiceType as SavedInvoice["invoiceType"],
     subtotal: raw.subtotal,
     discount: raw.discount,
+    taxPercent: raw.tax ?? 0,
+    tax: raw.taxAmount ?? Math.max(0, raw.total - raw.subtotal),
     total: raw.total,
     balanceDue: raw.balanceDue,
     notes: raw.notes || "",
@@ -191,6 +195,13 @@ export async function updateInvoice(id: string, invoice: SavedInvoice): Promise<
 
 export async function deleteInvoice(id: string): Promise<void> {
   await fetchApi<{ success: boolean }>(`/api/invoices/${id}`, { method: "DELETE" });
+}
+
+/** A proforma becomes a new invoice; the proforma itself is left alone. */
+export async function convertInvoice(id: string): Promise<SavedInvoice> {
+  return mapInvoice(
+    await fetchApi<RawInvoice>(`/api/invoices/${id}/convert`, { method: "POST" })
+  );
 }
 
 export async function saveSettings(settings: Partial<AppSettings>): Promise<void> {

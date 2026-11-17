@@ -47,10 +47,10 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      # The schema is applied with `db push` (no migration history yet); the
-      # service container is disposable so this is safe in CI.
-      - name: Apply schema to the CI database
-        run: npx prisma db push --skip-generate
+      # Migrations are the source of truth now: the baseline under
+      # prisma/migrations matches what `db push` had already created.
+      - name: Apply migrations to the CI database
+        run: npx prisma migrate deploy
 
       # `main` already carries six `react-hooks/set-state-in-effect` errors in
       # components this migration has not touched, so lint reports but does not
@@ -68,3 +68,59 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  e2e:
+    name: Playwright smoke
+    runs-on: ubuntu-latest
+    needs: web
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: invoiceflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invoiceflow
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/invoiceflow
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply migrations to the CI database
+        run: npx prisma migrate deploy
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Playwright starts the app on its own port (see playwright.config.ts).
+      - name: Smoke suite
+        run: npm run test:e2e
+
+      - name: Upload the report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

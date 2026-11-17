@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { AppSettings } from "@/types";
+import { DEFAULT_SETTINGS } from "@/lib/defaults";
 import { loadFromStorage, saveToStorage } from "@/lib/storage";
 import { fetchSettings, saveSettings as apiSaveSettings } from "@/lib/api";
 import { useProfileStore } from "./profile-store";
@@ -13,30 +14,7 @@ interface SettingsState {
   reset: () => void;
 }
 
-const defaultSettings: AppSettings = {
-  logo: "",
-  notes: "",
-  currency: "GHS",
-  separator: "comma",
-  decimalPlaces: 2,
-  signPlacement: "before",
-  dateFormat: "MM/DD/YYYY",
-  pdfDirectory: "/exports",
-  template: "modern",
-  paperSize: "A3",
-  pdfAccentColor: "#00BCD4",
-  pdfSecondaryColor: "#059669",
-  showInvoiceId: true,
-  showDueDate: true,
-  showCurrency: true,
-  showDiscount: true,
-  showNote: true,
-  language: "en",
-  sound: "default",
-  openPdfAfterExport: true,
-  autoSave: true,
-  darkMode: false,
-};
+const defaultSettings: AppSettings = DEFAULT_SETTINGS;
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: defaultSettings,

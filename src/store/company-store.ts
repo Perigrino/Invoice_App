@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { CompanySettings } from "@/types";
+import { DEFAULT_COMPANY } from "@/lib/defaults";
 import { loadFromStorage, saveToStorage } from "@/lib/storage";
 import { fetchCompany, saveCompany as apiSaveCompany } from "@/lib/api";
 import { useProfileStore } from "./profile-store";
@@ -13,15 +14,7 @@ interface CompanyState {
   reset: () => void;
 }
 
-const defaultCompany: CompanySettings = {
-  fullName: "",
-  name: "",
-  logo: "",
-  address: "",
-  email: "",
-  phone: "",
-  website: "",
-};
+const defaultCompany: CompanySettings = DEFAULT_COMPANY;
 
 export const useCompanyStore = create<CompanyState>((set, get) => ({
   company: defaultCompany,

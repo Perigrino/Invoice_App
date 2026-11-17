@@ -12,13 +12,17 @@ export type SharedInvoice = Invoice & {
 };
 
 /**
- * Looks up a shared invoice by token. A revoked link has no token, so it simply
- * stops resolving — there is no separate revocation check at read time.
+ * Looks up a shared invoice by token. A revoked link has no token and an
+ * expired one fails the date check, so both simply stop resolving — there is
+ * no separate check at read time.
  */
 export async function findSharedInvoice(token: string): Promise<SharedInvoice | null> {
   if (!isShareToken(token)) return null;
   return prisma.invoice.findFirst({
-    where: { shareToken: token },
+    where: {
+      shareToken: token,
+      OR: [{ shareExpiresAt: null }, { shareExpiresAt: { gt: new Date() } }],
+    },
     include: {
       lineItems: { orderBy: { sortOrder: "asc" } },
       client: true,
@@ -45,7 +49,8 @@ export function sharedPdfPayload(invoice: SharedInvoice): PdfExportPayload {
         quantity: line.quantity,
       })),
       subtotal: fromCents(invoice.subtotalCents),
-      discount: invoice.discountPercent,
+      discount: fromCents(invoice.discountCents),
+      tax: fromCents(invoice.taxCents),
       total: fromCents(invoice.totalCents),
       notes: invoice.notes ?? undefined,
     },

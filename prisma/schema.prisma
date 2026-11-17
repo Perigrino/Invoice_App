@@ -16,6 +16,9 @@ model Workspace {
   /// Short code that can be typed back to reach this workspace again. The
   /// cookie is the primary key for a browser; this is the way back to it.
   recoveryKey String? @unique
+  /// Last time the holder confirmed they still have the key. Drives a nudge,
+  /// because the key is the only way back into this workspace.
+  recoveryKeyVerifiedAt DateTime?
   createdAt DateTime  @default(now())
   company   Company?
   clients   Client[]
@@ -85,6 +88,9 @@ model Invoice {
   shareToken        String?   @unique
   shareCreatedAt    DateTime?
   shareRevokedAt    DateTime?
+  /// Null means the link does not expire. Past this instant it stops
+  /// resolving, without the owner having to revoke it.
+  shareExpiresAt    DateTime?
   shareViews        Int       @default(0)
   shareLastViewedAt DateTime?
 

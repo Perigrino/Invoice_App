@@ -9,6 +9,7 @@ import { StorageHydrator } from "./storage-hydrator";
 import { useUIStore } from "@/store/ui-store";
 import { cn } from "@/lib/utils";
 import { RecoveryKeyGate } from "@/components/settings/recovery";
+import { KeyCheckBanner } from "./key-check-banner";
 import { Toaster } from "@/components/ui/toaster";
 
 export function DashboardLayout({
@@ -80,6 +81,7 @@ export function DashboardLayout({
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar />
+        <KeyCheckBanner />
         <main className={cn("flex-1 overflow-auto p-4 lg:p-6")}>
           {children}
         </main>

@@ -104,6 +104,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
   const [dueDate, setDueDate] = useState("");
   const [lineItems, dispatch] = useReducer(lineItemsReducer, []);
   const [notes, setNotes] = useState("");
+  const [tax, setTax] = useState(0);
   const [invoiceType, setInvoiceType] = useState<InvoiceType>("invoice");
   const loadedInvoiceId = useRef<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -134,6 +135,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     setDueDate(savedInvoice.dueDate?.split("T")[0] || "");
     dispatch({ type: "load", items: savedInvoice.lineItems });
     setNotes(savedInvoice.notes);
+    setTax(savedInvoice.taxPercent ?? 0);
     setInvoiceType(savedInvoice.invoiceType);
     loadedInvoiceId.current = savedInvoice.id;
   }, [savedInvoice]);
@@ -160,10 +162,11 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
         lineItems,
         notes,
         discount: 0,
+        tax,
       }, clientName);
     }, 60_000);
     return () => clearInterval(interval);
-  }, [settings.autoSave, invoiceId, selectedClientId, invoiceNumber, issueDate, dueDate, invoiceType, lineItems, notes, selectedClient, savedInvoice, updateInvoice]);
+  }, [settings.autoSave, invoiceId, selectedClientId, invoiceNumber, issueDate, dueDate, invoiceType, lineItems, notes, tax, selectedClient, savedInvoice, updateInvoice]);
 
   // Auto-generate invoice number when client changes (new invoices only)
   useEffect(() => {
@@ -181,6 +184,9 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0),
     0
   );
+  // Display only: the server recomputes every total from the same inputs.
+  const taxAmount = Math.round(subtotal * tax) / 100;
+  const total = subtotal + taxAmount;
 
   const handleSave = async () => {
     const data = {
@@ -193,6 +199,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
       lineItems,
       notes,
       discount: 0,
+      tax,
     };
     const clientName =
       selectedClient?.fullName ||
@@ -243,7 +250,8 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
       })),
       subtotal,
       discount: 0,
-      total: subtotal,
+      tax: taxAmount,
+      total,
       notes,
       currency: settings.currency,
     };
@@ -264,7 +272,8 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
         lineItems,
         subtotal,
         discount: 0,
-        total: subtotal,
+        tax: taxAmount,
+        total,
         notes: noteText,
       },
       currency: settings.currency,
@@ -591,15 +600,36 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
                 <span className="text-gray-500">{t.subtotal}</span>
                 <span className="font-medium">{formatCurrency(subtotal, settings.currency)}</span>
               </div>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <label htmlFor="invoice-tax" className="text-gray-500">
+                  Tax (%)
+                </label>
+                <input
+                  id="invoice-tax"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={tax}
+                  onChange={(event) => setTax(Number(event.target.value) || 0)}
+                  className="h-8 w-24 rounded-md border border-gray-200 bg-white px-2 text-right text-sm dark:border-gray-800 dark:bg-gray-950"
+                />
+              </div>
+              {taxAmount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Tax</span>
+                  <span className="font-medium">{formatCurrency(taxAmount, settings.currency)}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex justify-between text-base p-3 rounded-lg bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-950/50 dark:to-emerald-900/50">
                 <span className="font-semibold">Total</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(subtotal, settings.currency)}</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(total, settings.currency)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-sm p-3 rounded-lg bg-gradient-to-r from-violet-50 to-violet-100 dark:from-violet-950/50 dark:to-violet-900/50">
                 <span className="text-gray-500">{t.balanceDue}</span>
-                <span className="font-semibold text-violet-600 dark:text-violet-400">{formatCurrency(subtotal, settings.currency)}</span>
+                <span className="font-semibold text-violet-600 dark:text-violet-400">{formatCurrency(total, settings.currency)}</span>
               </div>
             </CardContent>
           </Card>

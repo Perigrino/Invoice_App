@@ -16,8 +16,41 @@ interface ShareState {
   url: string | null;
   createdAt: string | null;
   revokedAt: string | null;
+  expiresAt: string | null;
   views: number;
   lastViewedAt: string | null;
+}
+
+const EXPIRY_OPTIONS = [
+  { value: "", label: "No expiry" },
+  { value: "30", label: "30 days" },
+  { value: "90", label: "90 days" },
+  { value: "365", label: "1 year" },
+];
+
+function ExpiryChoice({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+      Link expires
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-8 rounded-md border border-gray-200 bg-white px-2 text-sm dark:border-gray-800 dark:bg-gray-950"
+      >
+        {EXPIRY_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 function daysAgo(iso: string | null): string {
@@ -46,6 +79,7 @@ export function ShareDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [days, setDays] = useState("");
 
   // The parent remounts this dialog per invoice (`key`), so there is no stale
   // state to clear here; the fetch itself decides what to show. State is only
@@ -71,7 +105,15 @@ export function ShareDialog({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/invoices/${invoiceId}/share`, { method });
+      const res = await fetch(`/api/invoices/${invoiceId}/share`, {
+        method,
+        ...(method === "POST"
+          ? {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ days: days === "" ? null : Number(days) }),
+            }
+          : {}),
+      });
       if (!res.ok) throw new Error(String(res.status));
       setState(await res.json());
       setCopied(false);
@@ -126,8 +168,13 @@ export function ShareDialog({
                 {state.views === 0
                   ? "Not opened yet."
                   : `Opened ${state.views} ${state.views === 1 ? "time" : "times"}, last ${daysAgo(state.lastViewedAt)}.`}
+                {state.expiresAt
+                  ? ` Expires ${new Date(state.expiresAt).toLocaleDateString()}.`
+                  : " No expiry."}
               </p>
             </div>
+
+            <ExpiryChoice value={days} onChange={setDays} />
 
             <div className="flex flex-wrap items-center gap-2">
               <Button asChild size="sm" variant="outline">
@@ -162,6 +209,7 @@ export function ShareDialog({
                 ? `This invoice was shared until ${new Date(state.revokedAt).toLocaleDateString()}. Create a new link to send it again.`
                 : "This invoice is not shared yet."}
             </p>
+            <ExpiryChoice value={days} onChange={setDays} />
             <Button type="button" onClick={() => mutate("POST")} disabled={busy}>
               {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Link2 className="mr-1 h-4 w-4" />}
               Create share link

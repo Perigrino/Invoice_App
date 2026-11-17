@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ensureWorkspace, getWorkspaceId } from "@/lib/workspace";
+import { ensureWorkspace, ensureWorkspaceDefaults, getWorkspaceId } from "@/lib/workspace";
 import { clientIp } from "@/lib/client-ip";
 import { LIMITS, guardMutation } from "@/lib/request-guard";
 
@@ -10,9 +10,12 @@ export async function GET() {
     return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   try {
-    const settings = await prisma.setting.findUnique({
-      where: { workspaceId },
-    });
+    let settings = await prisma.setting.findUnique({ where: { workspaceId } });
+    if (!settings) {
+      // A workspace created before defaults were seeded: write them now.
+      await ensureWorkspaceDefaults(workspaceId);
+      settings = await prisma.setting.findUnique({ where: { workspaceId } });
+    }
     return NextResponse.json(settings || {});
   } catch {
     return NextResponse.json(
