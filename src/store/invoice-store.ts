@@ -36,8 +36,9 @@ interface InvoiceState {
   isDirty: boolean;
   _hydrated: boolean;
   hydrate: () => Promise<void>;
-  saveInvoice: (data: InvoiceFormData, clientName: string) => SavedInvoice;
-  updateInvoice: (id: string, data: InvoiceFormData, clientName: string) => SavedInvoice | null;
+  /** Resolves true once the server has the invoice, false when it refused. */
+  saveInvoice: (data: InvoiceFormData, clientName: string) => Promise<boolean>;
+  updateInvoice: (id: string, data: InvoiceFormData, clientName: string) => Promise<boolean>;
   deleteInvoice: (id: string) => void;
   duplicateInvoice: (id: string) => void;
   setCurrentInvoice: (invoice: InvoiceFormData | null) => void;
@@ -119,7 +120,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     set({ invoices: data, _hydrated: true });
   },
 
-  saveInvoice: (data, clientName) => {
+  saveInvoice: async (data, clientName) => {
     const subtotal = data.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const saved: SavedInvoice = {
       id: uid(),
@@ -142,15 +143,18 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     persist(updated);
     set({ invoices: updated, currentInvoice: null, isDirty: false });
     const token = beginWrite(saved.id);
-    apiCreateInvoice(saved)
-      .then(reconcile(saved.id, token))
-      .catch(writeFailed("This invoice was not saved to the server.", saved.id, token));
-    return saved;
+    try {
+      reconcile(saved.id, token)(await apiCreateInvoice(saved));
+      return true;
+    } catch (error) {
+      writeFailed("This invoice was not saved to the server.", saved.id, token)(error);
+      return false;
+    }
   },
 
-  updateInvoice: (id, data, clientName) => {
+  updateInvoice: async (id, data, clientName) => {
     const existing = get().invoices.find((invoice) => invoice.id === id);
-    if (!existing) return null;
+    if (!existing) return false;
 
     const subtotal = data.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const updatedInvoice: SavedInvoice = {
@@ -175,10 +179,13 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     persist(updated);
     set({ invoices: updated, currentInvoice: null, isDirty: false });
     const token = beginWrite(id);
-    apiUpdateInvoice(id, updatedInvoice)
-      .then(reconcile(id, token))
-      .catch(writeFailed("Your changes were not saved to the server.", id, token));
-    return updatedInvoice;
+    try {
+      reconcile(id, token)(await apiUpdateInvoice(id, updatedInvoice));
+      return true;
+    } catch (error) {
+      writeFailed("Your changes were not saved to the server.", id, token)(error);
+      return false;
+    }
   },
 
   deleteInvoice: (id) => {

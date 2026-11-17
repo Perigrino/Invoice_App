@@ -145,7 +145,8 @@ describe("a refused save", () => {
 describe("writes that overlap", () => {
   it("ignores a failure an already-started newer write has superseded", async () => {
     const calls = deferredFetch();
-    const saved = useInvoiceStore.getState().saveInvoice(formData(), "Acme");
+    useInvoiceStore.getState().saveInvoice(formData(), "Acme");
+    const saved = useInvoiceStore.getState().invoices[0];
     useInvoiceStore.getState().updateInvoice(saved.id, formData(), "Acme");
     await vi.waitFor(() => expect(calls).toHaveLength(2));
 
@@ -236,6 +237,21 @@ describe("writes that overlap", () => {
 
     const names = useClientStore.getState().clients.map((c) => c.fullName);
     expect(names).toEqual(["Acme", "Added later"]);
+  });
+
+  it("tells the caller whether the server took the write", async () => {
+    useInvoiceStore.setState({ invoices: [savedInvoice()] });
+    const calls = deferredFetch();
+
+    const refused = useInvoiceStore.getState().updateInvoice("inv_1", formData(), "Acme");
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    calls[0].reject(new Error("offline"));
+    await expect(refused).resolves.toBe(false);
+
+    const accepted = useInvoiceStore.getState().updateInvoice("inv_1", formData(), "Acme");
+    await vi.waitFor(() => expect(calls).toHaveLength(2));
+    calls[1].resolve(rawInvoice({ id: "inv_1" }));
+    await expect(accepted).resolves.toBe(true);
   });
 
   it("clears the unsaved mark by removing it, not by setting it false", async () => {

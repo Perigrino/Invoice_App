@@ -182,7 +182,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     0
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const data = {
       invoiceNumber,
       issueDate: new Date(issueDate),
@@ -201,9 +201,14 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
       "No client selected";
 
     if (invoiceId) {
-      updateInvoice(invoiceId, data, clientName);
+      const saved = await updateInvoice(invoiceId, data, clientName);
+      // Stay put when the server refused this save: the notice above the form
+      // says the edits are only in this browser, and leaving would hide that.
+      if (!saved) return;
     } else {
-      saveInvoice(data, clientName);
+      // A new invoice has no editor route of its own yet, so its refusal is
+      // shown in the list, where the row is kept and marked "Not saved".
+      await saveInvoice(data, clientName);
       // The key is shown once, after the first save, wherever this lands.
       markRecoveryPending();
     }
