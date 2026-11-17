@@ -336,6 +336,28 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
         </div>
       </div>
 
+      {savedInvoice?.syncError && (
+        // The row only exists in this browser now: say so here, where the
+        // editing happens, not only in the list the user has not gone back to.
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/40"
+        >
+          <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+              Not saved to the server
+            </p>
+            <p className="mt-1 text-sm text-red-700 dark:text-red-400">
+              The server rejected the last save of this invoice. These edits are still here,
+              but they exist only in this browser — try Save Changes again before you leave
+              this page.
+            </p>
+          </div>
+        </div>
+      )}
+
       {errors.client || errors.items || errors.notes ? (
         <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/40">
           <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
