@@ -1,13 +1,14 @@
 import { create } from "zustand";
 import type { InvoiceFormData, LineItem, InvoiceStatus, InvoiceType } from "@/types";
 import { loadFromStorage, saveToStorage } from "@/lib/storage";
-import { notifyWriteFailure } from "@/store/toast-store";
+import { beginWrite, isLatestWrite } from "@/lib/latest-write";
 import {
   fetchInvoices,
   createInvoice as apiCreateInvoice,
   updateInvoice as apiUpdateInvoice,
   deleteInvoice as apiDeleteInvoice,
 } from "@/lib/api";
+import { notifyWriteFailure } from "@/store/toast-store";
 
 export interface SavedInvoice {
   id: string;
@@ -60,40 +61,46 @@ function uid() {
 /**
  * The server owns the invoice number and the totals, so once it answers the
  * optimistic row is corrected in place (the local id stays, because routes and
- * the editor address invoices by it).
+ * the editor address invoices by it). A superseded write is ignored: a newer
+ * one is already in flight and will describe the row itself.
  */
-function reconcile(id: string): (synced: SavedInvoice | null) => void {
+function updateRow(id: string, change: (invoice: SavedInvoice) => SavedInvoice) {
+  const invoices = useInvoiceStore
+    .getState()
+    .invoices.map((invoice) => (invoice.id === id ? change(invoice) : invoice));
+  persist(invoices);
+  useInvoiceStore.setState({ invoices });
+}
+
+function reconcile(id: string, token: number): (synced: SavedInvoice | null) => void {
   return (synced) => {
-    if (!synced) return;
-    const invoices = useInvoiceStore.getState().invoices.map((invoice) =>
-      invoice.id === id
-        ? {
-            ...invoice,
-            invoiceNumber: synced.invoiceNumber,
-            subtotal: synced.subtotal,
-            discount: synced.discount,
-            total: synced.total,
-            balanceDue: synced.balanceDue,
-            syncError: false,
-          }
-        : invoice
-    );
-    persist(invoices);
-    useInvoiceStore.setState({ invoices });
+    if (!synced || !isLatestWrite(id, token)) return;
+    updateRow(id, (invoice) => {
+      const corrected: SavedInvoice = {
+        ...invoice,
+        invoiceNumber: synced.invoiceNumber,
+        subtotal: synced.subtotal,
+        discount: synced.discount,
+        total: synced.total,
+        balanceDue: synced.balanceDue,
+      };
+      // Saved again, so the "only in this browser" mark no longer applies.
+      delete corrected.syncError;
+      return corrected;
+    });
   };
 }
 
 /** Keeps the row (the user's typing may not exist anywhere else) but marks it. */
 function markSyncFailed(id: string) {
-  const invoices = useInvoiceStore
-    .getState()
-    .invoices.map((invoice) => (invoice.id === id ? { ...invoice, syncError: true } : invoice));
-  persist(invoices);
-  useInvoiceStore.setState({ invoices });
+  updateRow(id, (invoice) => ({ ...invoice, syncError: true }));
 }
 
-function writeFailed(action: string, id: string) {
+function writeFailed(action: string, id: string, token: number) {
   return (error: unknown) => {
+    // A newer write for this row has already superseded this one; its outcome
+    // is what the user should hear about, not this stale failure.
+    if (!isLatestWrite(id, token)) return;
     markSyncFailed(id);
     notifyWriteFailure(action, error);
   };
@@ -113,6 +120,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   },
 
   saveInvoice: (data, clientName) => {
+    const subtotal = data.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const saved: SavedInvoice = {
       id: uid(),
       invoiceNumber: data.invoiceNumber,
@@ -120,10 +128,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       clientName,
       status: data.status,
       invoiceType: data.invoiceType,
-      subtotal: data.lineItems.reduce((s, i) => s + i.price * i.quantity, 0),
+      subtotal,
       discount: data.discount,
-      total: data.lineItems.reduce((s, i) => s + i.price * i.quantity, 0),
-      balanceDue: data.lineItems.reduce((s, i) => s + i.price * i.quantity, 0),
+      total: subtotal,
+      balanceDue: subtotal,
       notes: data.notes || "",
       issueDate: data.issueDate.toISOString(),
       dueDate: data.dueDate?.toISOString() || null,
@@ -133,9 +141,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     const updated = [saved, ...get().invoices];
     persist(updated);
     set({ invoices: updated, currentInvoice: null, isDirty: false });
+    const token = beginWrite(saved.id);
     apiCreateInvoice(saved)
-      .then(reconcile(saved.id))
-      .catch(writeFailed("This invoice was not saved to the server.", saved.id));
+      .then(reconcile(saved.id, token))
+      .catch(writeFailed("This invoice was not saved to the server.", saved.id, token));
     return saved;
   },
 
@@ -165,21 +174,34 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     );
     persist(updated);
     set({ invoices: updated, currentInvoice: null, isDirty: false });
+    const token = beginWrite(id);
     apiUpdateInvoice(id, updatedInvoice)
-      .then(reconcile(id))
-      .catch(writeFailed("Your changes were not saved to the server.", id));
+      .then(reconcile(id, token))
+      .catch(writeFailed("Your changes were not saved to the server.", id, token));
     return updatedInvoice;
   },
 
   deleteInvoice: (id) => {
     const previous = get().invoices;
+    const index = previous.findIndex((inv) => inv.id === id);
+    if (index === -1) return;
+    const removed = previous[index];
+    const token = beginWrite(id);
     const updated = previous.filter((inv) => inv.id !== id);
     persist(updated);
     set({ invoices: updated });
     apiDeleteInvoice(id).catch((error) => {
-      // Put it back: the server still has it, so hiding it would be a lie.
-      persist(previous);
-      set({ invoices: previous });
+      // Put it back, but only this one row and only into the list as it is
+      // now: newer invoices created in the meantime must survive the rollback.
+      if (isLatestWrite(id, token)) {
+        const current = get().invoices;
+        if (!current.some((inv) => inv.id === id)) {
+          const restored = [...current];
+          restored.splice(Math.min(index, restored.length), 0, removed);
+          persist(restored);
+          set({ invoices: restored });
+        }
+      }
       notifyWriteFailure("This invoice was not deleted.", error);
     });
   },
@@ -197,9 +219,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     const updated = [dup, ...get().invoices];
     persist(updated);
     set({ invoices: updated });
+    const token = beginWrite(dup.id);
     apiCreateInvoice(dup)
-      .then(reconcile(dup.id))
-      .catch(writeFailed("The duplicate was not saved to the server.", dup.id));
+      .then(reconcile(dup.id, token))
+      .catch(writeFailed("The duplicate was not saved to the server.", dup.id, token));
   },
 
   setCurrentInvoice: (invoice) =>
