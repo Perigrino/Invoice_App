@@ -10,7 +10,12 @@
 import { fromCents, toCents } from "@/lib/money";
 import type { InvoiceRow } from "@/lib/invoice-mapping";
 
-export const EXPORT_VERSION = 1;
+/**
+ * Bumped with the naming cleanup: `discount`/`tax` became `discountPercent`/
+ * `taxPercent`. A version-1 file is rejected rather than imported with its
+ * percentages silently read as zero.
+ */
+export const EXPORT_VERSION = 2;
 
 /** Guards against a file that is small enough to upload but huge once expanded. */
 const MAX_CLIENTS = 5_000;
@@ -21,8 +26,8 @@ export interface ExportedLineItem {
   description: string;
   price: number;
   quantity: number;
-  discount: number;
-  tax: number;
+  discountPercent: number;
+  taxPercent: number;
   total: number;
 }
 
@@ -33,8 +38,8 @@ export interface ExportedInvoice {
   clientIndex: number | null;
   status: string;
   subtotal: number;
-  discount: number;
-  tax: number;
+  discountPercent: number;
+  taxPercent: number;
   total: number;
   balanceDue: number;
   notes: string | null;
@@ -186,8 +191,8 @@ export function validateExportFile(raw: unknown): Validation {
         description: str(item.description) ?? "",
         price: num(item.price),
         quantity: num(item.quantity, 1),
-        discount: num(item.discount),
-        tax: num(item.tax),
+        discountPercent: num(item.discountPercent),
+        taxPercent: num(item.taxPercent),
         total: num(item.total),
       }));
     lineItemCount += lineItems.length;
@@ -201,8 +206,8 @@ export function validateExportFile(raw: unknown): Validation {
           : null,
       status: str(entry.status) ?? "draft",
       subtotal: num(entry.subtotal),
-      discount: num(entry.discount),
-      tax: num(entry.tax),
+      discountPercent: num(entry.discountPercent),
+      taxPercent: num(entry.taxPercent),
       total: num(entry.total),
       balanceDue: num(entry.balanceDue),
       notes: str(entry.notes),
@@ -283,8 +288,8 @@ export function toExportedInvoice(invoice: InvoiceRow, clients: Array<{ id: stri
     clientIndex: index >= 0 ? index : null,
     status: invoice.status,
     subtotal: fromCents(invoice.subtotalCents),
-    discount: invoice.discountPercent,
-    tax: invoice.taxPercent,
+    discountPercent: invoice.discountPercent,
+    taxPercent: invoice.taxPercent,
     total: fromCents(invoice.totalCents),
     balanceDue: fromCents(invoice.balanceDueCents),
     notes: invoice.notes,
@@ -294,8 +299,8 @@ export function toExportedInvoice(invoice: InvoiceRow, clients: Array<{ id: stri
       description: item.description,
       price: fromCents(item.priceCents),
       quantity: item.quantity,
-      discount: item.discountPercent,
-      tax: item.taxPercent,
+      discountPercent: item.discountPercent,
+      taxPercent: item.taxPercent,
       total: fromCents(item.totalCents),
     })),
   };

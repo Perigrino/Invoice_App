@@ -23,8 +23,8 @@ export interface PreviewInvoiceData {
   logo?: string;
   lineItems: PreviewLineItem[];
   subtotal: number;
-  discount: number;
-  tax: number;
+  discountAmount: number;
+  taxAmount: number;
   total: number;
   notes?: string;
   currency: string;

@@ -20,10 +20,12 @@ export interface SavedInvoice {
   status: InvoiceStatus;
   invoiceType: InvoiceType;
   subtotal: number;
-  discount: number;
+  discountPercent: number;
+  /** Discount amount in currency units, as printed on the invoice. */
+  discountAmount: number;
   taxPercent: number;
   /** Tax amount in currency units, as printed on the invoice. */
-  tax: number;
+  taxAmount: number;
   total: number;
   balanceDue: number;
   notes: string;
@@ -87,9 +89,10 @@ function reconcile(id: string, token: number): (synced: SavedInvoice | null) => 
         ...invoice,
         invoiceNumber: synced.invoiceNumber,
         subtotal: synced.subtotal,
-        discount: synced.discount,
+        discountPercent: synced.discountPercent,
+        discountAmount: synced.discountAmount,
         taxPercent: synced.taxPercent,
-        tax: synced.tax,
+        taxAmount: synced.taxAmount,
         total: synced.total,
         balanceDue: synced.balanceDue,
       };
@@ -98,6 +101,21 @@ function reconcile(id: string, token: number): (synced: SavedInvoice | null) => 
       return corrected;
     });
   };
+}
+
+/**
+ * Local mirror of `recalculate`, in currency units, for the optimistic row.
+ * The server replaces these numbers as soon as it answers.
+ */
+function localTotals(data: InvoiceFormData) {
+  const subtotal = data.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotalCents = toCents(subtotal);
+  const discountAmount = fromCents(percentOfCents(subtotalCents, data.discountPercent || 0));
+  const taxAmount = fromCents(
+    percentOfCents(subtotalCents - toCents(discountAmount), data.taxPercent || 0)
+  );
+  const totalCents = subtotalCents - toCents(discountAmount) + toCents(taxAmount);
+  return { subtotal, discountAmount, taxAmount, total: fromCents(totalCents) };
 }
 
 /** Keeps the row (the user's typing may not exist anywhere else) but marks it. */
@@ -129,9 +147,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   },
 
   saveInvoice: async (data, clientName) => {
-    const subtotal = data.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const tax = data.tax || 0;
-    const total = fromCents(toCents(subtotal) + percentOfCents(toCents(subtotal), tax));
+    const { subtotal, discountAmount, taxAmount, total } = localTotals(data);
     const saved: SavedInvoice = {
       id: uid(),
       invoiceNumber: data.invoiceNumber,
@@ -140,9 +156,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       status: data.status,
       invoiceType: data.invoiceType,
       subtotal,
-      discount: data.discount,
-      taxPercent: tax,
-      tax: fromCents(percentOfCents(toCents(subtotal), tax)),
+      discountPercent: data.discountPercent || 0,
+      discountAmount,
+      taxPercent: data.taxPercent || 0,
+      taxAmount,
       total,
       balanceDue: total,
       notes: data.notes || "",
@@ -168,9 +185,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     const existing = get().invoices.find((invoice) => invoice.id === id);
     if (!existing) return false;
 
-    const subtotal = data.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const tax = data.tax || 0;
-    const total = fromCents(toCents(subtotal) + percentOfCents(toCents(subtotal), tax));
+    const { subtotal, discountAmount, taxAmount, total } = localTotals(data);
     const updatedInvoice: SavedInvoice = {
       ...existing,
       invoiceNumber: data.invoiceNumber,
@@ -179,8 +194,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       status: data.status,
       invoiceType: data.invoiceType,
       subtotal,
-      discount: data.discount,
-      taxPercent: tax,
+      discountPercent: data.discountPercent || 0,
+      discountAmount,
+      taxPercent: data.taxPercent || 0,
+      taxAmount,
       total,
       balanceDue: total,
       notes: data.notes || "",

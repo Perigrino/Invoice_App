@@ -212,7 +212,7 @@ export function PreviewProfessional({ data, config }: PreviewProps) {
                     <span style={{ color: ink }}>{formatMoney(data.subtotal, data.currency)}</span>
                   </div>
                 )}
-                {comp.discount && data.discount > 0 && (
+                {comp.discount && data.discountAmount > 0 && (
                   <div
                     style={{
                       display: "flex",
@@ -223,14 +223,14 @@ export function PreviewProfessional({ data, config }: PreviewProps) {
                   >
                     <span style={{ color: gray }}>Discount</span>
                     <span style={{ color: "#DC2626" }}>
-                      -{formatMoney(data.discount, data.currency)}
+                      -{formatMoney(data.discountAmount, data.currency)}
                     </span>
                   </div>
                 )}
-                {data.tax > 0 && (
+                {data.taxAmount > 0 && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: pt(config.fontSize), color: gray, marginTop: px(2) }}>
                     <span>Tax</span>
-                    <span>{formatMoney(data.tax, data.currency)}</span>
+                    <span>{formatMoney(data.taxAmount, data.currency)}</span>
                   </div>
                 )}
                 {comp.total && (

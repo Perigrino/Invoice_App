@@ -58,11 +58,11 @@ function invoiceRow(overrides: Partial<InvoiceRow> = {}): InvoiceRow {
     lineItems: row.lineItems.map((item) => ({
       price: item.priceCents / 100,
       quantity: item.quantity,
-      discount: item.discountPercent,
-      tax: item.taxPercent,
+      discountPercent: item.discountPercent,
+      taxPercent: item.taxPercent,
     })),
-    discount: row.discountPercent,
-    tax: row.taxPercent,
+    discountPercent: row.discountPercent,
+    taxPercent: row.taxPercent,
   });
 
   return {
@@ -174,11 +174,11 @@ describe("round trip", () => {
         lineItems: invoice.lineItems.map((item) => ({
           price: item.price,
           quantity: item.quantity,
-          discount: item.discount,
-          tax: item.tax,
+          discountPercent: item.discountPercent,
+          taxPercent: item.taxPercent,
         })),
-        discount: invoice.discount,
-        tax: invoice.tax,
+        discountPercent: invoice.discountPercent,
+        taxPercent: invoice.taxPercent,
       });
       expect(totals.totalCents).toBe(toCents(invoice.total));
       // And the file's own total matches what the export put there.

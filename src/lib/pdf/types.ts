@@ -23,8 +23,8 @@ export interface PDFData {
   clientAddress: string;
   lineItems: PDFLineItem[];
   subtotal: number;
-  discount: number;
-  tax: number;
+  discountAmount: number;
+  taxAmount: number;
   total: number;
   notes?: string;
   currency?: string;

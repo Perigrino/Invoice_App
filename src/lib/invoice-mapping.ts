@@ -41,14 +41,13 @@ export interface InvoiceRow {
 export function serializeInvoice<T extends InvoiceRow>(invoice: T) {
   const { subtotalCents, discountCents, taxCents, totalCents, balanceDueCents, lineItems, ...rest } =
     invoice;
-  void discountCents;
 
   return {
     ...rest,
     subtotal: fromCents(subtotalCents),
-    discount: invoice.discountPercent,
-    tax: invoice.taxPercent,
-    /** The money, next to the percentage stored above. */
+    discountPercent: invoice.discountPercent,
+    discountAmount: fromCents(discountCents),
+    taxPercent: invoice.taxPercent,
     taxAmount: fromCents(taxCents),
     total: fromCents(totalCents),
     balanceDue: fromCents(balanceDueCents),
@@ -61,8 +60,8 @@ export function serializeInvoice<T extends InvoiceRow>(invoice: T) {
       description: item.description,
       price: fromCents(item.priceCents),
       quantity: item.quantity,
-      discount: item.discountPercent,
-      tax: item.taxPercent,
+      discountPercent: item.discountPercent,
+      taxPercent: item.taxPercent,
       total: fromCents(item.totalCents),
       sortOrder: item.sortOrder,
     })),
@@ -73,8 +72,8 @@ export interface LineItemBody {
   description?: unknown;
   price?: unknown;
   quantity?: unknown;
-  discount?: unknown;
-  tax?: unknown;
+  discountPercent?: unknown;
+  taxPercent?: unknown;
 }
 
 export function lineItemsFromBody(body: { lineItems?: unknown }): LineItemBody[] {
@@ -92,31 +91,31 @@ function asNumber(value: unknown, fallback = 0): number {
  */
 export function buildLineItemWrites(body: {
   lineItems?: unknown;
-  discount?: unknown;
-  tax?: unknown;
+  discountPercent?: unknown;
+  taxPercent?: unknown;
 }) {
   const items = lineItemsFromBody(body);
   const inputs: LineItemInput[] = items.map((item) => ({
     price: asNumber(item.price),
     quantity: asNumber(item.quantity, 1),
-    discount: asNumber(item.discount),
-    tax: asNumber(item.tax),
+    discountPercent: asNumber(item.discountPercent),
+    taxPercent: asNumber(item.taxPercent),
   }));
 
   // Invoice-level discount and tax are part of the arithmetic, not labels: the
   // stored percentages used to be written while the totals ignored them.
   const totals = recalculate({
     lineItems: inputs,
-    discount: asNumber(body.discount),
-    tax: asNumber(body.tax),
+    discountPercent: asNumber(body.discountPercent),
+    taxPercent: asNumber(body.taxPercent),
   });
 
   const rows = items.map((item, index) => ({
     description: String(item.description ?? ""),
     priceCents: toCents(asNumber(item.price)),
     quantity: asNumber(item.quantity, 1),
-    discountPercent: asNumber(item.discount),
-    taxPercent: asNumber(item.tax),
+    discountPercent: asNumber(item.discountPercent),
+    taxPercent: asNumber(item.taxPercent),
     totalCents: totals.lineTotalsCents[index] ?? 0,
     sortOrder: index,
   }));

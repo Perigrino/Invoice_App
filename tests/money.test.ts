@@ -64,7 +64,7 @@ describe("recalculate", () => {
 
   it("applies line-level discount before line-level tax", () => {
     const totals = recalculate({
-      lineItems: [{ price: 100, quantity: 1, discount: 10, tax: 20 }],
+      lineItems: [{ price: 100, quantity: 1, discountPercent: 10, taxPercent: 20 }],
     });
     // 100.00 − 10% = 90.00, + 20% = 108.00
     expect(totals.lineTotalsCents).toEqual([10800]);
@@ -73,8 +73,8 @@ describe("recalculate", () => {
   it("applies invoice discount to the subtotal, then invoice tax", () => {
     const totals = recalculate({
       lineItems: [{ price: 50, quantity: 2 }],
-      discount: 20,
-      tax: 10,
+      discountPercent: 20,
+      taxPercent: 10,
     });
     expect(totals.subtotalCents).toBe(10000);
     expect(totals.discountCents).toBe(2000);

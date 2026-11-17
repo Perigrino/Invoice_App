@@ -35,17 +35,17 @@ export interface LineItemInput {
   price: number;
   quantity: number;
   /** Percentage, 0–100. */
-  discount?: number;
+  discountPercent?: number;
   /** Percentage, 0–100. */
-  tax?: number;
+  taxPercent?: number;
 }
 
 export interface RecalculateInput {
   lineItems: LineItemInput[];
   /** Invoice-level discount, as a percentage of the subtotal. */
-  discount?: number;
+  discountPercent?: number;
   /** Invoice-level tax, as a percentage of the discounted subtotal. */
-  tax?: number;
+  taxPercent?: number;
 }
 
 export interface InvoiceTotals {
@@ -67,15 +67,15 @@ export interface InvoiceTotals {
 export function recalculate(input: RecalculateInput): InvoiceTotals {
   const lineTotalsCents = (input.lineItems ?? []).map((item) => {
     const gross = toCents((Number(item.price) || 0) * (Number(item.quantity) || 0));
-    const discount = percentOfCents(gross, Number(item.discount) || 0);
-    const taxed = gross - discount;
-    const tax = percentOfCents(taxed, Number(item.tax) || 0);
-    return taxed + tax;
+    const lineDiscountCents = percentOfCents(gross, Number(item.discountPercent) || 0);
+    const taxed = gross - lineDiscountCents;
+    const lineTaxCents = percentOfCents(taxed, Number(item.taxPercent) || 0);
+    return taxed + lineTaxCents;
   });
 
   const subtotalCents = lineTotalsCents.reduce((sum, cents) => sum + cents, 0);
-  const discountCents = percentOfCents(subtotalCents, Number(input.discount) || 0);
-  const taxCents = percentOfCents(subtotalCents - discountCents, Number(input.tax) || 0);
+  const discountCents = percentOfCents(subtotalCents, Number(input.discountPercent) || 0);
+  const taxCents = percentOfCents(subtotalCents - discountCents, Number(input.taxPercent) || 0);
   const totalCents = subtotalCents - discountCents + taxCents;
 
   return { lineTotalsCents, subtotalCents, discountCents, taxCents, totalCents };

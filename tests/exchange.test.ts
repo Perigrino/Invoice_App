@@ -12,9 +12,9 @@ const minimal = {
       invoiceNumber: "INV-26-0001",
       issueDate: "2026-03-01T00:00:00.000Z",
       dueDate: null,
-      discount: 0,
-      tax: 0,
-      lineItems: [{ description: "Design", price: 250.5, quantity: 2, discount: 0, tax: 0 }],
+      discountPercent: 0,
+      taxPercent: 0,
+      lineItems: [{ description: "Design", price: 250.5, quantity: 2, discountPercent: 0, taxPercent: 0 }],
     },
   ],
 };

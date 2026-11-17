@@ -15,8 +15,8 @@ export interface ExportableInvoice {
     quantity: number;
   }>;
   subtotal: number;
-  discount: number;
-  tax?: number;
+  discountAmount: number;
+  taxAmount?: number;
   total: number;
   notes?: string;
 }

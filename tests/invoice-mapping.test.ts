@@ -5,8 +5,8 @@ describe("buildLineItemWrites", () => {
   it("computes totals in cents and ignores anything the client sent", () => {
     const { rows, totals } = buildLineItemWrites({
       lineItems: [
-        { description: "Design", price: 250.5, quantity: 2, discount: 0, tax: 0, total: 999999 },
-        { description: "Hosting", price: 12.25, quantity: 1, discount: 0, tax: 0 },
+        { description: "Design", price: 250.5, quantity: 2, discountPercent: 0, taxPercent: 0, total: 999999 },
+        { description: "Hosting", price: 12.25, quantity: 1, discountPercent: 0, taxPercent: 0 },
       ],
     });
 
@@ -60,7 +60,8 @@ describe("serializeInvoice", () => {
 
     expect(serialized.subtotal).toBe(513.25);
     expect(serialized.total).toBe(461.92);
-    expect(serialized.discount).toBe(10);
+    expect(serialized.discountPercent).toBe(10);
+    expect(serialized.discountAmount).toBe(51.33);
     expect(serialized.lineItems[0].price).toBe(250.5);
     expect("subtotalCents" in serialized).toBe(false);
   });

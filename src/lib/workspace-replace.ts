@@ -46,11 +46,11 @@ export async function replaceWorkspace(workspaceId: string, file: ExportFile): P
       lineItems: invoice.lineItems.map((item) => ({
         price: item.price,
         quantity: item.quantity,
-        discount: item.discount,
-        tax: item.tax,
+        discountPercent: item.discountPercent,
+        taxPercent: item.taxPercent,
       })),
-      discount: invoice.discount,
-      tax: invoice.tax,
+      discountPercent: invoice.discountPercent,
+      taxPercent: invoice.taxPercent,
     });
 
     invoiceRows.push({
@@ -64,9 +64,9 @@ export async function replaceWorkspace(workspaceId: string, file: ExportFile): P
           ? clientIds[invoice.clientIndex]
           : null,
       subtotalCents: totals.subtotalCents,
-      discountPercent: invoice.discount,
+      discountPercent: invoice.discountPercent,
       discountCents: totals.discountCents,
-      taxPercent: invoice.tax,
+      taxPercent: invoice.taxPercent,
       taxCents: totals.taxCents,
       totalCents: totals.totalCents,
       balanceDueCents: Math.max(0, totals.totalCents),
@@ -81,8 +81,8 @@ export async function replaceWorkspace(workspaceId: string, file: ExportFile): P
         description: item.description,
         priceCents: toCents(item.price),
         quantity: item.quantity,
-        discountPercent: item.discount,
-        taxPercent: item.tax,
+        discountPercent: item.discountPercent,
+        taxPercent: item.taxPercent,
         totalCents: totals.lineTotalsCents[index] ?? 0,
         sortOrder: index,
       });

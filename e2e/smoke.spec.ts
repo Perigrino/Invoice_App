@@ -37,7 +37,7 @@ test("anonymous workspace end to end", async ({ page, browser }) => {
       invoiceType: "invoice",
       status: "pending",
       notes: "e2e smoke",
-      tax: 10,
+      taxPercent: 10,
       lineItems: [
         { description: "Consulting", price: 100, quantity: 2, discountPercent: 0, taxPercent: 0 },
       ],
@@ -48,13 +48,13 @@ test("anonymous workspace end to end", async ({ page, browser }) => {
     id: string;
     invoiceNumber: string;
     subtotal: number;
-    tax: number;
+    taxPercent: number;
     taxAmount: number;
     total: number;
   };
   expect(invoice.subtotal).toBe(200);
   expect(invoice.total).toBe(220);
-  expect(invoice.tax).toBe(10);
+  expect(invoice.taxPercent).toBe(10);
   expect(invoice.taxAmount).toBe(20);
 
   await page.goto("/invoices");

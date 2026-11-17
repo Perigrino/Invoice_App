@@ -180,16 +180,16 @@ export function PreviewModern({ data, config }: PreviewProps) {
               <span style={{ color: "#000" }}>{formatMoney(data.subtotal, data.currency)}</span>
             </div>
           )}
-          {comp.discount && data.discount > 0 && (
+          {comp.discount && data.discountAmount > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: pt(config.fontSize), color: "#6B7280", marginTop: px(2) }}>
               <span>Discount:</span>
-              <span style={{ color: "#DC2626" }}>-{formatMoney(data.discount, data.currency)}</span>
+              <span style={{ color: "#DC2626" }}>-{formatMoney(data.discountAmount, data.currency)}</span>
             </div>
           )}
-          {data.tax > 0 && (
+          {data.taxAmount > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: pt(config.fontSize), color: "#6B7280", marginTop: px(2) }}>
               <span>Tax</span>
-              <span>{formatMoney(data.tax, data.currency)}</span>
+              <span>{formatMoney(data.taxAmount, data.currency)}</span>
             </div>
           )}
           {comp.total && (

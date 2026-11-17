@@ -218,24 +218,24 @@ function buildTotals(
       )
     );
   }
-  if (comp.discount && data.discount > 0) {
+  if (comp.discount && data.discountAmount > 0) {
     rows.push(
       b.row(
         { padding: rowPad },
         [
           b.text("Discount", { flex: 1, color: opts.labelColor }),
-          b.text(`-${formatPdfCurrency(data.discount, data.currency)}`, { color: opts.discountColor ?? "#DC2626" }),
+          b.text(`-${formatPdfCurrency(data.discountAmount, data.currency)}`, { color: opts.discountColor ?? "#DC2626" }),
         ]
       )
     );
   }
-  if (data.tax > 0) {
+  if (data.taxAmount > 0) {
     rows.push(
       b.row(
         { padding: rowPad },
         [
           b.text("Tax", { flex: 1, color: opts.labelColor }),
-          b.text(formatPdfCurrency(data.tax, data.currency), { color: opts.valueColor }),
+          b.text(formatPdfCurrency(data.taxAmount, data.currency), { color: opts.valueColor }),
         ]
       )
     );
@@ -667,16 +667,16 @@ function buildProfessional(b: SpecBuilder, data: PDFData): string[] {
     })
   );
 
-  if (comp.subtotal || comp.discount || comp.total || data.tax > 0) {
+  if (comp.subtotal || comp.discount || comp.total || data.taxAmount > 0) {
     const totalRows: string[] = [];
     if (comp.subtotal) {
       totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Subtotal", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(formatPdfCurrency(data.subtotal, data.currency), { fontSize: b.fontSize, color: ink })]));
     }
-    if (comp.discount && data.discount > 0) {
-      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Discount", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(`-${formatPdfCurrency(data.discount, data.currency)}`, { fontSize: b.fontSize, color: "#DC2626" })]));
+    if (comp.discount && data.discountAmount > 0) {
+      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Discount", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(`-${formatPdfCurrency(data.discountAmount, data.currency)}`, { fontSize: b.fontSize, color: "#DC2626" })]));
     }
-    if (data.tax > 0) {
-      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Tax", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(formatPdfCurrency(data.tax, data.currency), { fontSize: b.fontSize, color: ink })]));
+    if (data.taxAmount > 0) {
+      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Tax", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(formatPdfCurrency(data.taxAmount, data.currency), { fontSize: b.fontSize, color: ink })]));
     }
     if (comp.total) {
       totalRows.push(
@@ -791,16 +791,16 @@ function buildElegant(b: SpecBuilder, data: PDFData): string[] {
     })
   );
 
-  if (comp.subtotal || comp.discount || comp.total || data.tax > 0) {
+  if (comp.subtotal || comp.discount || comp.total || data.taxAmount > 0) {
     const totalRows: string[] = [];
     if (comp.subtotal) {
       totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Subtotal", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(formatPdfCurrency(data.subtotal, data.currency), { fontSize: b.fontSize, color: ink })]));
     }
-    if (comp.discount && data.discount > 0) {
-      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Discount", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(`-${formatPdfCurrency(data.discount, data.currency)}`, { fontSize: b.fontSize, color: "#B22222" })]));
+    if (comp.discount && data.discountAmount > 0) {
+      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Discount", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(`-${formatPdfCurrency(data.discountAmount, data.currency)}`, { fontSize: b.fontSize, color: "#B22222" })]));
     }
-    if (data.tax > 0) {
-      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Tax", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(formatPdfCurrency(data.tax, data.currency), { fontSize: b.fontSize, color: ink })]));
+    if (data.taxAmount > 0) {
+      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Tax", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(formatPdfCurrency(data.taxAmount, data.currency), { fontSize: b.fontSize, color: ink })]));
     }
     if (comp.total) {
       totalRows.push(

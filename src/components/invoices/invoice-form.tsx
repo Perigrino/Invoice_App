@@ -104,7 +104,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
   const [dueDate, setDueDate] = useState("");
   const [lineItems, dispatch] = useReducer(lineItemsReducer, []);
   const [notes, setNotes] = useState("");
-  const [tax, setTax] = useState(0);
+  const [taxPercent, setTaxPercent] = useState(0);
   const [invoiceType, setInvoiceType] = useState<InvoiceType>("invoice");
   const loadedInvoiceId = useRef<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -135,7 +135,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     setDueDate(savedInvoice.dueDate?.split("T")[0] || "");
     dispatch({ type: "load", items: savedInvoice.lineItems });
     setNotes(savedInvoice.notes);
-    setTax(savedInvoice.taxPercent ?? 0);
+    setTaxPercent(savedInvoice.taxPercent ?? 0);
     setInvoiceType(savedInvoice.invoiceType);
     loadedInvoiceId.current = savedInvoice.id;
   }, [savedInvoice]);
@@ -161,12 +161,12 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
         clientId: selectedClientId,
         lineItems,
         notes,
-        discount: 0,
-        tax,
+        discountPercent: 0,
+        taxPercent,
       }, clientName);
     }, 60_000);
     return () => clearInterval(interval);
-  }, [settings.autoSave, invoiceId, selectedClientId, invoiceNumber, issueDate, dueDate, invoiceType, lineItems, notes, tax, selectedClient, savedInvoice, updateInvoice]);
+  }, [settings.autoSave, invoiceId, selectedClientId, invoiceNumber, issueDate, dueDate, invoiceType, lineItems, notes, taxPercent, selectedClient, savedInvoice, updateInvoice]);
 
   // Auto-generate invoice number when client changes (new invoices only)
   useEffect(() => {
@@ -185,7 +185,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     0
   );
   // Display only: the server recomputes every total from the same inputs.
-  const taxAmount = Math.round(subtotal * tax) / 100;
+  const taxAmount = Math.round(subtotal * taxPercent) / 100;
   const total = subtotal + taxAmount;
 
   const handleSave = async () => {
@@ -198,8 +198,8 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
       clientId: selectedClientId,
       lineItems,
       notes,
-      discount: 0,
-      tax,
+      discountPercent: 0,
+      taxPercent,
     };
     const clientName =
       selectedClient?.fullName ||
@@ -249,8 +249,8 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
         total: (Number(item.price) || 0) * (Number(item.quantity) || 1),
       })),
       subtotal,
-      discount: 0,
-      tax: taxAmount,
+      discountAmount: 0,
+      taxAmount,
       total,
       notes,
       currency: settings.currency,
@@ -271,8 +271,8 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
         clientAddress: selectedClient?.address,
         lineItems,
         subtotal,
-        discount: 0,
-        tax: taxAmount,
+        discountAmount: 0,
+        taxAmount,
         total,
         notes: noteText,
       },
@@ -610,8 +610,8 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
                   min={0}
                   max={100}
                   step="0.01"
-                  value={tax}
-                  onChange={(event) => setTax(Number(event.target.value) || 0)}
+                  value={taxPercent}
+                  onChange={(event) => setTaxPercent(Number(event.target.value) || 0)}
                   className="h-8 w-24 rounded-md border border-gray-200 bg-white px-2 text-right text-sm dark:border-gray-800 dark:bg-gray-950"
                 />
               </div>

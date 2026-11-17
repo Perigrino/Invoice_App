@@ -45,11 +45,11 @@ export function generateInvoiceNumber(prefix = "INV", num = 1) {
 export function calculateLineTotal(
   price: number,
   quantity: number,
-  discount = 0,
-  tax = 0
+  discountPercent = 0,
+  taxPercent = 0
 ) {
   const subtotal = price * quantity;
-  const discountAmount = subtotal * (discount / 100);
-  const taxAmount = (subtotal - discountAmount) * (tax / 100);
+  const discountAmount = subtotal * (discountPercent / 100);
+  const taxAmount = (subtotal - discountAmount) * (taxPercent / 100);
   return subtotal - discountAmount + taxAmount;
 }

@@ -62,9 +62,10 @@ interface RawInvoice {
   client: Pick<RawClient, "fullName" | "company"> | null;
   status: string;
   subtotal: number;
-  discount: number;
-  tax?: number;
-  taxAmount?: number;
+  discountPercent: number;
+  discountAmount: number;
+  taxPercent: number;
+  taxAmount: number;
   total: number;
   balanceDue: number;
   notes: string | null;
@@ -95,9 +96,10 @@ export function mapInvoice(raw: RawInvoice): SavedInvoice {
     status: raw.status as SavedInvoice["status"],
     invoiceType: raw.invoiceType as SavedInvoice["invoiceType"],
     subtotal: raw.subtotal,
-    discount: raw.discount,
-    taxPercent: raw.tax ?? 0,
-    tax: raw.taxAmount ?? Math.max(0, raw.total - raw.subtotal),
+    discountPercent: raw.discountPercent ?? 0,
+    discountAmount: raw.discountAmount ?? 0,
+    taxPercent: raw.taxPercent ?? 0,
+    taxAmount: raw.taxAmount ?? Math.max(0, raw.total - raw.subtotal),
     total: raw.total,
     balanceDue: raw.balanceDue,
     notes: raw.notes || "",
