@@ -16,7 +16,7 @@ function formData(): InvoiceFormData {
   return {
     invoiceNumber: "INV-26-0001",
     issueDate: new Date("2026-01-01T00:00:00.000Z"),
-    dueDate: null,
+    dueDate: undefined,
     status: "pending",
     invoiceType: "invoice",
     clientId: "",

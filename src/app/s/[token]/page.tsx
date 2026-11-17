@@ -34,7 +34,10 @@ export default async function SharedInvoicePage({
 
   const settings = invoice.workspace.settings;
   const company = invoice.workspace.company;
-  const currency = settings?.currency ?? "USD";
+  // A workspace that never opened Settings has no stored row, so fall back to
+  // the same default the app and the PDF renderer use — not USD, which made
+  // this page disagree with its own PDF.
+  const currency = settings?.currency ?? "GHS";
   const client = invoice.client;
 
   return (

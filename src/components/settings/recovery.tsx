@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   RECOVERY_PENDING_EVENT,
   clearRecoveryPending,
@@ -72,6 +72,14 @@ function useCopy() {
 export function RecoveryKeyGate() {
   const [info, setInfo] = useState<WorkspaceRecoveryInfo | null>(null);
   const [open, setOpen] = useState(false);
+  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (exitTimer.current) clearTimeout(exitTimer.current);
+    },
+    []
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +112,11 @@ export function RecoveryKeyGate() {
   const acknowledge = () => {
     if (info) markRecoverySeen(info.recoveryKey);
     setOpen(false);
+    // Dismissal must not depend on the exit animation finishing: this dialog
+    // blocks the page, and a throttled or hidden tab never fires animationend,
+    // which would leave it rendered over an unusable app.
+    if (exitTimer.current) clearTimeout(exitTimer.current);
+    exitTimer.current = setTimeout(() => setInfo(null), 300);
   };
 
   const copy = async () => {
@@ -115,6 +128,8 @@ export function RecoveryKeyGate() {
       // Clipboard denied: the key stays on screen and "I've saved it" is the way out.
     }
   };
+
+  if (!info) return null;
 
   return (
     <Dialog open={open} onOpenChange={() => { /* acknowledged only */ }}>
