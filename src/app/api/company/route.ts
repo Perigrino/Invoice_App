@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ensureWorkspace, ensureWorkspaceDefaults, getWorkspaceId } from "@/lib/workspace";
+import {
+  companyDefaults,
+  ensureWorkspace,
+  ensureWorkspaceDefaults,
+  getWorkspaceId,
+} from "@/lib/workspace";
 import { clientIp } from "@/lib/client-ip";
 import { LIMITS, guardMutation } from "@/lib/request-guard";
 
@@ -10,12 +15,24 @@ export async function GET() {
     return NextResponse.json({ error: "Workspace unavailable" }, { status: 400 });
   }
   try {
-    let company = await prisma.company.findUnique({ where: { workspaceId } });
-    if (!company) {
-      await ensureWorkspaceDefaults(workspaceId);
-      company = await prisma.company.findUnique({ where: { workspaceId } });
+    const existing = await prisma.company.findUnique({ where: { workspaceId } });
+    if (existing) return NextResponse.json(existing);
+
+    // A read must not create the workspace; answer with the app's defaults.
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { id: true },
+    });
+    if (!workspace) {
+      return NextResponse.json(companyDefaults(), {
+        headers: { "Cache-Control": "no-store" },
+      });
     }
-    return NextResponse.json(company || {});
+
+    // A workspace older than the seeding: write its defaults now.
+    await ensureWorkspaceDefaults(workspaceId);
+    const seeded = await prisma.company.findUnique({ where: { workspaceId } });
+    return NextResponse.json(seeded || companyDefaults());
   } catch {
     return NextResponse.json(
       { error: "Failed to fetch company" },

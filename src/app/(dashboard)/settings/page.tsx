@@ -24,34 +24,34 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="profiles" className="w-full">
-        <TabsList className="w-full justify-start rounded-none border-b border-gray-200 bg-transparent p-0 dark:border-gray-800">
+        <TabsList className="h-auto w-full flex-wrap justify-start rounded-none border-b border-gray-200 bg-transparent p-0 dark:border-gray-800">
           <TabsTrigger
             value="profiles"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
             Profiles
           </TabsTrigger>
           <TabsTrigger
             value="invoice"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
             Invoice
           </TabsTrigger>
           <TabsTrigger
             value="currency"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
             Currency
           </TabsTrigger>
           <TabsTrigger
             value="general"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
             General
           </TabsTrigger>
           <TabsTrigger
             value="data"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
             Data
           </TabsTrigger>

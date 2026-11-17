@@ -51,5 +51,16 @@ export async function downloadRecoveryCard({
   doc.setTextColor(156, 163, 175);
   doc.text(`Saved ${new Date().toLocaleDateString()}`, margin, 520);
 
-  doc.save(`invoiceflow-recovery-${recoveryKey}.pdf`);
+  // An explicit blob download, like the other PDF exports in the app: jsPDF's
+  // own `save()` prefers the File System Access picker, which asks for a
+  // location and fails outright in browsers that restrict it.
+  const blobUrl = URL.createObjectURL(doc.output("blob"));
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = `invoiceflow-recovery-${recoveryKey}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Keep the blob alive until the browser has started the download.
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
 }

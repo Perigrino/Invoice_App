@@ -58,10 +58,23 @@ function daysAgo(iso: string | null): string {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86_400_000);
   if (days <= 0) {
-    const hours = Math.max(1, Math.floor(diff / 3_600_000));
+    if (diff < 60_000) return "just now";
+    const minutes = Math.floor(diff / 60_000);
+    if (minutes < 60) return minutes === 1 ? "a minute ago" : `${minutes} minutes ago`;
+    const hours = Math.floor(diff / 3_600_000);
     return hours === 1 ? "an hour ago" : `${hours} hours ago`;
   }
   return days === 1 ? "a day ago" : `${days} days ago`;
+}
+
+/** Which expiry choice a link created with that many days left came from. */
+function expiryChoice(expiresAt: string | null): string {
+  if (!expiresAt) return "";
+  const daysLeft = (new Date(expiresAt).getTime() - Date.now()) / 86_400_000;
+  const match = EXPIRY_OPTIONS.filter((option) => option.value !== "").find(
+    (option) => Math.abs(Number(option.value) - daysLeft) < 1
+  );
+  return match?.value ?? "";
 }
 
 export function ShareDialog({
@@ -90,7 +103,9 @@ export function ShareDialog({
     fetch(`/api/invoices/${invoiceId}/share`, { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
       .then((body: ShareState) => {
-        if (!cancelled) setState(body);
+        if (cancelled) return;
+        setState(body);
+        setDays(expiryChoice(body.expiresAt));
       })
       .catch(() => {
         if (!cancelled) setError("Could not load this invoice's link.");

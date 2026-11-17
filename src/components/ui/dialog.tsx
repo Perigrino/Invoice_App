@@ -30,7 +30,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 top-auto z-50 grid max-h-[92dvh] w-full gap-4 overflow-y-auto rounded-t-2xl border border-gray-200 bg-white p-6 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] shadow-lg sm:inset-auto sm:left-[50%] sm:top-[50%] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:pb-6 dark:border-gray-800 dark:bg-gray-950",
+        "fixed inset-x-0 bottom-0 top-auto z-50 grid max-h-[92dvh] w-full grid-cols-1 gap-4 overflow-y-auto rounded-t-2xl border border-gray-200 bg-white p-6 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] shadow-lg sm:inset-auto sm:left-[50%] sm:top-[50%] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:pb-6 dark:border-gray-800 dark:bg-gray-950",
         className
       )}
       data-dialog-content

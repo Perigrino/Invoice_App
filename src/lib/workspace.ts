@@ -21,7 +21,7 @@ export type WorkspaceCreation =
   | { ok: false; retryAfterSeconds: number };
 
 /** The settings row's columns, so a new workspace carries the app's defaults. */
-function settingsDefaults() {
+export function settingsDefaults() {
   return {
     currency: DEFAULT_SETTINGS.currency,
     separator: DEFAULT_SETTINGS.separator,
@@ -49,7 +49,7 @@ function settingsDefaults() {
   };
 }
 
-function companyDefaults() {
+export function companyDefaults() {
   return {
     name: DEFAULT_COMPANY.name,
     logo: DEFAULT_COMPANY.logo,
