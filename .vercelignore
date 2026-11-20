@@ -9,3 +9,7 @@ electron
 node_modules
 prisma/dev.db
 prisma/dev.db-journal
+
+# Secrets never belong in a deployment upload, and a local .env would shadow
+# the environment Vercel injects at build time.
+.env*
