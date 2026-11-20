@@ -4,7 +4,7 @@ A native macOS invoice generator. Create clients, build invoices, and export cle
 
 ## Download
 
-[**InvoiceFlow-2.1.0.dmg**](dist/InvoiceFlow-2.1.0.dmg) — requires macOS 14.0+ (universal: Apple Silicon & Intel)
+[**InvoiceFlow-2.6.5.dmg**](https://github.com/Perigrino/Invoice_App/releases/download/v2.6.5/InvoiceFlow-2.6.5.dmg) — requires macOS 14.0+ (universal: Apple Silicon & Intel). [All releases](https://github.com/Perigrino/Invoice_App/releases)
 
 ## What It Does
 
