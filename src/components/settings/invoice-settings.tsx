@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useSettingsStore } from "@/store/settings-store";
 import type { PaperSize } from "@/types";
+import type { TemplateType } from "@/types";
 
 export function InvoiceSettings() {
   const { settings, updateSettings } = useSettingsStore();
@@ -77,17 +78,14 @@ export function InvoiceSettings() {
               <Label>Default Template</Label>
               <Select
                 value={settings.template}
-                onValueChange={(v) => updateSettings({ template: v as "business" | "modern" | "minimal" | "professional" | "elegant" })}
+                onValueChange={(v) => updateSettings({ template: v as TemplateType })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="business">Business</SelectItem>
-                  <SelectItem value="modern">Modern</SelectItem>
-                  <SelectItem value="minimal">Minimal</SelectItem>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="elegant">Elegant</SelectItem>
+                  <SelectItem value="dark">Dark</SelectItem>
+                  <SelectItem value="light">Light</SelectItem>
                 </SelectContent>
               </Select>
             </div>

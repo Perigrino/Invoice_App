@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeTemplate } from "@/lib/templates/presets";
 
 export const settingsSchema = z.object({
   currency: z.string().default("GHS"),
@@ -7,7 +8,7 @@ export const settingsSchema = z.object({
   signPlacement: z.string().default("before"),
   dateFormat: z.string().default("MM/DD/YYYY"),
   pdfDirectory: z.string().default("/exports"),
-  template: z.string().default("modern"),
+  template: z.string().default("light").transform((value) => normalizeTemplate(value)),
   paperSize: z.string().default("A4"),
   showInvoiceId: z.boolean().default(true),
   showDueDate: z.boolean().default(true),

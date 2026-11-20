@@ -1,7 +1,13 @@
 import type { Spec } from "@json-render/core";
-import type { TemplateConfig, TemplateFont, TemplateSpacing } from "../templates/types";
+import type {
+  TemplateConfig,
+  TemplateFont,
+  TemplateLogoSize,
+  TemplateSpacing,
+} from "../templates/types";
 import { mergeTemplateConfig } from "../templates/presets";
-import type { PDFData } from "./types";
+import type { PDFData, PdfNumberFormat } from "./types";
+import { pdfLabels, type PdfLabels } from "./labels";
 
 const PT_PER_MM = 72 / 25.4;
 const mm = (n: number) => Math.round(n * PT_PER_MM * 10) / 10;
@@ -18,26 +24,58 @@ const SPACING_FACTOR: Record<TemplateSpacing, number> = {
   relaxed: 1.14,
 };
 
-export function mixWhite(hex: string, ratio: number): string {
-  const clean = hex.replace("#", "");
-  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
-  const num = parseInt(full, 16);
-  if (Number.isNaN(num)) return mixWhite("#00BCD4", ratio);
-  const r = (num >> 16) & 255;
-  const g = (num >> 8) & 255;
-  const b = num & 255;
-  const mr = Math.round(r + (255 - r) * ratio);
-  const mg = Math.round(g + (255 - g) * ratio);
-  const mb = Math.round(b + (255 - b) * ratio);
-  return `#${[mr, mg, mb].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+const LOGO_HEIGHT_MM: Record<TemplateLogoSize, number> = {
+  small: 14,
+  medium: 22,
+  large: 32,
+};
+
+/**
+ * Layout numbers shared by the renderers and the pagination estimates. Keeping
+ * one copy is what stops a row from rendering taller than it was measured.
+ */
+const ROW_PAD_Y_MM = 2.5;
+const HEADER_PAD_Y_MM = 2;
+const CELL_PAD_X_MM = 4.2;
+const COLUMN_GUTTER_MM = 2;
+const LINE_FACTOR = 1.28;
+
+const GROUP_SEPARATOR: Record<PdfNumberFormat["separator"], string> = {
+  comma: ",",
+  dot: ".",
+  space: " ",
+};
+
+function formatPdfAmount(
+  amount: number,
+  format?: PdfNumberFormat,
+  language?: string
+): string {
+  const decimals = Math.min(Math.max(format?.decimalPlaces ?? 2, 0), 4);
+  const fixed = Math.abs(amount).toFixed(decimals);
+  const [whole, fraction] = fixed.split(".");
+  const group = GROUP_SEPARATOR[format?.separator ?? "comma"];
+  // The thousands separator can never double as the decimal mark, and a space
+  // leaves it to the document's language: 1 234,56 in French, 1 234.56 in English.
+  const commaDecimal = group === "." || (group === " " && (language || "en").toLowerCase() !== "en");
+  const decimalMark = group === "," ? "." : commaDecimal ? "," : ".";
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, group);
+  return fraction ? `${grouped}${decimalMark}${fraction}` : grouped;
 }
 
-export function formatPdfCurrency(amount: number, currency = "GHS"): string {
-  const formatted = Math.abs(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return `${formatted} ${currency}`;
+function formatPdfCurrency(
+  amount: number,
+  currency = "GHS",
+  format?: PdfNumberFormat,
+  language?: string
+): string {
+  const value = formatPdfAmount(amount, format, language);
+  return format?.signPlacement === "before" ? `${currency} ${value}` : `${value} ${currency}`;
 }
 
-function pageSize(paperSize?: string): "A4" | "A3" | "LETTER" | "LEGAL" {
+type PageName = "A4" | "A3" | "LETTER" | "LEGAL";
+
+function pageSize(paperSize?: string): PageName {
   switch ((paperSize || "A3").toUpperCase()) {
     case "A3":
       return "A3";
@@ -49,6 +87,24 @@ function pageSize(paperSize?: string): "A4" | "A3" | "LETTER" | "LEGAL" {
       return "A4";
   }
 }
+
+/** Widest page dimension in points, matching the sizes react-pdf renders. */
+const PAGE_WIDTH_PT: Record<PageName, number> = {
+  A4: 595.28,
+  A3: 841.89,
+  LETTER: 612,
+  LEGAL: 612,
+};
+
+/** Tallest page dimension in points. */
+const PAGE_HEIGHT_PT: Record<PageName, number> = {
+  A4: 841.89,
+  A3: 1190.55,
+  LETTER: 792,
+  LEGAL: 1008,
+};
+
+const MARGIN_PT = mm(13);
 
 type StyleDict = Record<string, unknown>;
 
@@ -65,12 +121,15 @@ class SpecBuilder {
   readonly font: string;
   readonly fontSize: number;
   readonly spacingFactor: number;
+  /** Width between the page margins, so columns can size against the page. */
+  readonly contentWidth: number;
 
-  constructor(cfg: TemplateConfig) {
+  constructor(cfg: TemplateConfig, contentWidth: number) {
     this.cfg = cfg;
     this.font = FONT_MAP[cfg.font];
     this.fontSize = cfg.fontSize || 12;
     this.spacingFactor = SPACING_FACTOR[cfg.spacing] || 1;
+    this.contentWidth = contentWidth;
   }
 
   el(type: string, props: Record<string, unknown> = {}, children: string[] = []): string {
@@ -122,751 +181,549 @@ class SpecBuilder {
     });
   }
 
-  build(pageChildren: string[], pageProps: Record<string, unknown>): Spec {
-    const page = this.el("Page", pageProps, pageChildren);
-    const doc = this.el("Document", { title: "Invoice" }, [page]);
+  page(children: string[], props: Record<string, unknown>): string {
+    return this.el("Page", props, children);
+  }
+
+  build(pageKeys: string[], documentProps: Record<string, unknown>): Spec {
+    const doc = this.el("Document", documentProps, pageKeys);
     return { root: doc, elements: this.elements };
   }
 }
 
-function titleText(cfg: TemplateConfig, invoiceType?: string): string {
-  const base = cfg.styles.title || "INVOICE";
-  return invoiceType === "proforma" ? "PROFORMA INVOICE" : base;
-}
-
-function buildItemsTable(
-  b: SpecBuilder,
-  data: PDFData,
-  opts: {
-    headerColor: string;
-    headerFill?: string;
-    headerBorder?: string;
-    headerSize?: number;
-    zebra?: string;
-    rowBorder?: string;
-    textColor: string;
-    uppercase?: boolean;
-    paddingMm?: number;
-  }
-): string {
-  const comp = b.cfg.components;
-  const children: string[] = [];
-  const showPrice = comp.priceColumn;
-  const showQty = comp.qtyColumn;
-  const size = opts.headerSize ?? b.fontSize;
-  const pad = mm(opts.paddingMm ?? 2);
-  const label = opts.uppercase ? (s: string) => s.toUpperCase() : (s: string) => s;
-
-  const headerCells: string[] = [];
-  headerCells.push(b.text(label("Description"), { flex: 1, color: opts.headerColor, fontSize: size }));
-  if (showPrice) {
-    headerCells.push(b.text(label("Price"), { width: "20%", textAlign: "right", color: opts.headerColor, fontSize: size }));
-  }
-  if (showQty) {
-    headerCells.push(b.text(label("Qty"), { width: "8%", textAlign: "center", color: opts.headerColor, fontSize: size }));
-  }
-  headerCells.push(b.text(label("Total"), { width: "18%", textAlign: "right", color: opts.headerColor, fontSize: size }));
-  children.push(b.view({ flexDirection: "row", backgroundColor: opts.headerFill, padding: pad }, headerCells));
-  if (opts.headerBorder) {
-    children.push(b.el("Divider", { color: opts.headerBorder, thickness: 1, marginTop: 0, marginBottom: 0 }));
-  }
-
-  data.lineItems.forEach((item, idx) => {
-    const zebraBg = opts.zebra && idx % 2 === 0 ? opts.zebra : undefined;
-    const cells: string[] = [b.text(item.description, { flex: 1, color: opts.textColor })];
-    if (showPrice) {
-      cells.push(b.text(formatPdfCurrency(item.price, data.currency), { width: "20%", textAlign: "right", color: opts.textColor }));
-    }
-    if (showQty) {
-      cells.push(b.text(String(item.quantity), { width: "8%", textAlign: "center", color: opts.textColor }));
-    }
-    cells.push(b.text(formatPdfCurrency(item.total, data.currency), { width: "18%", textAlign: "right", color: opts.textColor }));
-    children.push(b.view({ flexDirection: "row", backgroundColor: zebraBg, padding: pad }, cells));
-    if (opts.rowBorder && idx < data.lineItems.length - 1) {
-      children.push(b.el("Divider", { color: opts.rowBorder, thickness: 0.5, marginTop: 0, marginBottom: 0 }));
-    }
-  });
-
-  return b.col({ marginTop: b.gap(16) }, children);
-}
-
-function buildTotals(
-  b: SpecBuilder,
-  data: PDFData,
-  opts: {
-    labelColor: string;
-    valueColor: string;
-    totalColor: string;
-    totalFill?: string;
-    totalBorderTop?: string;
-    totalFontScale?: number;
-    boxWidthMm?: number;
-    discountColor?: string;
-  }
-): string {
-  const comp = b.cfg.components;
-  const rows: string[] = [];
-  const rowPad = mm(1.5);
-  if (comp.subtotal) {
-    rows.push(
-      b.row(
-        { padding: rowPad },
-        [
-          b.text("Subtotal", { flex: 1, color: opts.labelColor }),
-          b.text(formatPdfCurrency(data.subtotal, data.currency), { color: opts.valueColor }),
-        ]
-      )
-    );
-  }
-  if (comp.discount && data.discountAmount > 0) {
-    rows.push(
-      b.row(
-        { padding: rowPad },
-        [
-          b.text("Discount", { flex: 1, color: opts.labelColor }),
-          b.text(`-${formatPdfCurrency(data.discountAmount, data.currency)}`, { color: opts.discountColor ?? "#DC2626" }),
-        ]
-      )
-    );
-  }
-  if (data.taxAmount > 0) {
-    rows.push(
-      b.row(
-        { padding: rowPad },
-        [
-          b.text("Tax", { flex: 1, color: opts.labelColor }),
-          b.text(formatPdfCurrency(data.taxAmount, data.currency), { color: opts.valueColor }),
-        ]
-      )
-    );
-  }
-  if (comp.total) {
-    if (opts.totalBorderTop) {
-      rows.push(b.el("Divider", { color: opts.totalBorderTop, thickness: 0.7, marginTop: mm(3), marginBottom: mm(3) }));
-    }
-    rows.push(
-      b.row(
-        { padding: mm(2), backgroundColor: opts.totalFill },
-        [
-          b.text("Total", { flex: 1, bold: true, color: opts.totalColor, fontSize: b.fontSize * (opts.totalFontScale ?? 1.2) }),
-          b.text(formatPdfCurrency(data.total, data.currency), { bold: true, color: opts.totalColor, fontSize: b.fontSize * (opts.totalFontScale ?? 1.2) }),
-        ]
-      )
-    );
-  }
-  return b.row({ justifyContent: "flex-end", marginTop: b.gap(8) }, [b.col({ width: mm(opts.boxWidthMm ?? 62) }, rows)]);
-}
-
-function buildSignature(b: SpecBuilder, color: string): string {
+function buildSignature(b: SpecBuilder, label: string, color: string): string {
   return b.row(
-    { justifyContent: "flex-end", marginTop: b.gap(16) },
+    { justifyContent: "flex-end", marginTop: b.gap(10) },
     [
       b.view(
         { width: mm(55), alignItems: "center", borderTopWidth: 0.8, borderTopColor: color, paddingTop: mm(3) },
-        [b.text("Signature", { fontSize: b.fontSize * 0.9, color, textAlign: "center" })]
+        [b.text(label, { fontSize: b.fontSize * 0.9, color, textAlign: "center" })]
       ),
     ]
   );
 }
 
-function buildFooter(b: SpecBuilder, data: PDFData, opts: { color: string; centered?: boolean; separator?: string }): string {
-  const comp = b.cfg.components;
-  if (!comp.footer) return "";
-  const sep = opts.separator ?? "   \u2022   ";
-  const company = data.companyName || "";
-  const left = company ? `${company}${sep}Page {pageNumber} of {totalPages}` : "Page {pageNumber} of {totalPages}";
-  return b.el("PageNumber", {
-    format: left,
-    fontSize: b.fontSize * 0.8,
-    color: opts.color,
-    align: opts.centered ? "center" : "right",
+// ── DARK & LIGHT: the Mac app's two PDF templates ──
+//
+// Both share one layout — bracketed title, accent rules, monospace text,
+// dashed row separators, right-aligned totals — and differ only in palette,
+// exactly like DarkTheme and LightTheme in the Mac app's PDFGenerator.swift.
+// The Mac app rasterises a SwiftUI view; here the same design is drawn as
+// vector text so it stays selectable and small.
+
+interface PdfTheme {
+  bg: string;
+  text: string;
+  bold: string;
+  border: string;
+}
+
+const PDF_THEMES: Record<"dark" | "light", PdfTheme> = {
+  dark: { bg: "#0D0D14", text: "#999999", bold: "#DEDEDE", border: "#212121" },
+  light: { bg: "#FAFAFA", text: "#545454", bold: "#121212", border: "#D1D1D1" },
+};
+
+function rgb(hex: string): [number, number, number] {
+  const clean = hex.replace("#", "");
+  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  const num = parseInt(full, 16);
+  if (Number.isNaN(num)) return [0, 0, 0];
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+/** Flattens an alpha colour onto the page, the way SwiftUI's .opacity does. */
+function blend(bg: string, fg: string, alpha: number): string {
+  const from = rgb(bg);
+  const to = rgb(fg);
+  return `#${[0, 1, 2]
+    .map((i) => Math.round(from[i] + (to[i] - from[i]) * alpha).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+interface Ctx {
+  b: SpecBuilder;
+  data: PDFData;
+  cfg: TemplateConfig;
+  theme: PdfTheme;
+  labels: PdfLabels;
+  sz: number;
+  accent: string;
+  muted: string;
+  faint: string;
+  typeName: string;
+  moneyWidth: number;
+  totalsWidth: number;
+  descWidth: number;
+  nums?: PdfNumberFormat;
+}
+
+function money(ctx: Ctx, amount: number): string {
+  return formatPdfCurrency(amount, ctx.data.currency, ctx.nums, ctx.data.language);
+}
+
+function bracketLabel(b: SpecBuilder, label: string, theme: PdfTheme, accent: string): string {
+  return b.row({}, [
+    b.text("[ ", { color: accent, fontSize: b.fontSize }),
+    b.text(label, { color: theme.bold, fontSize: b.fontSize }),
+    b.text(" ]", { color: accent, fontSize: b.fontSize }),
+  ]);
+}
+
+function refRow(b: SpecBuilder, label: string, value: string, theme: PdfTheme): string {
+  return b.row({ justifyContent: "flex-end", marginBottom: mm(1) }, [
+    b.text(`${label}  `, { color: blend(theme.bg, theme.text, 0.7), fontSize: b.fontSize }),
+    b.text(value, { color: theme.bold, fontSize: b.fontSize }),
+  ]);
+}
+
+function dashedRule(b: SpecBuilder, color: string, mtMm = 1, mbMm = 1): string {
+  return b.view({
+    borderBottomWidth: 0.8,
+    borderBottomColor: color,
+    borderStyle: "dashed",
+    marginTop: mm(mtMm),
+    marginBottom: mm(mbMm),
   });
 }
 
-// ── MODERN ──
-function buildModern(b: SpecBuilder, data: PDFData): string[] {
-  const comp = b.cfg.components;
-  const styles = b.cfg.styles;
-  const accent = b.cfg.accentColor;
-  const secondary = b.cfg.secondaryColor;
-  const accentLight = mixWhite(accent, 0.9);
-  const secondaryLight = mixWhite(secondary, 0.9);
-  const gray = "#6B7280";
-  const ink = "#1E293B";
-  const children: string[] = [];
+function accentRule(b: SpecBuilder, theme: PdfTheme, accent: string): string {
+  return b.view({
+    borderBottomWidth: 1,
+    borderBottomColor: blend(theme.bg, accent, 0.4),
+    marginTop: mm(6),
+    marginBottom: mm(6),
+  });
+}
 
-  const leftKids: string[] = [];
-  const hasLogo = comp.logo && !!data.logo;
-  if (hasLogo) {
-    leftKids.push(b.el("Image", { src: data.logo, style: { maxHeight: mm(14), maxWidth: "100%", objectFit: "contain", marginBottom: data.companyAddress ? mm(2) : mm(6) } }));
-    if (data.companyAddress) {
-      leftKids.push(b.text(data.companyAddress, { fontSize: b.fontSize * 0.9, color: gray, marginTop: mm(1) }));
-    }
-  }
-  if (data.companyName && !hasLogo) {
-    leftKids.push(b.text(data.companyName, { fontWeight: "bold", fontSize: b.fontSize * 1.4, color: ink }));
-  }
-  if (comp.companyContact || !hasLogo) {
-    const lines = [data.companyEmail, data.companyPhone].filter(Boolean) as string[];
-    if (!hasLogo && data.companyAddress) lines.unshift(data.companyAddress);
-    for (const line of lines) {
-      leftKids.push(b.text(line, { fontSize: b.fontSize * 0.9, color: gray, marginTop: mm(1) }));
-    }
-  }
-  const leftCol = b.col({ flex: 1, paddingRight: mm(4) }, leftKids);
+function documentHeader(ctx: Ctx): string[] {
+  const { b, data, cfg, theme, labels, accent, sz } = ctx;
+  const comp = cfg.components;
+  const kids: string[] = [];
 
-  const rightKids: string[] = [];
+  // [ Invoice — 2,240.00 GHS ]
+  kids.push(
+    b.row({ justifyContent: "center", marginTop: mm(2), marginBottom: mm(6) }, [
+      b.text("[ ", { color: accent, fontSize: sz + 1 }),
+      b.text(`${ctx.typeName} \u2014 ${money(ctx, data.total)}`, { color: theme.bold, fontSize: sz + 1 }),
+      b.text(" ]", { color: accent, fontSize: sz + 1 }),
+    ])
+  );
+
+  // Logo (left) and the reference rows (right).
+  const headKids: string[] = [];
+  if (comp.logo && data.logo) {
+    // The standard Image only reads width/height/objectFit props; a style box is
+    // ignored and the image falls back to its intrinsic size.
+    headKids.push(
+      b.el("Image", {
+        src: data.logo,
+        height: mm(LOGO_HEIGHT_MM[cfg.styles.logoSize]),
+        width: Math.min(mm(90), b.contentWidth * 0.45),
+        objectFit: "contain",
+      })
+    );
+  } else if (comp.companyName && data.companyName) {
+    headKids.push(b.text(data.companyName, { bold: true, fontSize: sz + 4, color: theme.bold }));
+  }
+
+  const refKids: string[] = [];
   if (comp.metadata) {
-    rightKids.push(b.text(titleText(b.cfg, data.invoiceType), { fontWeight: "bold", fontSize: 28, color: accent, textAlign: "right" }));
-    rightKids.push(b.text(data.invoiceNumber, { fontSize: b.fontSize * 1.1, textAlign: "right", marginTop: mm(2) }));
-    rightKids.push(b.text(`Issue Date: ${data.issueDate}`, { fontSize: b.fontSize, color: gray, textAlign: "right", marginTop: mm(1) }));
-    rightKids.push(b.text(`Due Date: ${data.dueDate}`, { fontSize: b.fontSize, color: gray, textAlign: "right" }));
-  }
-  const rightCol = b.col({ flex: 1, alignItems: "flex-end" }, rightKids);
-  children.push(b.row({ alignItems: "flex-start" }, [leftCol, rightCol]));
-
-  if (comp.clientBlock && data.clientName) {
-    const cardKids: string[] = [b.text("Bill To:", { fontSize: b.fontSize, color: gray })];
-    cardKids.push(b.text(data.clientName, { fontWeight: "bold", fontSize: b.fontSize * 1.15, marginTop: mm(2) }));
-    const details = [
-      data.clientEmail && `Email: ${data.clientEmail}`,
-      data.clientPhone && `Tel: ${data.clientPhone}`,
-      data.clientAddress && `Address: ${data.clientAddress}`,
-    ].filter(Boolean) as string[];
-    for (const d of details) {
-      cardKids.push(b.text(d, { fontSize: b.fontSize * 0.9, color: gray, marginTop: mm(2) }));
+    refKids.push(refRow(b, labels.ref, data.invoiceNumber, theme));
+    refKids.push(refRow(b, labels.issued, data.issueDate, theme));
+    if (data.dueDate && data.dueDate !== "\u2014") {
+      refKids.push(refRow(b, labels.due, data.dueDate, theme));
     }
-    children.push(
-      b.view(
-        { marginTop: b.gap(14), backgroundColor: "#F8F8F8", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 2, padding: mm(4), width: "55%" },
-        cardKids
+  }
+  kids.push(
+    b.row({ alignItems: "flex-start" }, [
+      b.col({ flex: 1 }, headKids),
+      b.col({ alignItems: "flex-end" }, refKids),
+    ])
+  );
+
+  kids.push(accentRule(b, theme, accent));
+
+  // From / Bill to.
+  const fromKids: string[] = [bracketLabel(b, labels.from, theme, accent)];
+  if (comp.companyName && data.companyName) {
+    fromKids.push(b.text(data.companyName, { bold: true, fontSize: sz + 2, color: theme.bold, marginTop: mm(1.5) }));
+  }
+  if (comp.companyContact) {
+    for (const line of String(data.companyAddress || "").split("\n").filter(Boolean)) {
+      fromKids.push(b.text(line, { color: ctx.muted, fontSize: sz }));
+    }
+    if (data.companyEmail) fromKids.push(b.text(data.companyEmail, { color: ctx.faint, fontSize: sz }));
+    if (data.companyPhone) fromKids.push(b.text(data.companyPhone, { color: ctx.faint, fontSize: sz }));
+  }
+
+  const toKids: string[] = [bracketLabel(b, labels.billTo, theme, accent)];
+  if (comp.clientBlock && data.clientName) {
+    toKids.push(b.text(data.clientName, { bold: true, fontSize: sz + 2, color: theme.bold, marginTop: mm(1.5) }));
+    for (const line of String(data.clientAddress || "").split("\n").filter(Boolean)) {
+      toKids.push(b.text(line, { color: ctx.muted, fontSize: sz }));
+    }
+    if (data.clientEmail) toKids.push(b.text(data.clientEmail, { color: ctx.faint, fontSize: sz }));
+    if (data.clientPhone) toKids.push(b.text(data.clientPhone, { color: ctx.faint, fontSize: sz }));
+  }
+  kids.push(
+    b.row({ alignItems: "flex-start", marginTop: mm(2) }, [
+      b.col({ flex: 1 }, fromKids),
+      b.col({ flex: 1 }, toKids),
+    ])
+  );
+
+  kids.push(accentRule(b, theme, accent));
+  return kids;
+}
+
+function continuationHeader(ctx: Ctx): string[] {
+  const { b, data, theme, labels, sz } = ctx;
+  return [
+    b.row({ justifyContent: "space-between", marginBottom: mm(4) }, [
+      b.text(`${data.companyName || ctx.typeName} \u2022 ${data.invoiceNumber}`, {
+        color: blend(theme.bg, theme.text, 0.75),
+        fontSize: sz * 0.85,
+      }),
+      b.text(labels.continued, { color: blend(theme.bg, theme.text, 0.75), fontSize: sz * 0.85 }),
+    ]),
+  ];
+}
+
+function tableHeaderRow(ctx: Ctx): string {
+  const { b, cfg, theme, labels, sz } = ctx;
+  const comp = cfg.components;
+  const fill = cfg.styles.tableHeaderFill
+    ? blend(theme.bg, cfg.secondaryColor, 0.2)
+    : blend(theme.bg, theme.text, 0.06);
+  const gutter = { paddingLeft: mm(COLUMN_GUTTER_MM) * b.spacingFactor };
+  const cells = [
+    b.text(labels.description, { flex: 1, color: theme.bold, fontSize: sz }),
+    ...(comp.qtyColumn
+      ? [b.text(labels.qty, { width: 46, textAlign: "right", color: theme.bold, fontSize: sz, ...gutter })]
+      : []),
+    ...(comp.priceColumn
+      ? [b.text(labels.unitPrice, { width: ctx.moneyWidth, textAlign: "right", color: theme.bold, fontSize: sz, ...gutter })]
+      : []),
+    b.text(labels.amount, { width: ctx.moneyWidth, textAlign: "right", color: theme.bold, fontSize: sz, ...gutter }),
+  ];
+  return b.row(
+    {
+      backgroundColor: fill,
+      paddingVertical: mm(HEADER_PAD_Y_MM) * b.spacingFactor,
+      // Same horizontal inset as the item rows so the columns line up.
+      paddingHorizontal: mm(CELL_PAD_X_MM) * b.spacingFactor,
+    },
+    cells
+  );
+}
+
+function itemRow(ctx: Ctx, index: number): string {
+  const { b, cfg, theme, data, sz } = ctx;
+  const item = data.lineItems[index];
+  const comp = cfg.components;
+  const background = cfg.styles.zebraRows && index % 2 === 1 ? blend(theme.bg, theme.text, 0.04) : undefined;
+  const gutter = { paddingLeft: mm(COLUMN_GUTTER_MM) * b.spacingFactor };
+  const cells = [
+    b.text(item.description || "\u2014", { flex: 1, color: theme.bold, fontSize: sz }),
+    ...(comp.qtyColumn
+      ? [b.text(String(item.quantity), { width: 46, textAlign: "right", color: theme.bold, fontSize: sz, ...gutter })]
+      : []),
+    ...(comp.priceColumn
+      ? [b.text(money(ctx, item.price), { width: ctx.moneyWidth, textAlign: "right", color: theme.bold, fontSize: sz, ...gutter })]
+      : []),
+    b.text(money(ctx, item.total), { width: ctx.moneyWidth, textAlign: "right", color: theme.bold, fontSize: sz, ...gutter }),
+  ];
+  return b.row(
+    {
+      paddingVertical: mm(ROW_PAD_Y_MM) * b.spacingFactor,
+      paddingHorizontal: mm(CELL_PAD_X_MM) * b.spacingFactor,
+      ...(background ? { backgroundColor: background } : {}),
+    },
+    cells
+  );
+}
+
+function totalsBlock(ctx: Ctx): string {
+  const { b, cfg, data, theme, labels, sz, accent } = ctx;
+  const comp = cfg.components;
+  const rows: string[] = [];
+  if (comp.subtotal) {
+    rows.push(
+      b.row({}, [
+        b.text(labels.subtotal, { flex: 1, color: ctx.muted, fontSize: sz }),
+        b.text(money(ctx, data.subtotal), { color: theme.bold, fontSize: sz }),
+      ])
+    );
+  }
+  if (comp.discount && data.discountAmount > 0) {
+    rows.push(
+      b.row({}, [
+        b.text(labels.discount, { flex: 1, color: ctx.muted, fontSize: sz }),
+        b.text(`-${money(ctx, data.discountAmount)}`, { color: "#DC2626", fontSize: sz }),
+      ])
+    );
+  }
+  if (data.taxAmount > 0) {
+    rows.push(
+      b.row({}, [
+        b.text(labels.tax, { flex: 1, color: ctx.muted, fontSize: sz }),
+        b.text(money(ctx, data.taxAmount), { color: theme.bold, fontSize: sz }),
+      ])
+    );
+  }
+  if (comp.total) {
+    rows.push(b.view({ borderBottomWidth: 0.8, borderBottomColor: theme.border, marginTop: mm(2), marginBottom: mm(2) }));
+    rows.push(
+      b.row({}, [
+        b.text(labels.total, { color: accent, fontSize: sz + 1 }, { bold: true }),
+        b.text(money(ctx, data.total), { color: accent, fontSize: sz + 2, flex: 1, textAlign: "right" }, { bold: true }),
+      ])
+    );
+  }
+  const column = b.col({ width: ctx.totalsWidth }, rows);
+  const body = cfg.styles.totalsFill
+    ? b.view(
+        {
+          backgroundColor: blend(theme.bg, cfg.secondaryColor, 0.1),
+          padding: mm(3),
+          borderRadius: 2,
+        },
+        [column]
       )
-    );
-  }
-
-  children.push(
-    buildItemsTable(b, data, {
-      headerColor: accent,
-      headerFill: styles.tableHeaderFill ? accentLight : undefined,
-      headerBorder: accent,
-      headerSize: b.fontSize * 0.9,
-      zebra: styles.zebraRows ? "#F9FAFB" : undefined,
-      textColor: "#000000",
-    })
-  );
-
-  children.push(
-    buildTotals(b, data, {
-      labelColor: gray,
-      valueColor: "#000000",
-      totalColor: secondary,
-      totalFill: styles.totalsFill ? secondaryLight : undefined,
-      totalBorderTop: secondary,
-    })
-  );
-
-  if (comp.signature && data.clientName) children.push(buildSignature(b, gray));
-
-  if (comp.notes && data.notes) {
-    children.push(
-      b.view({ marginTop: b.gap(14), alignItems: "center", borderTopWidth: 1, borderTopColor: accent, paddingTop: mm(5) }, [
-        b.text(data.notes, { textAlign: "center", marginTop: mm(3) }),
-      ])
-    );
-  }
-
-  return children;
+    : column;
+  return b.row({ justifyContent: "flex-end", marginTop: mm(4) }, [body]);
 }
 
-// ── BUSINESS ──
-function buildBusiness(b: SpecBuilder, data: PDFData): string[] {
-  const comp = b.cfg.components;
-  const styles = b.cfg.styles;
-  const accent = b.cfg.accentColor;
-  const secondary = b.cfg.secondaryColor;
-  const accentLight = mixWhite(accent, 0.6);
-  const gray = "#4B5563";
-  const ink = "#111827";
-  const children: string[] = [];
-
-  const leftKids: string[] = [];
-  const hasLogo = comp.logo && !!data.logo;
-  if (hasLogo) {
-    leftKids.push(b.el("Image", { src: data.logo, style: { maxHeight: mm(12), maxWidth: "100%", objectFit: "contain", marginBottom: data.companyAddress ? mm(2) : mm(4) } }));
-    if (data.companyAddress) {
-      leftKids.push(b.text(data.companyAddress, { fontSize: b.fontSize * 0.85, color: gray, marginTop: mm(1) }));
-    }
-  }
-  if (data.companyName && !hasLogo) {
-    leftKids.push(b.text(data.companyName, { fontWeight: "bold", fontSize: b.fontSize * 1.8, color: ink }));
-  }
-  if (comp.companyContact || !hasLogo) {
-    const contact = [data.companyEmail, data.companyPhone].filter(Boolean).join("  |  ");
-    const lines = [data.companyAddress, contact].filter(Boolean) as string[];
-    if (hasLogo) lines.shift();
-    for (const line of lines) {
-      leftKids.push(b.text(line, { fontSize: b.fontSize * 0.85, color: gray, marginTop: mm(2) }));
-    }
-  }
-  const leftCol = b.col({ flex: 1, paddingRight: mm(8) }, leftKids);
-
-  const rightKids: string[] = [];
-  if (comp.metadata) {
-    rightKids.push(b.text(titleText(b.cfg, data.invoiceType), { fontWeight: "bold", fontSize: b.fontSize * 2.1, color: accent, textAlign: "right" }));
-    rightKids.push(b.text(data.invoiceNumber, { fontSize: b.fontSize * 1.05, color: gray, textAlign: "right", marginTop: mm(2) }));
-    rightKids.push(b.text(`Issued: ${data.issueDate}`, { fontSize: b.fontSize * 0.9, color: gray, textAlign: "right" }));
-    rightKids.push(b.text(`Due: ${data.dueDate}`, { fontSize: b.fontSize * 0.9, color: gray, textAlign: "right" }));
-  }
-  const rightCol = b.col({ alignItems: "flex-end" }, rightKids);
-  children.push(b.row({ alignItems: "flex-start", justifyContent: "space-between" }, [leftCol, rightCol]));
-
-  children.push(
-    b.view({ marginTop: b.gap(8), borderTopWidth: 1.2, borderTopColor: accent, borderBottomWidth: 0.8, borderBottomColor: accentLight, height: 1.5 })
+function notesBlock(ctx: Ctx): string {
+  const { b, data, theme, labels, sz } = ctx;
+  const note = data.notes && data.notes.trim() ? data.notes : labels.thankYou;
+  return b.row(
+    { justifyContent: "center", marginTop: mm(8), marginBottom: mm(4) },
+    [
+      b.text(note, {
+        color: data.notes ? ctx.muted : blend(theme.bg, theme.text, 0.45),
+        fontSize: sz - 0.5,
+        width: b.contentWidth,
+        textAlign: "center",
+      }),
+    ]
   );
+}
 
-  const body: string[] = [];
-  if (comp.clientBlock && data.clientName) {
-    const clientKids: string[] = [
-      b.text("BILL TO", { fontSize: b.fontSize * 0.8, color: gray, letterSpacing: 0.8 }),
-      b.text(data.clientName, { fontWeight: "bold", fontSize: b.fontSize * 1.15, color: ink, marginTop: mm(3) }),
-    ];
-    const lines = [
-      data.clientAddress,
-      data.clientEmail && `Email: ${data.clientEmail}`,
-      data.clientPhone && `Tel: ${data.clientPhone}`,
-    ].filter(Boolean) as string[];
-    for (const line of lines) {
-      clientKids.push(b.text(line, { fontSize: b.fontSize * 0.9, color: gray, marginTop: mm(3) }));
-    }
-    body.push(b.col({ flex: 1 }, clientKids));
-  }
-  if (comp.metadata) {
-    const metaKids: string[] = [b.text("INVOICE DETAILS", { fontSize: b.fontSize * 0.8, color: gray, letterSpacing: 0.8 })];
-    const rows: Array<[string, string]> = [
-      ["Invoice #", data.invoiceNumber],
-      ["Issue Date", data.issueDate],
-      ["Due Date", data.dueDate],
-    ];
-    for (const [k, v] of rows) {
-      metaKids.push(
-        b.row(
-          { marginTop: mm(3) },
-          [b.text(k, { flex: 1, fontSize: b.fontSize * 0.9, color: gray }), b.text(v, { fontSize: b.fontSize * 0.9, color: ink })]
-        )
+function footerFor(ctx: Ctx, centered: boolean): string {
+  const { b, data, labels, sz } = ctx;
+  const company = data.companyName || "";
+  const prefix = company ? `${company}   \u2022   ` : "";
+  return b.el("PageNumber", {
+    format: `${prefix}${labels.page}`,
+    fontSize: sz * 0.85,
+    color: ctx.muted,
+    align: centered ? "center" : "right",
+  });
+}
+
+/** Estimated height of wrapped text, with slack for the PDF's own leading. */
+function estimateLines(value: string, widthPt: number, fontSize: number): number {
+  const charsPerLine = Math.max(6, Math.floor(widthPt / (fontSize * 0.62)));
+  return String(value)
+    .split("\n")
+    .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
+}
+
+interface PageMetrics {
+  usableHeight: number;
+  headerHeight: number;
+  continuationHeight: number;
+  tableHeaderHeight: number;
+  extrasHeight: number;
+  rowHeight: (index: number) => number;
+}
+
+function metricsFor(ctx: Ctx, height: number, hasFooter: boolean): PageMetrics {
+  const { b, cfg, data, sz, descWidth } = ctx;
+  const spacing = b.spacingFactor;
+  // Leading is estimated slightly above the renderer's 1.2em so a row is never
+  // split by the PDF's own page break, which would defeat the explicit pages.
+  const line = sz * LINE_FACTOR;
+
+  const titleHeight = mm(2) + (sz + 1) * 1.35 + mm(6);
+  const logoMm = LOGO_HEIGHT_MM[cfg.styles.logoSize];
+  const brandHeight = cfg.components.logo && data.logo ? mm(logoMm) : cfg.components.companyName && data.companyName ? (sz + 4) * 1.35 : 0;
+  const refCount = cfg.components.metadata ? (data.dueDate && data.dueDate !== "\u2014" ? 3 : 2) : 0;
+  const refHeight = refCount * (line + mm(1));
+  const brandRow = Math.max(brandHeight, refHeight) + mm(12);
+
+  const companyLines =
+    (cfg.components.companyName && data.companyName ? 1 : 0) +
+    (cfg.components.companyContact
+      ? String(data.companyAddress || "").split("\n").filter(Boolean).length +
+        (data.companyEmail ? 1 : 0) +
+        (data.companyPhone ? 1 : 0)
+      : 0);
+  const clientLines = cfg.components.clientBlock && data.clientName
+    ? 1 +
+      String(data.clientAddress || "").split("\n").filter(Boolean).length +
+      (data.clientEmail ? 1 : 0) +
+      (data.clientPhone ? 1 : 0)
+    : 0;
+  const fromToHeight = mm(2) + Math.max(1, companyLines, clientLines) * line + mm(12);
+
+  const footerHeight = hasFooter ? sz * 0.8 * 1.35 + mm(8) : 0;
+  const usableHeight = height - MARGIN_PT * 2 - footerHeight;
+
+  const totalRows =
+    (cfg.components.subtotal ? 1 : 0) +
+    (cfg.components.discount && data.discountAmount > 0 ? 1 : 0) +
+    (data.taxAmount > 0 ? 1 : 0);
+  const totalsHeight =
+    mm(4) +
+    totalRows * (line + mm(1)) +
+    (cfg.components.total ? mm(4) + (sz + 2) * 1.35 : 0) +
+    (cfg.styles.totalsFill ? mm(6) : 0);
+  const signatureHeight = cfg.components.signature ? mm(10) + mm(3) + sz * 0.9 * 1.35 : 0;
+  const note = data.notes && data.notes.trim() ? data.notes : ctx.labels.thankYou;
+  const notesHeight = cfg.components.notes ? mm(8) + estimateLines(note, b.contentWidth, sz - 0.5) * line + mm(4) : 0;
+
+  const rowRule = 0.8 + mm(2) * spacing;
+  return {
+    usableHeight: usableHeight * 0.98,
+    headerHeight: titleHeight + brandRow + fromToHeight,
+    continuationHeight: sz * 0.85 * 1.35 + mm(6),
+    tableHeaderHeight: mm(HEADER_PAD_Y_MM) * 2 * spacing + line + 0.8,
+    extrasHeight: (totalRows || cfg.components.total ? totalsHeight : 0) + signatureHeight + notesHeight,
+    rowHeight: (index) => {
+      const description = String(data.lineItems[index]?.description || "\u2014");
+      return (
+        mm(ROW_PAD_Y_MM) * 2 * spacing +
+        estimateLines(description, Math.max(40, descWidth - mm(CELL_PAD_X_MM) * 2 * spacing), sz) * line +
+        rowRule
       );
-    }
-    body.push(b.col({ flex: 1 }, metaKids));
-  }
-  if (body.length) children.push(b.row({ marginTop: b.gap(16) }, body));
-
-  children.push(
-    buildItemsTable(b, data, {
-      headerColor: accent,
-      headerFill: styles.tableHeaderFill ? accentLight : undefined,
-      headerBorder: accent,
-      headerSize: b.fontSize * 0.8,
-      zebra: styles.zebraRows ? "#F9FAFB" : undefined,
-      rowBorder: "#E5E7EB",
-      textColor: "#000000",
-      uppercase: true,
-      paddingMm: 2,
-    })
-  );
-
-  children.push(
-    buildTotals(b, data, {
-      labelColor: gray,
-      valueColor: ink,
-      totalColor: secondary,
-      totalBorderTop: secondary,
-      totalFontScale: 1.2,
-      boxWidthMm: 62,
-    })
-  );
-
-  if (comp.signature && data.clientName) children.push(buildSignature(b, gray));
-
-  if (comp.notes && data.notes) {
-    children.push(
-      b.view({ marginTop: b.gap(12) }, [
-        b.text(data.notes, { fontSize: b.fontSize, color: "#1F2937", textAlign: "center" }),
-      ])
-    );
-  }
-
-  return children;
+    },
+  };
 }
 
-// ── MINIMAL ──
-function buildMinimal(b: SpecBuilder, data: PDFData): string[] {
-  const comp = b.cfg.components;
-  const styles = b.cfg.styles;
-  const accent = b.cfg.accentColor;
-  const ink = "#334155";
-  const gray = "#94A3B8";
-  const children: string[] = [];
+/** Greedily fills pages, keeping the totals on the page with the last rows. */
+function paginate(ctx: Ctx, metrics: PageMetrics): number[][] {
+  const items = ctx.data.lineItems;
+  const pages: number[][] = [];
+  let index = 0;
 
-  const hasLogo = comp.logo && !!data.logo;
-  if (hasLogo) {
-    children.push(b.el("Image", { src: data.logo, style: { maxHeight: mm(11), maxWidth: "100%", objectFit: "contain", alignSelf: "flex-start" } }));
-    if (data.companyAddress) {
-      children.push(b.text(data.companyAddress, { fontSize: b.fontSize * 0.9, color: gray, marginTop: mm(2) }));
+  do {
+    const first = pages.length === 0;
+    const available =
+      metrics.usableHeight -
+      (first ? metrics.headerHeight : metrics.continuationHeight) -
+      (items.length > 0 ? metrics.tableHeaderHeight : 0);
+    const rows: number[] = [];
+    let used = 0;
+
+    while (index < items.length) {
+      const height = metrics.rowHeight(index);
+      const lastItem = index === items.length - 1;
+      const needed = height + (lastItem ? metrics.extrasHeight : 0);
+      if (rows.length > 0 && used + needed > available) break;
+      used += height;
+      rows.push(index);
+      index += 1;
     }
-  }
-  if (data.companyName && !hasLogo) {
-    children.push(b.text(data.companyName, { fontWeight: "bold", fontSize: b.fontSize * 1.7, color: ink }));
-  }
-  if (comp.companyContact || !hasLogo) {
-    const lines = [data.companyEmail, data.companyPhone].filter(Boolean) as string[];
-    if (!hasLogo && data.companyAddress) lines.unshift(data.companyAddress);
-    for (const line of lines) {
-      children.push(b.text(line, { fontSize: b.fontSize * 0.9, color: gray, marginTop: mm(2) }));
-    }
-  }
 
-  if (comp.metadata) {
-    const spacedTitle = titleText(b.cfg, data.invoiceType).split("").join(" ");
-    children.push(
-      b.view({ marginTop: b.gap(16) }, [
-        b.text(spacedTitle, { fontSize: b.fontSize, color: accent, letterSpacing: 1 }),
-        b.el("Divider", { color: "#E2E8F0", thickness: 0.4, marginTop: mm(5), marginBottom: 0 }),
-      ])
-    );
-    children.push(
-      b.view({ marginTop: b.gap(8) }, [
-        b.row({}, [b.text(data.invoiceNumber, { flex: 1, fontSize: b.fontSize * 0.9, color: gray }), b.text("", { fontSize: b.fontSize * 0.9 })]),
-        b.row({ marginTop: mm(2) }, [b.text("Issue Date", { flex: 1, fontSize: b.fontSize * 0.9, color: gray }), b.text(data.issueDate, { fontSize: b.fontSize * 0.9, color: ink })]),
-        b.row({ marginTop: mm(2) }, [b.text("Due Date", { flex: 1, fontSize: b.fontSize * 0.9, color: gray }), b.text(data.dueDate, { fontSize: b.fontSize * 0.9, color: ink })]),
-      ])
-    );
-    children.push(b.text("BILL TO", { fontSize: b.fontSize * 0.8, color: gray, marginTop: b.gap(10) }));
-  }
+    pages.push(rows);
+  } while (index < items.length);
 
-  if (comp.clientBlock && data.clientName) {
-    const clientKids: string[] = [b.text(data.clientName, { fontWeight: "bold", fontSize: b.fontSize * 1.1, marginTop: mm(2) })];
-    const lines = [
-      data.clientAddress,
-      data.clientEmail && `Email: ${data.clientEmail}`,
-      data.clientPhone && `Tel: ${data.clientPhone}`,
-    ].filter(Boolean) as string[];
-    for (const line of lines) {
-      clientKids.push(b.text(line, { fontSize: b.fontSize * 0.9, color: gray, marginTop: mm(2) }));
-    }
-    children.push(b.col({}, clientKids));
-  }
-
-  children.push(
-    buildItemsTable(b, data, {
-      headerColor: gray,
-      headerFill: styles.tableHeaderFill ? "#F8FAFC" : undefined,
-      headerBorder: "#CBD5E1",
-      headerSize: b.fontSize * 0.8,
-      zebra: styles.zebraRows ? "#F8FAFC" : undefined,
-      textColor: ink,
-      uppercase: true,
-      paddingMm: 2.5,
-    })
-  );
-
-  children.push(
-    buildTotals(b, data, {
-      labelColor: gray,
-      valueColor: ink,
-      totalColor: ink,
-      totalBorderTop: "#94A3B8",
-      totalFontScale: 1.1,
-      boxWidthMm: 62,
-    })
-  );
-
-  if (comp.signature && data.clientName) children.push(buildSignature(b, gray));
-
-  if (comp.notes && data.notes) {
-    children.push(
-      b.view({ marginTop: b.gap(12) }, [
-        b.el("Divider", { color: "#E2E8F0", thickness: 0.4, marginTop: 0, marginBottom: mm(6) }),
-        b.text(data.notes, { fontSize: b.fontSize, color: ink, marginTop: mm(2), textAlign: "center" }),
-      ])
-    );
-  }
-
-  return children;
+  return pages;
 }
-
-// ── PROFESSIONAL ──
-function buildProfessional(b: SpecBuilder, data: PDFData): string[] {
-  const comp = b.cfg.components;
-  const styles = b.cfg.styles;
-  const accent = b.cfg.accentColor;
-  const secondary = b.cfg.secondaryColor;
-  const accentLight = mixWhite(accent, 0.93);
-  const gray = "#4B5563";
-  const ink = "#111827";
-  const children: string[] = [];
-  const mainLeft = 20 + 38 + 10;
-
-  const sideKids: string[] = [];
-  const hasLogo = comp.logo && !!data.logo;
-  if (hasLogo) {
-    sideKids.push(b.el("Image", { src: data.logo, style: { maxWidth: "100%", maxHeight: mm(14), objectFit: "contain", marginBottom: data.companyAddress ? mm(2) : mm(6) } }));
-    if (data.companyAddress) {
-      sideKids.push(b.text(data.companyAddress, { fontSize: b.fontSize * 0.78, color: "#E6EEFF", marginTop: mm(4) }));
-    }
-  }
-  if (data.companyName && !hasLogo) {
-    sideKids.push(b.text(data.companyName, { fontWeight: "bold", fontSize: b.fontSize * 1.25, color: "#FFFFFF", lineHeight: 1.15 }));
-  }
-  if (comp.companyContact || !hasLogo) {
-    const lines = [data.companyEmail, data.companyPhone].filter(Boolean) as string[];
-    if (!hasLogo && data.companyAddress) lines.unshift(data.companyAddress);
-    for (const line of lines) {
-      sideKids.push(b.text(line, { fontSize: b.fontSize * 0.78, color: "#E6EEFF", marginTop: mm(4) }));
-    }
-  }
-  const sidebar = b.view(
-    { position: "absolute", top: mm(14), bottom: mm(14), left: mm(20), width: mm(38), backgroundColor: accent, padding: mm(4) },
-    sideKids
-  );
-
-  const mainKids: string[] = [];
-  if (comp.metadata) {
-    mainKids.push(
-      b.view({ alignItems: "flex-end", marginTop: mm(6) }, [
-        b.text(titleText(b.cfg, data.invoiceType), { fontWeight: "bold", fontSize: b.fontSize * 2.3, color: accent }),
-        b.text(data.invoiceNumber, { fontSize: b.fontSize * 1.05, color: ink, marginTop: mm(2) }),
-        b.text(`Issue Date: ${data.issueDate}`, { fontSize: b.fontSize * 0.9, color: gray, marginTop: mm(2) }),
-        b.text(`Due Date: ${data.dueDate}`, { fontSize: b.fontSize * 0.9, color: gray }),
-      ])
-    );
-  }
-
-  if (comp.clientBlock && data.clientName) {
-    const clientKids: string[] = [
-      b.text("BILL TO", { fontSize: b.fontSize * 0.8, color: gray, letterSpacing: 0.8 }),
-      b.text(data.clientName, { fontWeight: "bold", fontSize: b.fontSize * 1.2, color: ink, marginTop: mm(2) }),
-    ];
-    const lines = [
-      data.clientAddress,
-      data.clientEmail && `Email: ${data.clientEmail}`,
-      data.clientPhone && `Tel: ${data.clientPhone}`,
-    ].filter(Boolean) as string[];
-    for (const line of lines) {
-      clientKids.push(b.text(line, { fontSize: b.fontSize * 0.9, color: gray, marginTop: mm(3) }));
-    }
-    mainKids.push(b.col({ marginTop: b.gap(14) }, clientKids));
-  }
-
-  mainKids.push(
-    buildItemsTable(b, data, {
-      headerColor: accent,
-      headerFill: styles.tableHeaderFill ? accentLight : undefined,
-      headerBorder: accent,
-      headerSize: b.fontSize * 0.85,
-      zebra: styles.zebraRows ? "#F5F6FC" : undefined,
-      textColor: "#000000",
-    })
-  );
-
-  if (comp.subtotal || comp.discount || comp.total || data.taxAmount > 0) {
-    const totalRows: string[] = [];
-    if (comp.subtotal) {
-      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Subtotal", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(formatPdfCurrency(data.subtotal, data.currency), { fontSize: b.fontSize, color: ink })]));
-    }
-    if (comp.discount && data.discountAmount > 0) {
-      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Discount", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(`-${formatPdfCurrency(data.discountAmount, data.currency)}`, { fontSize: b.fontSize, color: "#DC2626" })]));
-    }
-    if (data.taxAmount > 0) {
-      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Tax", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(formatPdfCurrency(data.taxAmount, data.currency), { fontSize: b.fontSize, color: ink })]));
-    }
-    if (comp.total) {
-      totalRows.push(
-        b.view({ borderTopWidth: 0.8, borderTopColor: secondary, marginTop: mm(4), paddingTop: mm(4) }, [
-          b.row({}, [b.text("Total", { flex: 1, bold: true, fontSize: b.fontSize * 1.2, color: secondary }), b.text(formatPdfCurrency(data.total, data.currency), { bold: true, fontSize: b.fontSize * 1.2, color: secondary })]),
-        ])
-      );
-    }
-    mainKids.push(
-      b.row({ justifyContent: "flex-end", marginTop: b.gap(10) }, [
-        b.view({ width: mm(66), backgroundColor: "#F8F9FE", borderLeftWidth: 2.2, borderLeftColor: accent, padding: mm(6) }, totalRows),
-      ])
-    );
-  }
-
-  if (comp.signature && data.clientName) mainKids.push(buildSignature(b, gray));
-
-  if (comp.notes && data.notes) {
-    mainKids.push(
-      b.view({ marginTop: b.gap(12) }, [
-        b.text(data.notes, { fontSize: b.fontSize, color: "#1F2937", marginTop: mm(2), textAlign: "center" }),
-      ])
-    );
-  }
-
-  const footer = buildFooter(b, data, { color: accent });
-  if (footer) mainKids.push(footer);
-
-  const main = b.view({ marginLeft: mm(mainLeft), paddingRight: mm(20), flex: 1 }, mainKids);
-  children.push(sidebar, main);
-  return children;
-}
-
-// ── ELEGANT ──
-function buildElegant(b: SpecBuilder, data: PDFData): string[] {
-  const comp = b.cfg.components;
-  const styles = b.cfg.styles;
-  const accent = b.cfg.accentColor;
-  const secondary = b.cfg.secondaryColor;
-  const ink = "#1E1B14";
-  const gray = "#6B7280";
-  const children: string[] = [];
-
-  const centerKids: string[] = [];
-  const hasLogo = comp.logo && !!data.logo;
-  if (hasLogo) {
-    centerKids.push(b.el("Image", { src: data.logo, style: { maxHeight: mm(12), maxWidth: "60%", objectFit: "contain", alignSelf: "center" } }));
-    if (data.companyAddress) {
-      centerKids.push(b.text(data.companyAddress, { fontSize: b.fontSize * 0.85, color: gray, textAlign: "center", marginTop: mm(2) }));
-    }
-  }
-  if (data.companyName && !hasLogo) {
-    centerKids.push(b.text(data.companyName, { fontWeight: "bold", fontSize: b.fontSize * 1.6, color: ink, textAlign: "center" }));
-  }
-  if (comp.companyContact || !hasLogo) {
-    const lines = [data.companyEmail, data.companyPhone].filter(Boolean) as string[];
-    if (!hasLogo && data.companyAddress) lines.unshift(data.companyAddress);
-    for (const line of lines) {
-      centerKids.push(b.text(line, { fontSize: b.fontSize * 0.85, color: gray, textAlign: "center", marginTop: mm(2) }));
-    }
-  }
-  children.push(b.col({ alignItems: "center" }, centerKids));
-
-  if (comp.metadata) {
-    children.push(
-      b.row({ justifyContent: "center", alignItems: "center", marginTop: b.gap(8) }, [
-        b.view({ width: mm(26), borderTopWidth: 0.4, borderTopColor: accent }),
-        b.view({ width: mm(8), height: 1 }),
-        b.view({ width: mm(26), borderTopWidth: 0.4, borderTopColor: accent }),
-      ])
-    );
-    children.push(b.text(titleText(b.cfg, data.invoiceType).toUpperCase(), { fontWeight: "bold", fontSize: b.fontSize * 1.9, color: accent, textAlign: "center", marginTop: mm(7) }));
-    children.push(
-      b.row({ justifyContent: "center", alignItems: "center", marginTop: mm(6) }, [
-        b.view({ width: mm(26), borderTopWidth: 0.4, borderTopColor: accent }),
-        b.view({ width: mm(8), height: 1 }),
-        b.view({ width: mm(26), borderTopWidth: 0.4, borderTopColor: accent }),
-      ])
-    );
-    children.push(
-      b.text(
-        [`No. ${data.invoiceNumber}`, `Issued ${data.issueDate}`, `Due ${data.dueDate}`].join("      \u2022      "),
-        { fontSize: b.fontSize * 0.9, color: gray, textAlign: "center", marginTop: b.gap(8) }
-      )
-    );
-  }
-
-  if (comp.clientBlock && data.clientName) {
-    const clientKids: string[] = [
-      b.text("BILL TO", { fontSize: b.fontSize * 0.8, color: gray, textAlign: "center", letterSpacing: 0.8 }),
-      b.text(data.clientName, { fontWeight: "bold", fontSize: b.fontSize * 1.1, color: ink, textAlign: "center", marginTop: mm(3) }),
-    ];
-    const lines = [
-      data.clientAddress,
-      data.clientEmail && `Email: ${data.clientEmail}`,
-      data.clientPhone && `Tel: ${data.clientPhone}`,
-    ].filter(Boolean) as string[];
-    for (const line of lines) {
-      clientKids.push(b.text(line, { fontSize: b.fontSize * 0.9, color: gray, textAlign: "center", marginTop: mm(3) }));
-    }
-    children.push(b.col({ alignItems: "center", marginTop: b.gap(12) }, clientKids));
-  }
-
-  children.push(
-    buildItemsTable(b, data, {
-      headerColor: accent,
-      headerFill: styles.tableHeaderFill ? mixWhite(accent, 0.95) : undefined,
-      headerBorder: accent,
-      headerSize: b.fontSize * 0.85,
-      rowBorder: "#E1DACD",
-      textColor: ink,
-    })
-  );
-
-  if (comp.subtotal || comp.discount || comp.total || data.taxAmount > 0) {
-    const totalRows: string[] = [];
-    if (comp.subtotal) {
-      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Subtotal", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(formatPdfCurrency(data.subtotal, data.currency), { fontSize: b.fontSize, color: ink })]));
-    }
-    if (comp.discount && data.discountAmount > 0) {
-      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Discount", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(`-${formatPdfCurrency(data.discountAmount, data.currency)}`, { fontSize: b.fontSize, color: "#B22222" })]));
-    }
-    if (data.taxAmount > 0) {
-      totalRows.push(b.row({ padding: mm(1.5) }, [b.text("Tax", { flex: 1, fontSize: b.fontSize, color: gray }), b.text(formatPdfCurrency(data.taxAmount, data.currency), { fontSize: b.fontSize, color: ink })]));
-    }
-    if (comp.total) {
-      totalRows.push(
-        b.view({ borderTopWidth: 0.3, borderTopColor: accent, marginTop: mm(3), paddingTop: mm(3) }, [
-          b.row({}, [b.text("Total", { flex: 1, bold: true, fontSize: b.fontSize * 1.2, color: secondary }), b.text(formatPdfCurrency(data.total, data.currency), { bold: true, fontSize: b.fontSize * 1.2, color: secondary })]),
-        ])
-      );
-    }
-    children.push(
-      b.row({ justifyContent: "flex-end", marginTop: b.gap(8) }, [
-        b.view(
-          { width: mm(64), borderWidth: 0.4, borderColor: accent, padding: mm(4) },
-          [
-            b.view({ width: "100%", borderWidth: 0.15, borderColor: secondary, padding: mm(2) }, totalRows),
-          ]
-        ),
-      ])
-    );
-  }
-
-  if (comp.signature && data.clientName) children.push(buildSignature(b, gray));
-
-  if (comp.notes && data.notes) {
-    children.push(
-      b.view({ marginTop: b.gap(16), alignItems: "center" }, [
-        b.view({ width: mm(48), borderTopWidth: 0.4, borderTopColor: accent, marginBottom: mm(6) }),
-        b.text(data.notes, { fontSize: b.fontSize, color: ink, textAlign: "center", marginTop: mm(3) }),
-      ])
-    );
-  }
-
-  return children;
-}
-
-const TEMPLATE_BUILDERS: Record<string, (b: SpecBuilder, data: PDFData) => string[]> = {
-  modern: buildModern,
-  business: buildBusiness,
-  minimal: buildMinimal,
-  professional: buildProfessional,
-  elegant: buildElegant,
-};
 
 export function buildInvoiceSpec(data: PDFData): Spec {
-  const cfg = mergeTemplateConfig(data.templateConfig, data.templateConfig?.base || "modern");
+  const cfg = mergeTemplateConfig(data.templateConfig, data.templateConfig?.base || "light");
   const fullData: PDFData = { ...data, templateConfig: cfg };
-  const b = new SpecBuilder(cfg);
-  const builder = TEMPLATE_BUILDERS[cfg.base] || TEMPLATE_BUILDERS.modern;
+  const page = pageSize(data.paperSize);
+  const labels = pdfLabels(data.language);
+  const b = new SpecBuilder(cfg, PAGE_WIDTH_PT[page] - MARGIN_PT * 2);
+  const theme = PDF_THEMES[cfg.base === "dark" ? "dark" : "light"];
+  const sz = b.fontSize;
 
-  const pageChildren: string[] = [];
-  if (cfg.base === "professional") {
-    pageChildren.push(...builder(b, fullData));
-  } else {
-    const contentKids = builder(b, fullData);
-    pageChildren.push(b.col({ flex: 1 }, contentKids));
-    const footer = buildFooter(b, fullData, {
-      color: cfg.base === "elegant" ? cfg.accentColor : "#6B7280",
-      centered: cfg.base === "elegant",
-    });
-    if (footer) pageChildren.push(footer);
-  }
+  const typeName =
+    cfg.styles.title ||
+    (data.invoiceType === "proforma"
+      ? labels.proformaInvoice
+      : data.invoiceType && data.invoiceType !== "invoice"
+        ? data.invoiceType.charAt(0).toUpperCase() + data.invoiceType.slice(1)
+        : labels.invoice);
 
-  return b.build(pageChildren, {
-    size: pageSize(data.paperSize),
-    marginTop: mm(20),
-    marginBottom: mm(20),
-    marginLeft: mm(20),
-    marginRight: mm(20),
+  // Wide enough for the unit-price header plus its gutter, so it never wraps.
+  const moneyWidth = Math.round(
+    Math.max(
+      92,
+      Math.min(sz * 8, b.contentWidth * 0.3),
+      labels.unitPrice.length * sz * 0.65 + mm(2)
+    )
+  );
+  const descWidth =
+    b.contentWidth -
+    (cfg.components.qtyColumn ? 46 : 0) -
+    (cfg.components.priceColumn ? 2 : 1) * moneyWidth;
+
+  const ctx: Ctx = {
+    b,
+    data: fullData,
+    cfg,
+    theme,
+    labels,
+    sz,
+    accent: cfg.accentColor,
+    muted: blend(theme.bg, theme.text, 0.82),
+    faint: blend(theme.bg, theme.text, 0.92),
+    typeName,
+    moneyWidth,
+    totalsWidth: Math.round(Math.max(mm(72), Math.min(sz * 15, b.contentWidth * 0.55))),
+    descWidth,
+    nums: data.numberFormat,
+  };
+
+  const hasFooter = cfg.components.footer;
+  const metrics = metricsFor(ctx, PAGE_HEIGHT_PT[page], hasFooter);
+  const pages = paginate(ctx, metrics);
+
+  const pageProps = {
+    size: page,
+    backgroundColor: theme.bg,
+    marginTop: MARGIN_PT,
+    marginBottom: MARGIN_PT,
+    marginLeft: MARGIN_PT,
+    marginRight: MARGIN_PT,
+  };
+
+  const pageKeys: string[] = [];
+  pages.forEach((rows, pageIndex) => {
+    const lastPage = pageIndex === pages.length - 1;
+    const kids: string[] = [];
+    kids.push(...(pageIndex === 0 ? documentHeader(ctx) : continuationHeader(ctx)));
+
+    if (fullData.lineItems.length > 0) {
+      kids.push(tableHeaderRow(ctx));
+      kids.push(dashedRule(b, theme.border, 0, 0));
+      rows.forEach((rowIndex, position) => {
+        kids.push(itemRow(ctx, rowIndex));
+        if (position < rows.length - 1) {
+          kids.push(dashedRule(b, blend(theme.bg, theme.border, 0.5)));
+        }
+      });
+    }
+
+    if (lastPage) {
+      kids.push(totalsBlock(ctx));
+      if (cfg.components.signature) kids.push(buildSignature(b, labels.signature, theme.border));
+      if (cfg.components.notes) kids.push(notesBlock(ctx));
+    }
+
+    const children: string[] = [b.col({ flex: 1 }, kids)];
+    if (hasFooter) children.push(footerFor(ctx, true));
+    pageKeys.push(b.page(children, pageProps));
+  });
+
+  return b.build(pageKeys, {
+    title: `${typeName} ${data.invoiceNumber}`,
+    author: data.companyName || "InvoiceFlow",
+    subject: `${typeName} ${data.invoiceNumber} \u2014 ${money(ctx, data.total)}`,
   });
 }

@@ -33,15 +33,3 @@ export const SPACING_OPTIONS: { value: TemplateSpacing; label: string }[] = [
   { value: "relaxed", label: "Relaxed" },
 ];
 
-export const PREDEFINED_COLORS = [
-  "#00BCD4",
-  "#059669",
-  "#1E40AF",
-  "#4F46E5",
-  "#7C3AED",
-  "#DB2777",
-  "#EA580C",
-  "#92400E",
-  "#334155",
-  "#0F172A",
-];

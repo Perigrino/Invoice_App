@@ -28,12 +28,7 @@ export type DateFormat =
 
 export type PaperSize = "A4" | "A3" | "Letter" | "Legal";
 
-export type TemplateType =
-  | "business"
-  | "modern"
-  | "minimal"
-  | "professional"
-  | "elegant";
+export type TemplateType = "dark" | "light";
 
 export type SoundOption = "default" | "chime" | "bell" | "silent";
 

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { AppSettings } from "@/types";
 import { DEFAULT_SETTINGS } from "@/lib/defaults";
 import { loadFromStorage, saveToStorage } from "@/lib/storage";
+import { normalizeTemplate } from "@/lib/templates/presets";
 import { fetchSettings, saveSettings as apiSaveSettings } from "@/lib/api";
 import { useProfileStore } from "./profile-store";
 import { notifyWriteFailure } from "@/store/toast-store";
@@ -28,7 +29,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
     const remote = await fetchSettings();
     set({
-      settings: { ...defaultSettings, ...local, ...remote },
+      settings: {
+        ...defaultSettings,
+        ...local,
+        ...remote,
+        template: normalizeTemplate(remote?.template ?? local?.template ?? defaultSettings.template),
+      },
       _hydrated: true,
     });
   },

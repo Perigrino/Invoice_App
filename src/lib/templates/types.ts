@@ -20,11 +20,15 @@ export interface TemplateComponents {
   footer: boolean;
 }
 
+export type TemplateLogoSize = "small" | "medium" | "large";
+
 export interface TemplateStyles {
   tableHeaderFill: boolean;
   zebraRows: boolean;
   totalsFill: boolean;
+  /** Empty means "use the invoice type" (Invoice / Proforma Invoice). */
   title: string;
+  logoSize: TemplateLogoSize;
 }
 
 export interface TemplateConfig {

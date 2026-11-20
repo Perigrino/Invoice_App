@@ -38,9 +38,8 @@ import { useProfileStore } from "@/store/profile-store";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 import { track } from "@/lib/analytics";
-import type { PdfExportParams } from "@/lib/pdf/export-invoice";
+import { pdfFormatting, type PdfExportParams } from "@/lib/pdf/export-invoice";
 import Link from "next/link";
-import type { PreviewInvoiceData } from "./template-editor/preview/types";
 import { markRecoveryPending } from "@/lib/recovery-notice";
 
 
@@ -111,9 +110,8 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS);
   const [defaultNotePromptOpen, setDefaultNotePromptOpen] = useState(false);
   const [noNotePromptOpen, setNoNotePromptOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("modern");
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("light");
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewData, setPreviewData] = useState<PreviewInvoiceData | null>(null);
 
   useEffect(() => {
     hydrateClients();
@@ -226,38 +224,7 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     router.push("/invoices");
   };
 
-  const buildPreviewData = (): PreviewInvoiceData => {
-    const name = selectedClient?.fullName || selectedClient?.company || "Unknown Client";
-    return {
-      invoiceNumber,
-      invoiceType,
-      issueDate,
-      dueDate: dueDate || "—",
-      clientName: name,
-      clientEmail: selectedClient?.email,
-      clientPhone: selectedClient?.phone,
-      clientAddress: selectedClient?.address,
-      companyName: company.name || company.fullName || "",
-      companyAddress: company.address,
-      companyEmail: company.email,
-      companyPhone: company.phone,
-      logo: settings.logo,
-      lineItems: lineItems.map((item) => ({
-        description: item.description,
-        price: Number(item.price) || 0,
-        quantity: Number(item.quantity) || 1,
-        total: (Number(item.price) || 0) * (Number(item.quantity) || 1),
-      })),
-      subtotal,
-      discountAmount: 0,
-      taxAmount,
-      total,
-      notes,
-      currency: settings.currency,
-    };
-  };
-
-  const buildExportParams = (noteText: string, tpl?: TemplateType): PdfExportParams => {
+  const buildExportParams = (noteText: string): PdfExportParams => {
     const name = selectedClient?.fullName || selectedClient?.company || "Unknown Client";
     return {
       invoice: {
@@ -284,15 +251,9 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
       pdfDirectory: settings.pdfDirectory,
       accentColor: settings.pdfAccentColor,
       secondaryColor: settings.pdfSecondaryColor,
-      template: tpl || selectedTemplate,
+      template: selectedTemplate,
+      ...pdfFormatting(settings),
     };
-  };
-
-  const doExportPdf = async (noteText: string, tpl?: TemplateType) => {
-    const { exportInvoicePdf } = await import("@/lib/pdf/export-invoice");
-    const { downloadPdfBuffer, pdfFilename } = await import("@/lib/pdf/download");
-    const buffer = await exportInvoicePdf(buildExportParams(noteText, tpl));
-    downloadPdfBuffer(buffer, pdfFilename(invoiceNumber, settings.pdfDirectory));
   };
 
   const handleExportPdf = async () => {
@@ -313,7 +274,6 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
       }
       return;
     }
-    setPreviewData(buildPreviewData());
     setPreviewOpen(true);
   };
 
@@ -322,7 +282,6 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     setNotes(noteText);
     setErrors(NO_ERRORS);
     setDefaultNotePromptOpen(false);
-    setPreviewData(buildPreviewData());
     setPreviewOpen(true);
   };
 
@@ -744,15 +703,16 @@ export function InvoiceForm({ invoiceId }: InvoiceFormProps) {
         </DialogContent>
       </Dialog>
 
-      {previewData && (
+      {previewOpen && (
         <PdfPreviewDialog
-          open={previewOpen}
+          open
           onOpenChange={setPreviewOpen}
           params={buildExportParams(notes)}
-          onDownload={async (tpl) => {
-            await doExportPdf(notes, tpl);
+          onDownload={async (exportParams, previewBytes) => {
+            const { downloadInvoicePdf } = await import("@/lib/pdf/download");
+            await downloadInvoicePdf(exportParams, previewBytes);
             track("invoice_pdf_exported", {
-              template: tpl || selectedTemplate,
+              template: exportParams.template || selectedTemplate,
               invoice_type: invoiceType,
             });
             setPreviewOpen(false);

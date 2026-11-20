@@ -360,13 +360,13 @@ export function ProfilesView() {
                     label="Accent Color"
                     value={settings.pdfAccentColor}
                     onChange={(color) => updateSettings({ pdfAccentColor: color })}
-                    description="Used for the invoice title, table header, and underline."
+                    description="Used for the invoice title, the section rules, and the total."
                   />
                   <ColorPicker
                     label="Secondary Color"
                     value={settings.pdfSecondaryColor}
                     onChange={(color) => updateSettings({ pdfSecondaryColor: color })}
-                    description="Used for the totals section and total highlight."
+                    description="Used for the table header fill and the totals highlight."
                   />
                 </div>
               </CardContent>

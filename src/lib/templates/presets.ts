@@ -1,27 +1,48 @@
-import type { TemplateConfig, TemplateFont, TemplateSpacing } from "./types";
+import type { TemplateConfig, TemplateSpacing } from "./types";
 import type { TemplateType } from "@/types";
 
-export const TEMPLATE_ORDER: TemplateType[] = [
-  "modern",
-  "business",
-  "minimal",
-  "professional",
-  "elegant",
-];
+/**
+ * The two designs the Mac app ships (PDFTemplate.swift), and the only two the
+ * web app offers.
+ */
+export const TEMPLATE_ORDER: TemplateType[] = ["dark", "light"];
+
+export const TEMPLATE_LABELS: Record<TemplateType, string> = {
+  dark: "Dark",
+  light: "Light",
+};
+
+/**
+ * The five designs this app used before it adopted the Mac app's two. Settings
+ * rows and saved invoices still carry these names, so anything stored under one
+ * lands on Light — every retired design had a light page.
+ */
+const LEGACY_TEMPLATES: Record<string, TemplateType> = {
+  modern: "light",
+  business: "light",
+  minimal: "light",
+  professional: "light",
+  elegant: "light",
+};
+
+export function normalizeTemplate(value?: string | null): TemplateType {
+  if (value === "dark" || value === "light") return value;
+  return (value && LEGACY_TEMPLATES[value]) || "light";
+}
 
 function baseConfig(
   base: TemplateType,
   accentColor: string,
   secondaryColor: string,
-  font: TemplateFont,
   spacing: TemplateSpacing = "normal"
 ): TemplateConfig {
   return {
     base,
     accentColor,
     secondaryColor,
-    font,
-    fontSize: 12,
+    // Menlo 9 on the Mac; Courier at 9pt is its closest base-14 match.
+    font: "courier",
+    fontSize: 9,
     spacing,
     components: {
       logo: true,
@@ -36,73 +57,42 @@ function baseConfig(
       total: true,
       notes: true,
       signature: false,
-      footer: false,
+      footer: true,
     },
     styles: {
       tableHeaderFill: true,
-      zebraRows: true,
-      totalsFill: true,
-      title: "INVOICE",
+      zebraRows: false,
+      totalsFill: false,
+      // Empty means the document names itself from the invoice type.
+      title: "",
+      logoSize: "medium",
     },
   };
 }
 
 export const DEFAULT_TEMPLATE_CONFIGS: Record<TemplateType, TemplateConfig> = {
-  // Current default design: colored header, zebra rows, colored total bar.
-  modern: baseConfig("modern", "#00BCD4", "#059669", "courier"),
+  // Near-black page, dim body text, bright values — PDFGenerator's DarkTheme.
+  dark: baseConfig("dark", "#60A5FA", "#059669"),
 
-  // Corporate letterhead: strong navy accent, no fills, underline rules.
-  business: {
-    ...baseConfig("business", "#1E40AF", "#047857", "sans"),
-    styles: {
-      tableHeaderFill: false,
-      zebraRows: true,
-      totalsFill: true,
-      title: "INVOICE",
-    },
-  },
-
-  // Quiet, minimal: no fills, hairline dividers only, neutral slate.
-  minimal: {
-    ...baseConfig("minimal", "#334155", "#475569", "sans"),
-    styles: {
-      tableHeaderFill: false,
-      zebraRows: false,
-      totalsFill: false,
-      title: "INVOICE",
-    },
-  },
-
-  // Formal structured: sidebar accent, filled header, boxed totals.
-  professional: baseConfig("professional", "#4F46E5", "#0F766E", "sans"),
-
-  // Elegant: serif, relaxed spacing, centered ornament, no filled header.
-  elegant: {
-    ...baseConfig("elegant", "#92400E", "#78350F", "serif", "relaxed"),
-    styles: {
-      tableHeaderFill: false,
-      zebraRows: false,
-      totalsFill: true,
-      title: "INVOICE",
-    },
-  },
+  // Warm white page, dark body text — PDFGenerator's LightTheme.
+  light: baseConfig("light", "#60A5FA", "#059669"),
 };
 
-export function getDefaultTemplateConfig(base: TemplateType = "modern"): TemplateConfig {
-  const preset = DEFAULT_TEMPLATE_CONFIGS[base] || DEFAULT_TEMPLATE_CONFIGS.modern;
+export function getDefaultTemplateConfig(base: string = "light"): TemplateConfig {
+  const preset = DEFAULT_TEMPLATE_CONFIGS[normalizeTemplate(base)];
   return JSON.parse(JSON.stringify(preset)) as TemplateConfig;
 }
 
 export function mergeTemplateConfig(
   config: Partial<TemplateConfig> | undefined | null,
-  base: TemplateType = "modern"
+  base: string = "light"
 ): TemplateConfig {
   const preset = getDefaultTemplateConfig(config?.base || base);
   if (!config) return preset;
   return {
     ...preset,
     ...config,
-    base: config.base || preset.base,
+    base: normalizeTemplate(config.base || preset.base),
     components: { ...preset.components, ...(config.components || {}) },
     styles: { ...preset.styles, ...(config.styles || {}) },
   };

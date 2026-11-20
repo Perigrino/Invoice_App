@@ -105,7 +105,7 @@ function workspaceFile(): ExportFile {
 
   return buildExportFile({
     company: { id: "c1", workspaceId: "ws", name: "Studio", logo: null, address: "2 Road" },
-    settings: { id: "s1", workspaceId: "ws", currency: "EUR", template: "modern", darkMode: true, unknownColumn: "drop me" },
+    settings: { id: "s1", workspaceId: "ws", currency: "EUR", template: "light", darkMode: true, unknownColumn: "drop me" },
     clients: clients.map(toExportedClient),
     invoices: rows.map((row) => toExportedInvoice(row, clients)),
   });
@@ -123,7 +123,7 @@ describe("export file", () => {
   it("drops columns the schema does not have and keeps the ones it does", () => {
     const file = workspaceFile();
     expect(file.settings).not.toHaveProperty("unknownColumn");
-    expect(file.settings).toMatchObject({ currency: "EUR", template: "modern" });
+    expect(file.settings).toMatchObject({ currency: "EUR", template: "light" });
     expect(file.company).toMatchObject({ name: "Studio" });
     expect(file.company).not.toHaveProperty("workspaceId");
   });

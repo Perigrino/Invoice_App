@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { fromCents } from "@/lib/money";
 import { assemblePdfData, type PdfExportPayload } from "@/lib/pdf/assemble";
 import { generateInvoicePdfBuffer } from "@/lib/pdf/generate-pdf";
+import { pdfFormatting } from "@/lib/pdf/export-invoice";
 import { isShareToken } from "@/lib/share";
 
 export type SharedInvoice = Invoice & {
@@ -59,6 +60,7 @@ export function sharedPdfPayload(invoice: SharedInvoice): PdfExportPayload {
     template: settings?.template,
     accentColor: settings?.pdfAccentColor,
     secondaryColor: settings?.pdfSecondaryColor,
+    ...pdfFormatting(settings),
     settingsNotes: settings?.notes || undefined,
     logo: settings?.logo || company?.logo || undefined,
     company: company

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { assemblePdfData } from "@/lib/pdf/assemble";
-import { generateInvoicePdfBuffer } from "@/lib/pdf/generate-pdf";
+import { renderInvoicePdf } from "@/lib/pdf/render-cache";
 import { getWorkspaceId } from "@/lib/workspace";
 import { LIMITS, guardMutation } from "@/lib/request-guard";
 
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid invoice data" }, { status: 400 });
     }
 
-    const buffer = await generateInvoicePdfBuffer(assemblePdfData(body));
+    const buffer = await renderInvoicePdf(assemblePdfData(body));
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,

@@ -26,7 +26,7 @@ import { track } from "@/lib/analytics";
 import { TEMPLATE_ORDER } from "@/lib/templates/presets";
 import type { TemplateType, InvoiceStatus } from "@/types";
 import type { SavedInvoice } from "@/store/invoice-store";
-import type { PdfExportParams } from "@/lib/pdf/export-invoice";
+import { pdfFormatting, type PdfExportParams } from "@/lib/pdf/export-invoice";
 import { PdfPreviewDialog } from "./pdf-preview-dialog";
 import { ShareDialog } from "./share-dialog";
 import Link from "next/link";
@@ -189,7 +189,7 @@ export function InvoiceList() {
   const [templateSubmenu, setTemplateSubmenu] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState<SavedInvoice | null>(null);
-  const [previewTemplate, setPreviewTemplate] = useState<TemplateType>("modern");
+  const [previewTemplate, setPreviewTemplate] = useState<TemplateType>("light");
   const [shareTarget, setShareTarget] = useState<SavedInvoice | null>(null);
 
   useEffect(() => { hydrate(); }, [hydrate]);
@@ -205,13 +205,12 @@ export function InvoiceList() {
     accentColor: settings.pdfAccentColor,
     secondaryColor: settings.pdfSecondaryColor,
     template,
+    ...pdfFormatting(settings),
   });
 
   const handleExportWithTemplate = async (item: SavedInvoice, template: TemplateType) => {
-    const { exportInvoicePdf } = await import("@/lib/pdf/export-invoice");
-    const { downloadPdfBuffer, pdfFilename } = await import("@/lib/pdf/download");
-    const buffer = await exportInvoicePdf(buildListParams(item, template));
-    downloadPdfBuffer(buffer, pdfFilename(item.invoiceNumber, settings.pdfDirectory));
+    const { downloadInvoicePdf } = await import("@/lib/pdf/download");
+    await downloadInvoicePdf(buildListParams(item, template));
     setMenuOpen(null);
     setTemplateSubmenu(null);
   };
@@ -439,11 +438,9 @@ export function InvoiceList() {
           open={previewOpen}
           onOpenChange={setPreviewOpen}
           params={buildListParams(previewInvoice, previewTemplate)}
-          onDownload={async (tpl) => {
-            const { exportInvoicePdf } = await import("@/lib/pdf/export-invoice");
-            const { downloadPdfBuffer, pdfFilename } = await import("@/lib/pdf/download");
-            const buffer = await exportInvoicePdf(buildListParams(previewInvoice, tpl));
-            downloadPdfBuffer(buffer, pdfFilename(previewInvoice.invoiceNumber, settings.pdfDirectory));
+          onDownload={async (exportParams, previewBytes) => {
+            const { downloadInvoicePdf } = await import("@/lib/pdf/download");
+            await downloadInvoicePdf(exportParams, previewBytes);
             setPreviewOpen(false);
           }}
         />

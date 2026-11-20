@@ -140,7 +140,7 @@ model Setting {
   signPlacement      String    @default("before")
   dateFormat         String    @default("MM/DD/YYYY")
   pdfDirectory       String    @default("/exports")
-  template           String    @default("modern")
+  template           String    @default("light")
   paperSize          String    @default("A4")
   pdfAccentColor     String    @default("#00BCD4")
   pdfSecondaryColor  String    @default("#059669")

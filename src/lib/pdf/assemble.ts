@@ -1,21 +1,12 @@
 import type { TemplateConfig } from "../templates/types";
-import type { TemplateType } from "../../types";
+import { normalizeTemplate } from "../templates/presets";
 import { mergeTemplateConfig } from "../templates/presets";
 import type { PDFData } from "./types";
-import type { ExportableInvoice, CompanyDetails } from "./export-invoice";
+import { formatDate } from "../utils";
+import type { PdfExportParams } from "./export-invoice";
 
-export interface PdfExportPayload {
-  invoice: ExportableInvoice;
-  currency?: string;
-  company?: CompanyDetails;
-  logo?: string;
-  settingsNotes?: string;
-  paperSize?: string;
-  template?: string;
-  accentColor?: string;
-  secondaryColor?: string;
-  templateConfig?: TemplateConfig;
-}
+/** One shape for the client payload and the server's input. */
+export type PdfExportPayload = PdfExportParams;
 
 function normalizeLogo(logo?: string): string | undefined {
   if (!logo) return logo;
@@ -40,13 +31,16 @@ export function assemblePdfData(payload: PdfExportPayload): PDFData {
     accentColor,
     secondaryColor,
     templateConfig,
+    dateFormat,
+    numberFormat,
+    language,
   } = payload;
 
   const combinedNotes = [invoice.notes, settingsNotes].filter(Boolean).join("\n\n");
   const baseConfig: TemplateConfig =
     templateConfig ||
     mergeTemplateConfig({
-      base: (template as TemplateType) || "modern",
+      base: normalizeTemplate(template),
     });
 
   const effectiveConfig: TemplateConfig = {
@@ -59,8 +53,8 @@ export function assemblePdfData(payload: PdfExportPayload): PDFData {
     invoiceNumber: invoice.invoiceNumber,
     invoiceType: invoice.invoiceType || "invoice",
     paperSize: paperSize || "A3",
-    issueDate: new Date(invoice.issueDate).toLocaleDateString("en-GH"),
-    dueDate: invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString("en-GH") : "—",
+    issueDate: formatDate(invoice.issueDate, dateFormat),
+    dueDate: invoice.dueDate ? formatDate(invoice.dueDate, dateFormat) : "—",
     companyName: company.name || company.fullName || "",
     companyAddress: company.address || "",
     companyEmail: company.email || "",
@@ -81,5 +75,8 @@ export function assemblePdfData(payload: PdfExportPayload): PDFData {
     currency,
     logo: normalizeLogo(logo),
     templateConfig: effectiveConfig,
+    dateFormat,
+    numberFormat,
+    language,
   };
 }

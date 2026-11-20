@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { exportInvoicePdf, type PdfExportParams } from "@/lib/pdf/export-invoice";
+import { cachedPdf, pdfParamsKey, rememberPdf } from "@/lib/pdf/preview-cache";
 import { Loader2 } from "lucide-react";
+import { PdfPages } from "./pdf-pages";
 
 const PAPER_ASPECT: Record<string, string> = {
   A4: "210 / 297",
@@ -11,11 +13,14 @@ const PAPER_ASPECT: Record<string, string> = {
   LEGAL: "8.5 / 14",
 };
 
-const FADE_MS = 300;
-const LOAD_FALLBACK_MS = 1200;
-
 function paperAspect(paperSize?: string): string {
   return PAPER_ASPECT[(paperSize || "A3").toUpperCase()] || "210 / 297";
+}
+
+/** A finished render, together with the params it was drawn from. */
+interface Drawn {
+  key: string;
+  bytes: Uint8Array;
 }
 
 interface LivePdfPreviewProps {
@@ -24,148 +29,81 @@ interface LivePdfPreviewProps {
 }
 
 export function LivePdfPreview({ params, debounceMs = 400 }: LivePdfPreviewProps) {
-  const [current, setCurrent] = useState<string | null>(null);
-  const [pending, setPending] = useState<string | null>(null);
-  const [pendingReady, setPendingReady] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const paramKey = useMemo(() => pdfParamsKey(params), [params]);
+  const [drawn, setDrawn] = useState<Drawn | null>(() => {
+    const hit = cachedPdf(paramKey);
+    return hit ? { key: paramKey, bytes: hit } : null;
+  });
+  const [failure, setFailure] = useState<{ key: string; message: string } | null>(null);
 
-  const urlsRef = useRef<Set<string>>(new Set());
-  const currentRef = useRef<string | null>(null);
-  const pendingRef = useRef<string | null>(null);
-  const fadeTimerRef = useRef<number | null>(null);
+  // A configuration already drawn this session swaps in immediately: React
+  // re-runs this render before painting, so there is no spinner frame and no
+  // request. The bytes stay on screen until the next render is ready.
+  if (drawn?.key !== paramKey) {
+    const remembered = cachedPdf(paramKey);
+    if (remembered) setDrawn({ key: paramKey, bytes: remembered });
+  }
 
-  const revoke = useCallback((url: string | null | undefined) => {
-    if (url && urlsRef.current.delete(url)) URL.revokeObjectURL(url);
-  }, []);
-
-  const showNext = useCallback(
-    (next: string) => {
-      urlsRef.current.add(next);
-      if (fadeTimerRef.current) window.clearTimeout(fadeTimerRef.current);
-      if (!currentRef.current) {
-        currentRef.current = next;
-        setCurrent(next);
-        return;
-      }
-      const prev = pendingRef.current;
-      pendingRef.current = next;
-      if (prev) revoke(prev);
-      setPending(next);
-      setPendingReady(false);
-      fadeTimerRef.current = window.setTimeout(() => setPendingReady(true), LOAD_FALLBACK_MS);
-    },
-    [revoke]
-  );
-
-  const paramKey = useMemo(() => JSON.stringify(params), [params]);
+  const pending = drawn?.key !== paramKey;
+  const error = failure?.key === paramKey ? failure.message : null;
 
   useEffect(() => {
+    if (cachedPdf(paramKey)) return;
+
+    // A newer parameter set must not be overwritten by an older, slower render.
+    const controller = new AbortController();
     let cancelled = false;
     const timer = setTimeout(async () => {
-      setError(null);
-      setLoading(true);
       try {
-        const buffer = await exportInvoicePdf(params);
+        const buffer = await exportInvoicePdf(params, controller.signal);
         if (cancelled) return;
-        const blob = new Blob([buffer.slice()], { type: "application/pdf" });
-        const next = URL.createObjectURL(blob);
-        if (cancelled) {
-          URL.revokeObjectURL(next);
-          return;
-        }
-        showNext(next);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to generate PDF");
-      } finally {
-        if (!cancelled) setLoading(false);
+        rememberPdf(paramKey, buffer);
+        setFailure(null);
+        setDrawn({ key: paramKey, bytes: buffer });
+      } catch (cause) {
+        const aborted = cause instanceof DOMException && cause.name === "AbortError";
+        if (cancelled || aborted) return;
+        setFailure({ key: paramKey, message: cause instanceof Error ? cause.message : "Failed to generate PDF" });
       }
     }, debounceMs);
+
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramKey, debounceMs]);
 
-  const handlePendingLoad = useCallback(() => {
-    if (fadeTimerRef.current) window.clearTimeout(fadeTimerRef.current);
-    setPendingReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!pendingReady || !pendingRef.current) return;
-    const timer = window.setTimeout(() => {
-      const prev = currentRef.current;
-      const next = pendingRef.current;
-      currentRef.current = next;
-      pendingRef.current = null;
-      setCurrent(next);
-      setPending(null);
-      revoke(prev);
-    }, FADE_MS);
-    return () => window.clearTimeout(timer);
-  }, [pendingReady, revoke]);
-
-  useEffect(() => {
-    return () => {
-      if (fadeTimerRef.current) window.clearTimeout(fadeTimerRef.current);
-      urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
-      urlsRef.current.clear();
-    };
-  }, []);
-
-  const aspect = paperAspect(params.paperSize);
-
   return (
     <div className="relative mx-auto w-full">
-      <div
-        className="w-full overflow-hidden rounded-sm bg-white shadow-xl ring-1 ring-black/5 dark:shadow-black/40"
-        style={{ aspectRatio: aspect }}
-      >
-        {current ? (
-          <>
-            <object
-              data={current}
-              type="application/pdf"
-              aria-label="Invoice PDF preview"
-              className="absolute inset-0 h-full w-full"
-              style={{
-                opacity: pending && pendingReady ? 0 : 1,
-                transition: `opacity ${FADE_MS}ms ease`,
-              }}
-            />
-            {pending && (
-              <object
-                data={pending}
-                type="application/pdf"
-                onLoad={handlePendingLoad}
-                className="absolute inset-0 h-full w-full"
-                style={{
-                  opacity: pendingReady ? 1 : 0,
-                  transition: `opacity ${FADE_MS}ms ease`,
-                }}
-              />
-            )}
-          </>
-        ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-sm text-gray-400">
-            {error ? (
-              <p className="max-w-[80%] text-center text-red-500">{error}</p>
-            ) : (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
-                <span>Generating preview…</span>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-      {loading && current && !error && (
+      {drawn ? (
+        <PdfPages data={drawn.bytes} />
+      ) : (
+        <div
+          className="flex w-full flex-col items-center justify-center gap-2 rounded-sm bg-white p-6 text-sm text-gray-400 shadow-xl ring-1 ring-black/5 dark:shadow-black/40"
+          style={{ aspectRatio: paperAspect(params.paperSize) }}
+        >
+          {error ? (
+            <p className="max-w-[80%] text-center text-red-500">{error}</p>
+          ) : (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
+              <span>Generating preview…</span>
+            </>
+          )}
+        </div>
+      )}
+      {pending && drawn && !error && (
         <div className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-white/90 px-2 py-1 text-xs text-gray-500 shadow-sm ring-1 ring-black/5 backdrop-blur">
           <Loader2 className="h-3 w-3 animate-spin" />
           Updating…
         </div>
+      )}
+      {error && drawn && (
+        <p role="alert" className="mt-2 text-center text-xs text-red-500">
+          {error}
+        </p>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import type { TemplateConfig } from "../templates/types";
+import type { PdfNumberFormat } from "./types";
 
 export interface ExportableInvoice {
   invoiceNumber: string;
@@ -41,13 +42,20 @@ export interface PdfExportParams {
   secondaryColor?: string;
   template?: string;
   templateConfig?: TemplateConfig;
+  dateFormat?: string;
+  numberFormat?: PdfNumberFormat;
+  language?: string;
 }
 
-export async function exportInvoicePdf(params: PdfExportParams): Promise<Uint8Array> {
+export async function exportInvoicePdf(
+  params: PdfExportParams,
+  signal?: AbortSignal
+): Promise<Uint8Array> {
   const response = await fetch("/api/pdf/export", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
+    signal,
   });
 
   if (!response.ok) {
@@ -62,4 +70,29 @@ export async function exportInvoicePdf(params: PdfExportParams): Promise<Uint8Ar
   }
 
   return new Uint8Array(await response.arrayBuffer());
+}
+
+/** Loosely-typed settings (Prisma rows or the app store) to PDF payload fields. */
+export interface FormattingSettings {
+  dateFormat?: string | null;
+  separator?: string | null;
+  decimalPlaces?: number | null;
+  signPlacement?: string | null;
+  language?: string | null;
+}
+
+export function pdfFormatting(
+  settings?: FormattingSettings | null
+): Pick<PdfExportParams, "dateFormat" | "numberFormat" | "language"> {
+  return {
+    dateFormat: settings?.dateFormat ?? undefined,
+    numberFormat: settings
+      ? {
+          separator: (settings.separator as PdfNumberFormat["separator"]) ?? "comma",
+          decimalPlaces: settings.decimalPlaces ?? 2,
+          signPlacement: (settings.signPlacement as PdfNumberFormat["signPlacement"]) ?? "after",
+        }
+      : undefined,
+    language: settings?.language ?? undefined,
+  };
 }

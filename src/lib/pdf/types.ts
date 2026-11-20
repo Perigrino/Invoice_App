@@ -7,6 +7,13 @@ export interface PDFLineItem {
   total: number;
 }
 
+/** How amounts are written in the exported document. */
+export interface PdfNumberFormat {
+  separator: "comma" | "dot" | "space";
+  decimalPlaces: number;
+  signPlacement: "before" | "after";
+}
+
 export interface PDFData {
   invoiceNumber: string;
   invoiceType: string;
@@ -30,4 +37,9 @@ export interface PDFData {
   currency?: string;
   logo?: string;
   templateConfig?: TemplateConfig;
+  /** The workspace's date format, so the PDF matches the rest of the app. */
+  dateFormat?: string;
+  numberFormat?: PdfNumberFormat;
+  /** Language for the document's own labels (not the UI). */
+  language?: string;
 }

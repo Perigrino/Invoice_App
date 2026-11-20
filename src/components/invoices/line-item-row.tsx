@@ -71,10 +71,8 @@ export function LineItemRow({
           step="1"
         />
       </td>
-      <td className="hidden px-2 py-2 text-right md:table-cell">
-        <span className="text-sm font-medium">
-          {formattedTotal} {currency}
-        </span>
+      <td className="hidden whitespace-nowrap px-2 py-2 text-right text-sm font-medium md:table-cell">
+        {formattedTotal} {currency}
       </td>
       <td className="hidden px-2 py-2 md:table-cell">
         <div className="flex items-center gap-1">
@@ -139,7 +137,7 @@ export function LineItemRow({
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-[10px] uppercase tracking-wide text-gray-400">
                 Price
@@ -174,11 +172,11 @@ export function LineItemRow({
                 step="1"
               />
             </div>
-            <div className="space-y-1">
+            <div className="col-span-2 space-y-1">
               <Label className="text-[10px] uppercase tracking-wide text-gray-400">
                 Total
               </Label>
-              <p className="flex h-10 items-center justify-end text-sm font-semibold text-gray-900 dark:text-gray-50">
+              <p className="flex h-10 items-center justify-end whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-50">
                 {formattedTotal} {currency}
               </p>
             </div>
